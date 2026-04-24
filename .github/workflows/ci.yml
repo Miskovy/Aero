@@ -22,25 +22,28 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install Dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Lint (ESLint)
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Type Check (TypeScript)
         # Assumes you have a "typecheck" script in your root package.json.
-        # Alternatively, you can run: npx tsc --noEmit
-        run: npm run typecheck
+        # Alternatively, you can run: pnpm exec tsc --noEmit
+        run: pnpm run typecheck
 
       - name: Run Unit Tests
-        run: npm run test
+        run: pnpm run test
 
       - name: Build All Packages
-        run: npm run build
+        run: pnpm run build
