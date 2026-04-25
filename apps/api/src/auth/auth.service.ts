@@ -45,6 +45,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    await this.userService.updateUser({
+      where: { id: user.id },
+      data: { last_login_at: new Date() },
+    });
+
     return this.generateToken(user);
   }
 
