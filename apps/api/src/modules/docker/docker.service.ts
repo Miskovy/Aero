@@ -10,9 +10,6 @@ export class DockerService {
   private docker: Docker;
 
   constructor() {
-    // Depending on the environment, we might use a socket path or the defaults.
-    // Dockerode automatically falls back to reasonable defaults including Unix/Windows pipes
-    // when options are undefined, allowing it to work cross-platform.
     this.docker = new Docker(
       process.env.DOCKER_SOCKET
         ? { socketPath: process.env.DOCKER_SOCKET }

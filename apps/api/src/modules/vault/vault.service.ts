@@ -5,31 +5,44 @@ import * as crypto from 'crypto';
 export class VaultService implements OnModuleInit {
   private readonly logger = new Logger(VaultService.name);
   private readonly algorithm = 'aes-256-gcm';
-  private masterKey: Buffer;
+
+
+  private keys: Map<string, Buffer> = new Map();
+  private currentVersion?: string;
 
   onModuleInit() {
-    const rawKey = process.env.AERO_VAULT_KEY;
-    if (!rawKey) {
-      this.logger.error(
-        'AERO_VAULT_KEY is missing from the environment. Vault is securely locked down. The application will not be able to decrypt secrets.',
-      );
-      throw new Error('AERO_VAULT_KEY is missing');
-    } else {
-      // Ensure it's exactly 32 bytes for AES-256
-      if (rawKey.length < 32) {
-        this.masterKey = Buffer.from(
-          rawKey.padEnd(32, '0').slice(0, 32),
-          'utf-8',
-        );
-      } else {
-        this.masterKey = Buffer.from(rawKey.slice(0, 32), 'utf-8');
+    this.currentVersion = process.env.AERO_VAULT_CURRENT_VERSION;
+    if (!this.currentVersion) {
+      throw new Error('AERO_VAULT_CURRENT_VERSION is missing from environment.');
+    }
+    for (const [key, value] of Object.entries(process.env)) {
+      if (key.startsWith('AERO_VAULT_KEY_V') && value) {
+        const version = key.replace('AERO_VAULT_KEY_V', '');
+
+        // Decode the base64 key back into a 32-byte buffer
+        const keyBuffer = Buffer.from(value, 'base64');
+
+        if (keyBuffer.length !== 32) {
+          throw new Error(`Key ${key} must be exactly 32 bytes when decoded.`);
+        }
+
+        this.keys.set(version, keyBuffer);
       }
     }
+
+    if (!this.keys.has(this.currentVersion)) {
+      throw new Error(`Current version ${this.currentVersion} has no matching key in environment.`);
+    }
+
+    this.logger.log(`Vault initialized. Current encryption version: v${this.currentVersion}. Loaded ${this.keys.size} key(s).`);
   }
 
+
   encrypt(plainText: string) {
-    const iv = crypto.randomBytes(16); // 16 bytes for AES GCM
-    const cipher = crypto.createCipheriv(this.algorithm, this.masterKey, iv);
+    const iv = crypto.randomBytes(16);
+    const currentKey = this.keys.get(this.currentVersion!)!;
+
+    const cipher = crypto.createCipheriv(this.algorithm, currentKey, iv);
 
     let encrypted = cipher.update(plainText, 'utf8', 'hex');
     encrypted += cipher.final('hex');
@@ -39,6 +52,7 @@ export class VaultService implements OnModuleInit {
       encryptedValue: encrypted,
       iv: iv.toString('hex'),
       authTag: authTag.toString('hex'),
+      version: this.currentVersion,
     };
   }
 
@@ -46,20 +60,23 @@ export class VaultService implements OnModuleInit {
     encryptedValue: string,
     ivHex?: string | null,
     authTagHex?: string | null,
+    version?: string | null,
   ): string {
-    if (!ivHex || !authTagHex) {
-      // Fallback for legacy data that wasn't encrypted with GCM, or isn't encrypted at all
-      return encryptedValue;
+    if (!ivHex || !authTagHex) return encryptedValue;
+
+    // Default to version 1 if no version was saved (backwards compatibility)
+    const keyVersion = version || '1';
+    const keyToUse = this.keys.get(keyVersion);
+
+    if (!keyToUse) {
+      this.logger.error(`Cannot decrypt: Key version v${keyVersion} is missing from environment.`);
+      throw new Error('Missing decryption key version');
     }
 
     try {
       const iv = Buffer.from(ivHex, 'hex');
       const authTag = Buffer.from(authTagHex, 'hex');
-      const decipher = crypto.createDecipheriv(
-        this.algorithm,
-        this.masterKey,
-        iv,
-      );
+      const decipher = crypto.createDecipheriv(this.algorithm, keyToUse, iv);
 
       decipher.setAuthTag(authTag);
 
@@ -68,10 +85,9 @@ export class VaultService implements OnModuleInit {
 
       return decrypted;
     } catch (e) {
-      this.logger.error(
-        'Failed to decrypt value. It may have been tampered with or the AERO_VAULT_KEY changed.',
-      );
+      this.logger.error('Failed to decrypt value. Tampering detected or wrong key.');
       throw e;
     }
   }
+
 }

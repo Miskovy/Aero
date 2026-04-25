@@ -26,3 +26,5 @@ console.log('Encrypted:', encryptedValue, iv, authTag);
 const decrypted = decrypt(encryptedValue, iv, authTag, key);
 console.log('Decrypted:', decrypted);
 if (decrypted === secret) console.log('SUCCESS'); else console.error('FAILED');
+
+// node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
