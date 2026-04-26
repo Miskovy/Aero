@@ -55,7 +55,7 @@ export class ContainerService {
       Image: image,
       name: `aero-${service.name}-${deployment.id.substring(0, 8)}`,
       Labels: this.buildLabels(service, deployment),
-      Env: await this.buildEnvironment(service),
+      Env: this.buildEnvironment(service),
       HostConfig: {
         RestartPolicy: this.buildRestartPolicy(service),
         ...this.buildResourceLimits(service),

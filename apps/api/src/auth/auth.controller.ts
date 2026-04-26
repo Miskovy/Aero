@@ -62,11 +62,11 @@ export class AuthController {
     res.clearCookie('auth_client'); // Clean up
 
     if (client === 'desktop') {
-      return res.redirect(`aero-app://auth?token=${jwt.access_token}`);
+      return await res.redirect(`aero-app://auth?token=${jwt.access_token}`);
     } else if (client === 'cli') {
-      return res.redirect(`http://localhost:8080/callback?token=${jwt.access_token}`);
+      return await res.redirect(`http://localhost:8080/callback?token=${jwt.access_token}`);
     } else {
-      return res.redirect(`http://localhost:5173/login?token=${jwt.access_token}`);
+      return await res.redirect(`http://localhost:5173/login?token=${jwt.access_token}`);
     }
   }
 
@@ -75,6 +75,6 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Returns the access token.' })
   async exchangeGithubToken(@Body('accessToken') accessToken: string) {
     if (!accessToken) throw new BadRequestException('accessToken is required');
-    return this.authService.exchangeGithubToken(accessToken);
+    return await this.authService.exchangeGithubToken(accessToken);
   }
 }
