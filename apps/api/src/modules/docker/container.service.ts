@@ -24,12 +24,20 @@ export interface HealthCheckConfig {
   start_period?: string;
 }
 
+interface VaultItem {
+  key: string;
+  value?: string;
+  encrypted_value?: string;
+  iv: string;
+  auth_tag: string;
+}
+
 @Injectable()
 export class ContainerService {
   constructor(
     private readonly dockerService: DockerService,
     private readonly vaultService: VaultService,
-  ) {}
+  ) { }
 
   // Create an Aero-managed container from a service definition
   async createFromService(
@@ -73,24 +81,31 @@ export class ContainerService {
     };
   }
 
-  private async buildEnvironment(
-    service: Service & { variables?: any[]; secrets?: any[] },
-  ): Promise<string[]> {
+  private buildEnvironment(
+    service: Service & { variables?: VaultItem[]; secrets?: VaultItem[] },
+  ): string[] {
     const env: string[] = [];
+
     if (service.variables) {
       service.variables.forEach((v) => {
         const encVal = v.encrypted_value || v.value;
+        if (!encVal) return; // Optional safety check
+
         const decVal = this.vaultService.decrypt(encVal, v.iv, v.auth_tag);
         env.push(`${v.key}=${decVal}`);
       });
     }
+
     if (service.secrets) {
       service.secrets.forEach((s) => {
         const encVal = s.encrypted_value || s.value;
+        if (!encVal) return; // Optional safety check
+
         const decVal = this.vaultService.decrypt(encVal, s.iv, s.auth_tag);
         env.push(`${s.key}=${decVal}`);
       });
     }
+
     return env;
   }
 
@@ -105,7 +120,7 @@ export class ContainerService {
         typeof service.restart_policy === 'string'
           ? JSON.parse(service.restart_policy)
           : service.restart_policy;
-    } catch (e) {}
+    } catch (e) { }
 
     const name = policy.condition || 'unless-stopped';
     const maxRetries = policy.max_retries;
@@ -129,7 +144,7 @@ export class ContainerService {
         typeof service.resource_limits === 'string'
           ? JSON.parse(service.resource_limits)
           : service.resource_limits;
-    } catch (e) {}
+    } catch (e) { }
 
     if (limits.memory) {
       const memoryBytes = this.parseMemorySize(limits.memory);

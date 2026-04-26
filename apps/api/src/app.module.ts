@@ -5,8 +5,8 @@ import { VaultModule } from './modules/vault/vault.module';
 import { UserModule } from './user/user.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
-import { Config } from 'dockerode';
 import { ConfigModule } from '@nestjs/config';
+import { GitModule } from './modules/git/git.module';
 
 @Module({
   imports: [
@@ -16,7 +16,8 @@ import { ConfigModule } from '@nestjs/config';
     VaultModule,
     UserModule,
     PrismaModule,
-    AuthModule],
+    AuthModule,
+    GitModule],
   controllers: [AppController],
   providers: [AppService],
 })

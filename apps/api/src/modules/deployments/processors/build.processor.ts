@@ -1,6 +1,6 @@
 // import { Processor, WorkerHost } from '@nestjs/bullmq';
 // import { Job } from 'bullmq';
-// import { DeploymentJob, DeploymentResult } from '../../../../../../packages/shared/src/types/types';
+// import { DeploymentJob, DeploymentResult } from '@aero/shared/statuses';
 
 // @Processor('deployment')
 // export class BuildProcessor extends WorkerHost {

@@ -290,6 +290,9 @@ model GitSource {
 
   organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
   services     Service[]
+  iv                     String
+  auth_tag               String
+  key_version            String?
 
   @@map("git_sources")
 }

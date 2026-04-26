@@ -48,7 +48,7 @@ export class AuthController {
   @UseGuards(AuthGuard('github'))
   async githubAuth(@Query('client') client: string, @Res() res: Response) {
     // Store the client origin in a short-lived cookie
-    res.cookie('auth_client', client || 'web', { maxAge: 300000, httpOnly: true });
+    await res.cookie('auth_client', client || 'web', { maxAge: 300000, httpOnly: true });
   }
 
   // The Callback

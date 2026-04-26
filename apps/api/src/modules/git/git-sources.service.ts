@@ -1,6 +1,8 @@
-import { Injectable, InternalServerErrorException, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { simpleGit, SimpleGit } from 'simple-git';
 import { Octokit } from '@octokit/rest';
+import { VaultService } from '../vault/vault.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
@@ -20,9 +22,25 @@ export interface WebhookData {
   provider: string;
 }
 
+interface GitHubPayload {
+  ref?: string;
+  after?: string;
+  head_commit?: { id: string };
+  repository?: { full_name: string };
+}
+
+interface GitLabPayload {
+  ref?: string;
+  checkout_sha?: string;
+  commits?: Array<{ id: string }>;
+  project?: { path_with_namespace: string };
+}
+
 @Injectable()
 export class GitSourcesService {
   private readonly logger = new Logger(GitSourcesService.name);
+  private readonly vaultService: VaultService;
+  private readonly prisma: PrismaService;
 
   async clone(gitUrl: string, branch: string, commitSha?: string): Promise<string> {
     // Create a unique temporary directory for the clone
@@ -52,81 +70,103 @@ export class GitSourcesService {
 
   async listRepos(sourceId: string): Promise<Repository[]> {
     try {
-      // TODO: Retrieve the user's GitHub Personal Access Token (PAT) or OAuth token 
-      // from your database using the sourceId.
-      const githubToken = await this.getMockTokenFromDb(sourceId); 
 
-      const octokit = new Octokit({ auth: githubToken });
-      
-      // Fetch repositories for the authenticated user
-      const { data } = await octokit.rest.repos.listForAuthenticatedUser({
-        visibility: 'all',
-        sort: 'updated',
-        per_page: 100, // Handle pagination in a real-world scenario if needed
+      const sourceRecord = await this.prisma.gitSource.findUnique({
+        where: { id: sourceId }
       });
 
-      return data.map((repo) => ({
+      if (!sourceRecord || !sourceRecord.access_token_encrypted) {
+        throw new UnauthorizedException('Git connection not found or token is missing.');
+      }
+
+      const githubToken = this.vaultService.decrypt(
+        sourceRecord.access_token_encrypted,
+        sourceRecord.iv,
+        sourceRecord.auth_tag,
+        sourceRecord.key_version
+      );
+
+      const octokit = new Octokit({ auth: githubToken });
+
+      // 3. Production Pagination: This automatically loops and fetches ALL pages 
+      // instead of silently dropping repositories after the first 100.
+      const allRepositories = await octokit.paginate(octokit.rest.repos.listForAuthenticatedUser, {
+        visibility: 'all',
+        sort: 'updated',
+        per_page: 100,
+      });
+
+      return allRepositories.map((repo) => ({
         id: repo.id,
         name: repo.name,
         fullName: repo.full_name,
         cloneUrl: repo.clone_url,
       }));
+
     } catch (error) {
-      this.logger.error(`Failed to list repositories: ${error.message}`);
+      if (error instanceof Error) {
+        this.logger.error(`Failed to list repositories: ${error.message}`);
+      } else {
+        this.logger.error(`Failed to list repositories: ${String(error)}`);
+      }
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
       throw new InternalServerErrorException('Failed to fetch repositories from GitHub');
     }
   }
 
-  // 3. Validate webhook signature
-  async validateWebhookSignature(payload: Buffer, signature: string, secret: string): Promise<boolean> {
+  validateWebhookSignature(payload: Buffer, signature: string, secret: string): boolean {
     if (!signature || !payload) return false;
 
     try {
-      // GitHub typically sends signatures as 'sha256=HEX_STRING'
       const signatureParts = signature.split('=');
-      const algorithm = signatureParts[0]; // e.g., 'sha256'
+      const algorithm = signatureParts[0];
       const hash = signatureParts[1];
 
       if (!hash || algorithm !== 'sha256') {
         return false;
       }
 
-      // Generate our own HMAC based on the raw payload and the secret
       const hmac = crypto.createHmac(algorithm, secret);
       const digest = Buffer.from(algorithm + '=' + hmac.update(payload).digest('hex'), 'utf8');
       const checksum = Buffer.from(signature, 'utf8');
 
-      // Prevent Timing Attacks by comparing buffers
       if (digest.length !== checksum.length) {
         return false;
       }
 
       return crypto.timingSafeEqual(digest, checksum);
     } catch (error) {
-      this.logger.error(`Webhook validation failed: ${error.message}`);
+      if (error instanceof Error) {
+        this.logger.error(`Webhook validation failed: ${error.message}`);
+      } else {
+        this.logger.error(`Webhook validation failed: ${String(error)}`);
+      }
       return false;
     }
   }
 
-  // 4. Parse webhook payload to extract branch, commit, etc.
-  async parseWebhookPayload(provider: string, payload: any): Promise<WebhookData> {
-    provider = provider.toLowerCase();
+  parseWebhookPayload(provider: string, rawPayload: unknown): WebhookData {
+    const lowerProvider = provider.toLowerCase();
 
-    if (provider === 'github') {
-      // GitHub Push Event Payload Parsing
+    if (lowerProvider === 'github') {
+      const payload = rawPayload as GitHubPayload;
       const ref = payload.ref || '';
-      
+
       return {
         provider: 'github',
-        branch: ref.replace('refs/heads/', ''), // extracts 'main' from 'refs/heads/main'
+        branch: ref.replace('refs/heads/', ''),
         commitSha: payload.after || payload.head_commit?.id || '',
         repository: payload.repository?.full_name || '',
       };
     }
 
-    if (provider === 'gitlab') {
-      // GitLab Push Event Payload Parsing
+    if (lowerProvider === 'gitlab') {
+      const payload = rawPayload as GitLabPayload;
       const ref = payload.ref || '';
+
       return {
         provider: 'gitlab',
         branch: ref.replace('refs/heads/', ''),
@@ -136,11 +176,5 @@ export class GitSourcesService {
     }
 
     throw new BadRequestException(`Unsupported Git provider: ${provider}`);
-  }
-
-  // --- Helper Methods ---
-  private async getMockTokenFromDb(sourceId: string): Promise<string> {
-    // Replace this with actual DB logic to fetch the token associated with sourceId
-    return 'ghp_your_mock_token_here'; 
   }
 }

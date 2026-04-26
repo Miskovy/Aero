@@ -7,6 +7,9 @@ import { LoginDto } from './dto/login.dto';
 import { User } from '../../generated/prisma/client';
 import { Profile } from 'passport-github2';
 
+interface GitHubUser { id: number; login: string; name: string; html_url: string; avatar_url: string; }
+interface GitHubEmail { email: string; primary: boolean; }
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -131,7 +134,7 @@ export class AuthService {
         throw new UnauthorizedException('Invalid GitHub token');
       }
 
-      const ghUser = await profileResponse.json();
+      const ghUser = (await profileResponse.json()) as GitHubUser;
 
       const emailResponse = await fetch('https://api.github.com/user/emails', {
         headers: {
@@ -139,7 +142,7 @@ export class AuthService {
           Accept: 'application/vnd.github.v3+json',
         },
       });
-      const ghEmails = await emailResponse.json();
+      const ghEmails = (await emailResponse.json()) as GitHubEmail[];
 
       const profile: Profile = {
         id: ghUser.id.toString(),

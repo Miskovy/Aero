@@ -1,6 +1,9 @@
 {
-  "name": "shared",
+  "name": "@aero/shared",
   "version": "1.0.0",
+  "exports": {
+    "./statuses": "./src/constants/statuses.ts"
+  },
   "description": "",
   "main": "index.js",
   "scripts": {

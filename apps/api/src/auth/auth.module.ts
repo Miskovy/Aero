@@ -14,10 +14,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'aero-secret-key', // Strong fallback or env
+      useFactory: (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET') || 'aero-secret-key',
         signOptions: {
-          expiresIn: (configService.get<string>('JWT_EXPIRES_IN') || '1d') as any, // Cast to any to satisfy explicit str enum if present in older types
+          expiresIn: (configService.get<string>('JWT_EXPIRES_IN') || '1d') as any,
         },
       }),
     }),
