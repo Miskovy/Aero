@@ -4,7 +4,7 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 0",
+    "test": "true",
     "build": "tsup src/index.ts --format esm",
     "dev": "tsup src/index.ts --format cjs --watch"
   },
