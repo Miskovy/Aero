@@ -195,16 +195,16 @@ export class ContainerService {
     // actually dockerode expects them in nanoseconds as numbers.
     // 1 second = 1e9 nanoseconds.
     if (check.interval) {
-      healthConfig.Interval = this.parseDurationToNanoseconds(check.interval);
+      healthConfig.Interval = this.parseDurationToNanoseconds(String(check.interval));
     }
 
     if (check.timeout) {
-      healthConfig.Timeout = this.parseDurationToNanoseconds(check.timeout);
+      healthConfig.Timeout = this.parseDurationToNanoseconds(String(check.timeout));
     }
 
     if (check.start_period) {
       healthConfig.StartPeriod = this.parseDurationToNanoseconds(
-        check.start_period,
+        String(check.start_period),
       );
     }
 

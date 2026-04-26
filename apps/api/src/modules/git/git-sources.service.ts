@@ -39,31 +39,38 @@ interface GitLabPayload {
 @Injectable()
 export class GitSourcesService {
   private readonly logger = new Logger(GitSourcesService.name);
-  private readonly vaultService: VaultService;
-  private readonly prisma: PrismaService;
+
+  constructor(
+    private readonly vaultService: VaultService,
+    private readonly prisma: PrismaService,
+  ) { }
 
   async clone(gitUrl: string, branch: string, commitSha?: string): Promise<string> {
-    // Create a unique temporary directory for the clone
+
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'git-repo-'));
     const git: SimpleGit = simpleGit(tempDir);
 
     this.logger.log(`Cloning ${gitUrl} into ${tempDir}...`);
 
     try {
-      // Clone only the specific branch to save time and bandwidth
       await git.clone(gitUrl, '.', ['--branch', branch, '--single-branch']);
 
-      // If a specific commit is provided, check it out
       if (commitSha) {
         this.logger.log(`Checking out commit ${commitSha}...`);
         await git.checkout(commitSha);
       }
 
-      return tempDir; // Return the path so other services can build/read the files
-    } catch (error) {
-      this.logger.error(`Failed to clone repository: ${error.message}`);
-      // Clean up the folder if cloning fails
+      return tempDir;
+
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        this.logger.error(`Failed to clone repository: ${error.message}`);
+      } else {
+        this.logger.error(`Failed to clone repository: ${String(error)}`);
+      }
+
       await fs.rm(tempDir, { recursive: true, force: true }).catch(() => null);
+      
       throw new InternalServerErrorException('Failed to clone repository');
     }
   }

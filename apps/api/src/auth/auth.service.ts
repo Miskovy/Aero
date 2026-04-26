@@ -1,5 +1,4 @@
 import { Injectable, UnauthorizedException, ConflictException, Logger, InternalServerErrorException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import * as bcrypt from 'bcryptjs';
 import { RegisterDto } from './dto/register.dto';
@@ -109,8 +108,12 @@ export class AuthService {
 
       throw new InternalServerErrorException('Unexpected user state during OAuth validation');
 
-    } catch (error) {
-      this.logger.error(`OAuth Validation Failed for GitHub ID ${profile.id}:`, error.stack);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        this.logger.error(`OAuth Validation Failed for GitHub ID ${profile.id}:`, error.stack);
+      } else {
+        this.logger.error(`OAuth Validation Failed for GitHub ID ${profile.id}:`, String(error));
+      }
       throw new InternalServerErrorException('An error occurred during authentication.');
     }
   }
@@ -146,7 +149,7 @@ export class AuthService {
         profileUrl: ghUser.html_url,
         provider: 'github',
         photos: [{ value: ghUser.avatar_url }],
-        emails: ghEmails.map((e: any) => ({ value: e.email })),
+        emails: ghEmails.map((e: GitHubEmail) => ({ value: e.email })),
       };
 
       const user = await this.validateOAuthUser(profile);

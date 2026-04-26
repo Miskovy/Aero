@@ -17,13 +17,13 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
-import { User } from 'generated/prisma';
+import { User } from '../../generated/prisma/client';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService , private readonly jwtStrategy: JwtStrategy) { }
+  constructor(private readonly authService: AuthService, private readonly jwtStrategy: JwtStrategy) { }
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
@@ -48,9 +48,9 @@ export class AuthController {
   // The Trigger Route
   @Get('github')
   @UseGuards(AuthGuard('github'))
-  async githubAuth(@Query('client') client: string, @Res() res: Response) {
+  githubAuth(@Query('client') client: string, @Res() res: Response) {
     // Store the client origin in a short-lived cookie
-    await res.cookie('auth_client', client || 'web', { maxAge: 300000, httpOnly: true });
+    res.cookie('auth_client', client || 'web', { maxAge: 300000, httpOnly: true });
   }
 
   // The Callback
@@ -60,7 +60,8 @@ export class AuthController {
     const jwt = this.jwtStrategy.generateToken(req.user);
 
     // Read the cookie to know where to send them
-    const client = req.cookies['auth_client'];
+    const cookies = req.cookies as Record<string, string | undefined>;
+    const client = cookies['auth_client'];
     res.clearCookie('auth_client'); // Clean up
 
     if (client === 'desktop') {
