@@ -189,6 +189,7 @@ model User {
   api_keys             ApiKey[]
 
   @@map("users")
+  @@unique([auth_provider, auth_provider_id])
 }
 
 model Organization {

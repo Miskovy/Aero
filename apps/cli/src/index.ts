@@ -2,7 +2,7 @@
 
 import { Command } from 'commander';
 import { startInteractiveDashboard } from './ui/dashboard.js';
-import { loginAction } from './commands/login.js';
+import { githubLoginAction, loginAction } from './commands/login.js';
 import { deployAction } from './commands/deploy.js';
 import { chatAction } from './commands/chat.js';
 import { logsAction } from './commands/logs.js';
@@ -18,6 +18,11 @@ program
   .command('login')
   .description('Login to your Aero instance')
   .action(loginAction);
+
+program
+  .command('githublogin')
+  .description('Login to Aero using GitHub authentication')
+  .action(githubLoginAction);
 
 program
   .command('deploy')

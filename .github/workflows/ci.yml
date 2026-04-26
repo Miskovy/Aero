@@ -1,24 +1,4 @@
-name: CI
-
-on:
-  push:
-    branches:
-      - main
-      - master
-  pull_request:
-    branches:
-      - main
-      - master
-
-jobs:
-  build-test:
-    runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        node-version: [20.x]
-
-    steps:
+steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -34,12 +14,14 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma Client
+        run: pnpm dlx prisma generate --schema=./apps/api/prisma/schema.prisma 
+
+
       - name: Lint (ESLint)
         run: pnpm run lint
 
       - name: Type Check (TypeScript)
-        # Assumes you have a "typecheck" script in your root package.json.
-        # Alternatively, you can run: pnpm exec tsc --noEmit
         run: pnpm run typecheck
 
       - name: Run Unit Tests

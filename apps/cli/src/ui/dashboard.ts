@@ -2,12 +2,12 @@ import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import isUnicodeSupported from 'is-unicode-supported';
 
-// Import your actions and state
 import { loginAction } from '../commands/login.js';
 import { deployAction } from '../commands/deploy.js';
 import { chatAction } from '../commands/chat.js';
 import { logsAction } from '../commands/logs.js';
-import { cliState } from '../api/api.js'; // Make sure to import your state!
+import { githubLoginAction } from '../commands/login.js';
+import { cliState } from '../api/api.js';
 
 const unicode = isUnicodeSupported();
 
@@ -21,6 +21,7 @@ export async function startInteractiveDashboard() {
 
     if (!isLoggedIn) {
       options.push({ value: 'login', label: unicode ? '🔑 Login to Aero' : '> Login to Aero' });
+      options.push({ value: 'githubLogin', label: unicode ? '🐙 Login with GitHub' : '> Login with GitHub' });
     } else {
       options.push({ value: 'deploy', label: unicode ? '🚀 Deploy a Service' : '> Deploy a Service' });
       options.push({ value: 'chat', label: unicode ? '💬 Chat with Aero Assistant' : '> Chat with Aero Assistant' });
@@ -43,6 +44,9 @@ export async function startInteractiveDashboard() {
       switch (task) {
         case 'login':
           await loginAction();
+          break;
+        case 'githubLogin':
+          await githubLoginAction();
           break;
         case 'deploy':
           await deployAction();
