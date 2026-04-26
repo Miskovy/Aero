@@ -1,4 +1,24 @@
-steps:
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -15,8 +35,7 @@ steps:
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma Client
-        run: pnpm dlx prisma generate --schema=./apps/api/prisma/schema.prisma 
-
+        run: pnpm dlx prisma generate --schema=./apps/api/prisma/schema.prisma
 
       - name: Lint (ESLint)
         run: pnpm run lint
