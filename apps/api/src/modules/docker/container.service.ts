@@ -120,7 +120,9 @@ export class ContainerService {
         typeof service.restart_policy === 'string'
           ? JSON.parse(service.restart_policy)
           : service.restart_policy;
-    } catch (e) { }
+    } catch (e) {
+      // Intentionally left empty to fall back to the default 'unless-stopped' policy
+    }
 
     const name = policy.condition || 'unless-stopped';
     const maxRetries = policy.max_retries;
@@ -144,7 +146,9 @@ export class ContainerService {
         typeof service.resource_limits === 'string'
           ? JSON.parse(service.resource_limits)
           : service.resource_limits;
-    } catch (e) { }
+    } catch (e) {
+      // Intentionally left empty to fall back to zero limits
+    }
 
     if (limits.memory) {
       const memoryBytes = this.parseMemorySize(limits.memory);

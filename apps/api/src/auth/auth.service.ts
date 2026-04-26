@@ -6,6 +6,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { User } from '../../generated/prisma/client';
 import { Profile } from 'passport-github2';
+import { JwtStrategy } from './strategies/jwt.strategy';
 
 interface GitHubUser { id: number; login: string; name: string; html_url: string; avatar_url: string; }
 interface GitHubEmail { email: string; primary: boolean; }
@@ -15,7 +16,7 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   constructor(
     private readonly userService: UserService,
-    private readonly jwtService: JwtService,
+    private readonly jwtStrategy: JwtStrategy,
   ) { }
 
   async register(registerDto: RegisterDto) {
@@ -25,16 +26,18 @@ export class AuthService {
     }
 
     const salt = await bcrypt.genSalt(10);
-    const password_hash = await bcrypt.hash(registerDto.password, salt);
+    const hashedPassword = await bcrypt.hash(registerDto.password, salt);
+
+    const authProvider = registerDto.auth_provider || 'unknown';
 
     const user = await this.userService.createUser({
       email: registerDto.email,
       name: registerDto.name,
-      password_hash,
-      auth_provider: 'local',
+      password_hash: hashedPassword,
+      auth_provider: authProvider,
     });
-
-    const { password_hash: _, ...result } = user; // Exclude password hash from response
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password_hash, ...result } = user; // Exclude password hash from response
     return result;
   }
 
@@ -55,7 +58,7 @@ export class AuthService {
       data: { last_login_at: new Date() },
     });
 
-    return this.generateToken(user);
+    return this.jwtStrategy.generateToken(user);
   }
 
   async validateOAuthUser(profile: Profile): Promise<User> {
@@ -112,14 +115,6 @@ export class AuthService {
     }
   }
 
-  generateToken(user: User) {
-    const payload = { sub: user.id, email: user.email, name: user.name };
-    return {
-      payload,
-      access_token: this.jwtService.sign(payload),
-    };
-  }
-
   async exchangeGithubToken(githubAccessToken: string): Promise<{ access_token: string }> {
     try {
 
@@ -156,7 +151,7 @@ export class AuthService {
 
       const user = await this.validateOAuthUser(profile);
 
-      return this.generateToken(user);
+      return this.jwtStrategy.generateToken(user);
     } catch (error) {
       this.logger.error('Failed to exchange GitHub token', error);
       throw new InternalServerErrorException('Authentication exchange failed');

@@ -35,8 +35,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await this.$queryRaw`SELECT 1`;
       
       this.logger.log('Database connected successfully and is ready!');
-    } catch (error) {
-      this.logger.error(`Database connection failed: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        this.logger.error(`Database connection failed: ${error.message}`);
+      } else {
+        this.logger.error(`Database connection failed: ${String(error)}`);
+      }
       this.logger.warn('Application is starting, but database features will fail until Postgres is running.');
     }
   }

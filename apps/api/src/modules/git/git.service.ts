@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { GitSourcesService } from './git-sources.service';
 import { VaultService } from '../vault/vault.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { GitProvider } from 'generated/prisma';
+import { GitProvider } from '../../../generated/prisma/client';
 
 @Injectable()
 export class GitService {

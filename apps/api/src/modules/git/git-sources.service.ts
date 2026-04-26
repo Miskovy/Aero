@@ -88,8 +88,6 @@ export class GitSourcesService {
 
       const octokit = new Octokit({ auth: githubToken });
 
-      // 3. Production Pagination: This automatically loops and fetches ALL pages 
-      // instead of silently dropping repositories after the first 100.
       const allRepositories = await octokit.paginate(octokit.rest.repos.listForAuthenticatedUser, {
         visibility: 'all',
         sort: 'updated',
