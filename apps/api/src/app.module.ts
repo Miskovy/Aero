@@ -7,6 +7,9 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { GitModule } from './modules/git/git.module';
+import { NetworkingModule } from './modules/networking/networking.module';
+import { DomainsModule } from './modules/domains/domains.module';
+import { DockerModule } from './modules/docker/docker.module';
 
 @Module({
   imports: [
@@ -17,7 +20,10 @@ import { GitModule } from './modules/git/git.module';
     UserModule,
     PrismaModule,
     AuthModule,
-    GitModule],
+    GitModule,
+    DomainsModule,
+    DockerModule,
+    NetworkingModule],
   controllers: [AppController],
   providers: [AppService],
 })

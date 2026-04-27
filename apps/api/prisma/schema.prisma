@@ -188,8 +188,8 @@ model User {
   audit_logs           AuditLog[]
   api_keys             ApiKey[]
 
-  @@map("users")
   @@unique([auth_provider, auth_provider_id])
+  @@map("users")
 }
 
 model Organization {
@@ -290,9 +290,9 @@ model GitSource {
 
   organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
   services     Service[]
-  iv                     String
-  auth_tag               String
-  key_version            String?
+  iv           String
+  auth_tag     String
+  key_version  String?
 
   @@map("git_sources")
 }

@@ -90,4 +90,14 @@ export class VaultService implements OnModuleInit {
     }
   }
 
+  //TODO:
+
+  // getDecrypted(serviceId: string): Promise<Record<string, string>> {
+  //   // Placeholder: In a real implementation, this would fetch encrypted secrets from a database
+  //   // and decrypt them using the decrypt method above.
+  //   return Promise.resolve({
+  //     EXAMPLE_SECRET: 'decrypted_value',
+  //   });
+  // }
+
 }

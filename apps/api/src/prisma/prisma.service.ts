@@ -22,7 +22,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     super({ 
       adapter,
       log: ['warn', 'error'], 
-    });
+    } as any);
 
     this.pool = pool;
   }

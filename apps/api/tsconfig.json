@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
     "module": "commonjs",
+    "paths": {
+      "@aero/shared": ["../../packages/shared/src/index.ts"],
+      "@aero/shared/*": ["../../packages/shared/src/*"]
+    },
     "moduleResolution": "node",
     "resolvePackageJsonExports": false,
     "esModuleInterop": true,

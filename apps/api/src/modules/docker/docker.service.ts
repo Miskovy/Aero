@@ -64,6 +64,15 @@ export class DockerService {
     }
   }
 
+  getContainer(containerId: string): Docker.Container {
+    try {
+      return this.docker.getContainer(containerId);
+    } catch (error: unknown) {
+      console.error('Failed to get container reference:', error);
+      throw error;
+    }
+  }
+
   async getContainerStats(containerId: string): Promise<ContainerStats> {
     try {
       const container = this.docker.getContainer(containerId);
@@ -101,6 +110,16 @@ export class DockerService {
       return container;
     } catch (error) {
       console.error('Failed to create container:', error);
+      throw error;
+    }
+  }
+
+  async inspectContainer(containerId: string): Promise<Docker.ContainerInspectInfo> {
+    try {
+      const container = this.docker.getContainer(containerId);
+      return await container.inspect();
+    } catch (error: unknown) {
+      console.error('Failed to inspect container:', error);
       throw error;
     }
   }
@@ -148,6 +167,7 @@ export class DockerService {
     }
   }
 
+  // only allows you to update CPU, Memory, and Restart Policies
   async editContainer(
     containerId: string,
     config: Partial<Docker.ContainerCreateOptions>,
@@ -198,14 +218,25 @@ export class DockerService {
     }
   }
 
-  async pullImage(image: string, tag?: string): Promise<void> {
-    try {
-      const fullImageName = tag ? `${image}:${tag}` : image;
-      await this.docker.pull(fullImageName);
-    } catch (error) {
-      console.error('Failed to pull image:', error);
-      throw error;
-    }
+  async pullImage(image: string, tag: string = 'latest'): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const fullImageName = `${image}:${tag}`;
+      this.docker.pull(fullImageName, (err: Error, stream: NodeJS.ReadableStream) => {
+        if (err) return reject(err);
+
+        // docker.modem.followProgress waits for the download stream to completely finish
+        this.docker.modem.followProgress(stream, onFinished, onProgress);
+
+        function onFinished(err: Error | null, output: any[]) {
+          if (err) return reject(err);
+          resolve();
+        }
+
+        function onProgress(event: any) {
+          // Optional: You could log download progress here if you wanted to
+        }
+      });
+    });
   }
 
   async removeImage(imageId: string): Promise<void> {

@@ -5,6 +5,7 @@ import { HostRestartPolicy, HostConfig, HealthConfig } from 'dockerode';
 import * as Docker from 'dockerode';
 import { DockerService } from './docker.service';
 import { VaultService } from '../vault/vault.service';
+import { TraefikService } from '../networking/traefik.service';
 
 export interface RestartPolicyConfig {
   condition?: 'no' | 'always' | 'on-failure' | 'unless-stopped';
@@ -37,24 +38,32 @@ export class ContainerService {
   constructor(
     private readonly dockerService: DockerService,
     private readonly vaultService: VaultService,
+    private readonly traefikService: TraefikService,
   ) { }
 
   // Create an Aero-managed container from a service definition
   async createFromService(
     service: Service,
     deployment: Deployment,
+    imageTagOverride?: string,
   ): Promise<string> {
-    const image = deployment.docker_image_tag || service.docker_image;
+    const image = imageTagOverride || deployment.docker_image_tag || service.docker_image;
     if (!image) {
       throw new Error(
         'No Docker image specified for this service or deployment',
       );
     }
+    const traefikLabels = await this.traefikService.getRoutingLabels(service, 3000);
+
+    const allLabels = {
+      ...this.buildLabels(service, deployment),
+      ...traefikLabels
+    };
 
     const config: Docker.ContainerCreateOptions = {
       Image: image,
       name: `aero-${service.name}-${deployment.id.substring(0, 8)}`,
-      Labels: this.buildLabels(service, deployment),
+      Labels: allLabels,
       Env: this.buildEnvironment(service),
       HostConfig: {
         RestartPolicy: this.buildRestartPolicy(service),
@@ -65,6 +74,28 @@ export class ContainerService {
 
     const container = await this.dockerService.createContainer(config);
     return container.id;
+  }
+
+  async removeOldContainers(serviceId: string, newContainerId: string): Promise<void> {
+    try {
+      const containers = await this.dockerService.listContainers({
+        all: true,
+        filters: {
+          label: [`aero.service.id=${serviceId}`]
+        }
+      });
+      for (const containerInfo of containers) {
+        if (containerInfo.Id !== newContainerId) {
+          try {
+            await this.dockerService.removeContainer(containerInfo.Id, { force: true });
+          } catch (e) {
+            console.warn(`Failed to remove old container ${containerInfo.Id}`, e);
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to fetch old containers for service ${serviceId}`, error);
+    }
   }
 
   private buildLabels(
@@ -209,7 +240,7 @@ export class ContainerService {
     }
 
     if (check.retries !== undefined) {
-      const retries = parseInt(check.retries as any, 10);
+      const retries = Number(check.retries);
       if (!isNaN(retries)) {
         healthConfig.Retries = retries;
       }
