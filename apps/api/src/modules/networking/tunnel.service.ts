@@ -1,12 +1,33 @@
-import { Injectable, Logger, OnApplicationBootstrap , BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DockerService } from '../docker/docker.service';
 import { VaultService } from '../vault/vault.service';
-import { Service, Project, Organization } from '../../../generated/prisma/client'; 
+import { Service, Project, Organization } from '../../../generated/prisma/client';
 
-type ServiceWithRelations = Service & { 
-  project: Project & { organization: Organization } 
+type ServiceWithRelations = Service & {
+  project: Project & { organization: Organization }
 };
+
+interface CloudflareSettings {
+  apiTokenEncrypted?: string;
+  tunnelTokenEnc?: string;
+  iv?: string;
+  authTag?: string;
+  zoneId?: string;
+  tunnelId?: string;
+  customDomain?: string;
+}
+
+interface ProjectSettings {
+  cloudflare?: CloudflareSettings;
+}
+
+interface CloudflareApiResponse {
+  success: boolean;
+  errors?: Array<{ code: number; message: string }>;
+}
+
+
 
 @Injectable()
 export class TunnelService implements OnApplicationBootstrap {
@@ -16,12 +37,12 @@ export class TunnelService implements OnApplicationBootstrap {
     private readonly dockerService: DockerService,
     private readonly config: ConfigService,
     private readonly vaultService: VaultService
-  ) {}
+  ) { }
 
   async onApplicationBootstrap() {
     this.logger.log('Booting up Aero infrastructure...');
     try {
-      await this.startTunnel(); 
+      await this.startTunnel();
     } catch (error) {
       this.logger.error('Failed to start platform tunnel during bootstrap.');
       console.error('THE REAL ERROR IS:', error);
@@ -34,32 +55,37 @@ export class TunnelService implements OnApplicationBootstrap {
 
     const isPaidPlan = org.plan && org.plan !== 'free';
 
-    const settings = (project.settings as Record<string, any>) || {};
-    const cfSettings = settings.cloudflare; 
+    const settings = (project.settings as unknown as ProjectSettings) || {};
+    const cfSettings = settings.cloudflare;
 
-    const useTenantTunnel = isPaidPlan && cfSettings?.apiTokenEncrypted;
+    const useTenantTunnel = Boolean(
+      isPaidPlan &&
+      cfSettings?.apiTokenEncrypted &&
+      cfSettings?.iv &&
+      cfSettings?.authTag
+    );
 
     let apiToken: string;
     let zoneId: string;
     let tunnelId: string;
     let fullDomainName: string;
 
-    if (useTenantTunnel) {
+    if (useTenantTunnel && cfSettings) {
       // --- PAID TIER: Extract from JSON and Decrypt ---
       apiToken = this.vaultService.decrypt(
-        cfSettings.apiTokenEncrypted, 
-        cfSettings.iv, 
-        cfSettings.authTag
+        cfSettings.apiTokenEncrypted as string,
+        cfSettings.iv as string,
+        cfSettings.authTag as string
       );
-      zoneId = cfSettings.zoneId;
-      tunnelId = cfSettings.tunnelId;
-      fullDomainName = `${service.slug}.${cfSettings.customDomain}`;
+      zoneId = cfSettings.zoneId || '';
+      tunnelId = cfSettings.tunnelId || '';
+      fullDomainName = `${service.slug}.${cfSettings.customDomain || 'local'}`;
     } else {
       // --- FREE TIER: Use Platform .env fallback ---
       apiToken = this.config.get<string>('CLOUDFLARE_API_TOKEN') || '';
       zoneId = this.config.get<string>('CLOUDFLARE_ZONE_ID') || '';
       tunnelId = this.config.get<string>('CLOUDFLARE_TUNNEL_ID') || '';
-      
+
       const baseDomain = this.config.get<string>('TUNNEL_DOMAIN') || 'aero.local';
       fullDomainName = `${service.slug}.${baseDomain}`;
     }
@@ -79,17 +105,17 @@ export class TunnelService implements OnApplicationBootstrap {
         },
         body: JSON.stringify({
           type: 'CNAME',
-          name: fullDomainName, 
+          name: fullDomainName,
           content: cnameTarget,
-          proxied: true, 
+          proxied: true,
           comment: `Managed by Aero: ${service.slug} (Org: ${org.slug})`,
         }),
       });
 
-      const result = await response.json();
+      const result = (await response.json()) as CloudflareApiResponse;
 
       if (!response.ok) {
-        const isDuplicate = result.errors?.some((e: { code: number }) => e.code === 81053);
+        const isDuplicate = result.errors?.some((e) => e.code === 81053);
         if (!isDuplicate) {
           throw new Error(result.errors?.[0]?.message || 'Unknown API error');
         }
@@ -106,15 +132,27 @@ export class TunnelService implements OnApplicationBootstrap {
 
   async startTunnel(project?: Project): Promise<void> {
     // Check if a paid user is bringing their own tunnel
-    const settings = (project?.settings as Record<string, any>) || {};
+    const settings = (project?.settings as unknown as ProjectSettings) || {};
     const cfSettings = settings.cloudflare;
-    const isTenant = project && cfSettings?.tunnelTokenEnc;
-    
-    const tunnelName = isTenant ? `aero-cloudflared-${project.id}` : 'aero-cloudflared-shared';
-    
+
+    const isTenant = Boolean(
+      project &&
+      cfSettings?.tunnelTokenEnc &&
+      cfSettings?.iv &&
+      cfSettings?.authTag
+    );
+
+    const tunnelName = isTenant ? `aero-cloudflared-${project?.id}` : 'aero-cloudflared-shared';
+
     let tunnelToken = '';
-    if (isTenant) {
-      tunnelToken = this.vaultService.decrypt(cfSettings.tunnelTokenEnc, cfSettings.iv, cfSettings.authTag);
+    if (isTenant && cfSettings) {
+
+      tunnelToken = this.vaultService.decrypt(
+        cfSettings.tunnelTokenEnc as string,
+        cfSettings.iv as string,
+        cfSettings.authTag as string
+      );
+
     } else {
       tunnelToken = this.config.get<string>('CLOUDFLARE_TUNNEL_TOKEN') || '';
     }
@@ -123,7 +161,7 @@ export class TunnelService implements OnApplicationBootstrap {
 
     // Prevent duplicate tunnels
     const existing = await this.dockerService.listContainers({ all: true, filters: { name: [tunnelName] } });
-    
+
     if (existing.length > 0) {
       if (existing[0].State !== 'running') {
         const container = this.dockerService.getContainer(existing[0].Id);

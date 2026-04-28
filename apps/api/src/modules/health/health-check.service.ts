@@ -26,7 +26,7 @@ export class HealthCheckService {
                     }
                 }
             } catch (error) {
-                this.logger.warn(`Could not inspect container ${containerId}`);
+                this.logger.warn(`Could not inspect container ${containerId} during health check: ${error.message}`);
             }
             await new Promise(resolve => setTimeout(resolve, 2000));
         }

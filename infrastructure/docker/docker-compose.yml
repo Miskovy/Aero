@@ -1,0 +1,21 @@
+services:
+  traefik:
+    image: traefik:v3.1
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.aero.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.aero.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.aero.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-certs:/letsencrypt
+    labels:
+      - "aero.managed=true"
+      - "aero.system.component=proxy"

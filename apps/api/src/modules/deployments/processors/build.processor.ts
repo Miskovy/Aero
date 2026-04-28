@@ -6,11 +6,8 @@ import * as path from 'path';
 import { DockerService } from '../../docker/docker.service';
 import { ContainerService } from '../../docker/container.service';
 import { GitSourcesService } from 'src/modules/git/git-sources.service';
-import { VaultService } from 'src/modules/vault/vault.service';
-import { TraefikService } from 'src/modules/networking/traefik.service';
 import { HealthCheckService } from 'src/modules/health/health-check.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-
 
 export interface DeploymentJob {
     serviceId: string;
@@ -25,6 +22,9 @@ export interface DeploymentResult {
     containerId?: string;
     imageTag?: string;
 }
+
+export type LogPhase =  'clone' | 'build' | 'push' | 'deploy' | 'health_check' | 'routing' | 'failed' | 'completed';
+
 
 @Processor('deployment')
 export class BuildProcessor extends WorkerHost {
@@ -49,7 +49,7 @@ export class BuildProcessor extends WorkerHost {
         }
     }
 
-    async updatePhase(deploymentId: string, phase: any, message: string) {
+    async updatePhase(deploymentId: string, phase: LogPhase, message: string) {
         await this.prisma.deploymentLog.create({
             data: {
                 deployment_id: deploymentId,
@@ -137,7 +137,7 @@ export class BuildProcessor extends WorkerHost {
             try {
                 await this.healthCheckService.waitForHealthy(containerId, 60000);
                 healthy = true;
-            } catch (e: unknown) {
+            } catch {
                 this.logger.warn(`Health check failed for new container ${containerId}`);
                 healthy = false;
             }

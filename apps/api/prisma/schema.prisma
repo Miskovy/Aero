@@ -76,6 +76,8 @@ enum LogPhase {
   deploy
   health_check
   routing
+  failed
+  completed
 }
 
 enum LogLevel {

@@ -11,7 +11,7 @@ export class DomainsService {
         const service = await this.prisma.serviceDomain.findFirst({
             where: { service_id: serviceId, type: 'auto_generated' },
         });
-        await this.logger.log(`Fetched primary domain for service ${serviceId}: ${service ? service.domain : 'none'}`);
+        this.logger.log(`Fetched primary domain for service ${serviceId}: ${service ? service.domain : 'none'}`);
         return service ? service.domain : `${serviceId}.example.com`; // Placeholder
     }
 }

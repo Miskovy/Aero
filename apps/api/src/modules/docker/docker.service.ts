@@ -4,11 +4,18 @@ import Docker, {
   ContainerStats,
   ImageBuildOptions,
 } from 'dockerode';
+import { Logger } from '@nestjs/common';
+
+export interface DockerProgressEvent {
+  status?: string;
+  id?: string;
+  progress?: string;
+}
 
 @Injectable()
 export class DockerService {
   private docker: Docker;
-
+  private readonly logger = new Logger(DockerService.name);
   constructor() {
     this.docker = new Docker(
       process.env.DOCKER_SOCKET
@@ -218,27 +225,38 @@ export class DockerService {
     }
   }
 
-  async pullImage(image: string, tag: string = 'latest'): Promise<void> {
+async pullImage(image: string, tag: string = 'latest'): Promise<void> {
     return new Promise((resolve, reject) => {
       const fullImageName = `${image}:${tag}`;
+      this.logger.log(`Starting download for Docker image: ${fullImageName}...`);
+
       this.docker.pull(fullImageName, (err: Error, stream: NodeJS.ReadableStream) => {
-        if (err) return reject(err);
-
-        // docker.modem.followProgress waits for the download stream to completely finish
-        this.docker.modem.followProgress(stream, onFinished, onProgress);
-
-        function onFinished(err: Error | null, output: any[]) {
-          if (err) return reject(err);
-          resolve();
+        if (err) {
+          this.logger.error(`Failed to initiate pull for ${fullImageName}`);
+          return reject(err);
         }
-
-        function onProgress(event: any) {
-          // Optional: You could log download progress here if you wanted to
-        }
+        this.docker.modem.followProgress(
+          stream,
+          (finishErr: Error | null, _output: unknown[]) => {
+            if (finishErr) {
+              this.logger.error(`Download failed for ${fullImageName}`, finishErr);
+              return reject(finishErr);
+            }
+            this.logger.log(`Successfully downloaded image: ${fullImageName}`);
+            resolve();
+          },
+          (event: DockerProgressEvent) => {
+            if (event.status === 'Pull complete' && event.id) {
+              this.logger.debug(`[${fullImageName}] Layer ${event.id} pulled successfully.`);
+            } else if (event.status && !event.id && !event.progress) {
+              this.logger.log(`[Docker] ${event.status}`);
+            }
+          }
+        );
       });
     });
   }
-
+  
   async removeImage(imageId: string): Promise<void> {
     try {
       const image = this.docker.getImage(imageId);
