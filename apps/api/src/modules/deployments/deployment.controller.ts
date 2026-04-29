@@ -1,22 +1,34 @@
-import { Controller, Get, Post, Param, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, UseGuards, Req, Body } from '@nestjs/common';
 import { DeploymentsService } from './deployment.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
-@Controller('services/:serviceId/deployments')
+@Controller()
 @UseGuards(JwtAuthGuard)
 export class DeploymentsController {
   constructor(private readonly deploymentsService: DeploymentsService) {}
 
-  @Post()
+  @Post('services')
+  async createService(@Body() data: any, @Req() req: any) {
+    const userId = req.user?.id;
+    return this.deploymentsService.createService(data, userId);
+  }
+
+  @Get('services')
+  async listServices(@Req() req: any) {
+    const userId = req.user?.id;
+    return this.deploymentsService.listAllServices(userId);
+  }
+
+  @Post('services/:serviceId/deployments')
   async triggerDeploy(
     @Param('serviceId') serviceId: string,
-    @Req() req: any // Request object to get the authenticated user
+    @Req() req: any
   ) {
     const userId = req.user?.id;
     return this.deploymentsService.triggerDeployment(serviceId, userId);
   }
 
-  @Get()
+  @Get('services/:serviceId/deployments')
   async listDeployments(
     @Param('serviceId') serviceId: string,
     @Query('limit') limit?: string
@@ -25,7 +37,7 @@ export class DeploymentsController {
     return this.deploymentsService.listDeployments(serviceId, take);
   }
 
-  @Get(':id')
+  @Get('services/:serviceId/deployments/:id')
   async getDeploymentDetails(
     @Param('serviceId') serviceId: string,
     @Param('id') deploymentId: string
@@ -33,7 +45,7 @@ export class DeploymentsController {
     return this.deploymentsService.getDeploymentDetails(serviceId, deploymentId);
   }
 
-  @Post(':id/rollback')
+  @Post('services/:serviceId/deployments/:id/rollback')
   async triggerRollback(
     @Param('serviceId') serviceId: string,
     @Param('id') deploymentId: string,
@@ -43,7 +55,7 @@ export class DeploymentsController {
     return this.deploymentsService.triggerRollback(serviceId, deploymentId, userId);
   }
 
-  @Post(':id/cancel')
+  @Post('services/:serviceId/deployments/:id/cancel')
   async cancelDeployment(
     @Param('serviceId') serviceId: string,
     @Param('id') deploymentId: string

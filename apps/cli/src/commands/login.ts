@@ -13,6 +13,45 @@ interface LoginResponse {
   access_token: string;
 }
 
+export async function registerAction() {
+  p.intro(chalk.bgBlue.cyan(' Create Aero Account '));
+  const name = await p.text({ message: 'Full Name:', placeholder: 'John Doe' });
+  if (p.isCancel(name)) process.exit(0);
+
+  const email = await p.text({ message: 'Email address:', placeholder: 'admin@example.com' });
+  if (p.isCancel(email)) process.exit(0);
+
+  const password = await p.password({ message: 'Password (min 6 characters):' });
+  if (p.isCancel(password)) process.exit(0);
+
+  const s = p.spinner();
+  s.start('Creating account...');
+
+  try {
+    const response = await apiRequest<LoginResponse>({
+      method: 'POST',
+      url: '/auth/register',
+      data: { name, email, password, auth_provider: 'CLI' }
+    });
+
+    if (!response.access_token || response.access_token.length < 10) {
+      throw new Error('Invalid or missing access token received from server.'); 
+    }
+
+    cliState.token = response.access_token;
+    saveStoredToken(response.access_token);
+
+    s.stop('Account created successfully!');
+    p.outro(`Welcome to Aero, ${chalk.green(name as string)}! You are now logged in.`);
+    await setTimeout(1500);
+    return;
+  } catch (error: any) {
+    s.stop('Registration failed!');
+    p.outro(chalk.red(`Error: ${error.message}`));
+    await setTimeout(1500);
+    return;
+  }
+}
 
 export async function loginAction() {
   const email = await p.text({ message: 'Email address:', placeholder: 'admin@example.com' });

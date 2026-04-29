@@ -8,32 +8,105 @@ import { Deployment, Prisma } from '../../../generated/prisma/client';
 export class DeploymentsService {
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue('deployments') private readonly deploymentsQueue: Queue 
+    @InjectQueue('deployments') private readonly deploymentsQueue: Queue
   ) {}
 
-  // POST /services/:serviceId/deployments
+  async listAllServices(userId?: string) {
+    if (!userId) {
+      return this.prisma.service.findMany({ take: 50 });
+    }
+    
+    // We get services that belong to projects in organizations the user is a member of
+    return this.prisma.service.findMany({
+      where: {
+        project: {
+          organization: {
+            members: {
+              some: {
+                user_id: userId
+              }
+            }
+          }
+        }
+      },
+      include: {
+        project: true
+      },
+      take: 50
+    });
+  }
+
+  async listOrganizations(userId?: string) {
+    if (!userId) {
+      return this.prisma.organization.findMany({ take: 50 });
+    }
+    return this.prisma.organization.findMany({
+      where: {
+        members: {
+          some: { user_id: userId }
+        }
+      },
+      take: 50
+    });
+  }
+
+  async listProjects(orgId: string, userId?: string) {
+    return this.prisma.project.findMany({
+      where: { organization_id: orgId },
+      take: 50
+    });
+  }
+
+  async createService(data: any, userId?: string) {
+    const { projectId, repo, branch, buildCmd, startCmd } = data;
+    
+    // Generate a unique slug based on the repo name and a random string
+    const baseSlug = repo.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+    const slug = `${baseSlug}-${Math.random().toString(36).substring(2, 8)}`;
+    const name = repo.split('/').pop() || 'New Service';
+
+    const service = await this.prisma.service.create({
+      data: {
+        project_id: projectId,
+        name,
+        slug,
+        type: 'application',
+        source_type: 'git',
+        git_branch: branch,
+        build_command: buildCmd,
+        start_command: startCmd,
+      }
+    });
+
+    // Queue initial deployment
+    return this.triggerDeployment(service.id, userId);
+  }
   async triggerDeployment(serviceId: string, userId?: string): Promise<Deployment> {
-    const service = await this.prisma.service.findUnique({ where: { id: serviceId } });
-    if (!service) throw new NotFoundException('Service not found');
+    const service = await this.prisma.service.findUnique({
+      where: { id: serviceId }
+    });
+
+    if (!service) {
+      throw new NotFoundException('Service not found');
+    }
 
     const deployment = await this.prisma.deployment.create({
       data: {
         service_id: serviceId,
         status: 'queued',
-        trigger: 'api',
-        triggered_by: userId,
-      },
+        trigger: 'manual',
+        triggered_by: userId || null,
+      }
     });
 
-    await this.deploymentsQueue.add('build-and-deploy', {
-      serviceId: service.id,
+    await this.deploymentsQueue.add('deploy', {
+      serviceId,
       deploymentId: deployment.id,
     });
 
     return deployment;
   }
 
-  // GET /services/:serviceId/deployments
   async listDeployments(serviceId: string, limit: number = 10): Promise<Deployment[]> {
     return this.prisma.deployment.findMany({
       where: { service_id: serviceId },
