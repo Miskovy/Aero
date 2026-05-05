@@ -21,7 +21,8 @@
     "is-unicode-supported": "^2.1.0",
     "marked": "^15.0.12",
     "marked-terminal": "^7.3.0",
-    "ora": "^9.4.0"
+    "ora": "^9.4.0",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@types/marked-terminal": "^6.1.1",

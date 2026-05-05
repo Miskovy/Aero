@@ -6,6 +6,7 @@ import { githubLoginAction, loginAction } from './commands/login.js';
 import { deployAction } from './commands/deploy.js';
 import { chatAction } from './commands/chat.js';
 import { logsAction } from './commands/logs.js';
+import { createDaemonCommand } from './commands/daemon.js';
 
 const program = new Command();
 
@@ -39,6 +40,8 @@ program
   .description('View logs for a deployment')
   .argument('[serviceId]', 'ID of the service')
   .action(logsAction);
+
+program.addCommand(createDaemonCommand());
 
 if (process.argv.length === 2) {
   startInteractiveDashboard();
