@@ -1,5 +1,6 @@
-﻿import { Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { VaultModule } from './modules/vault/vault.module';
@@ -8,12 +9,17 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GitModule } from './modules/git/git.module';
-import { NetworkingModule } from './modules/networking/networking.module';      
-import { DomainsModule } from './modules/domains/domains.module';
+import { NetworkingModule } from './modules/networking/networking.module';
 import { DockerModule } from './modules/docker/docker.module';
 import { DeploymentsModule } from './modules/deployments/deployment.module';
-import { OrganizationsModule } from './modules/organizations/organizations.module';
-import { ProjectsModule } from './modules/projects/projects.module';
+import { OrganizationsModule } from './organizations/organizations.module';
+import { ProjectsModule } from './projects/projects.module';
+import { SecretsModule } from './modules/secrets/secrets.module';
+import { MonitoringModule } from './modules/monitoring/monitoring.module';
+import { MarketplaceModule } from './modules/marketplace/marketplace.module';
+import { DomainsModule } from './modules/domains/domains.module';
+import { AgentModule } from './modules/agent/agent.module';
+import { NodesModule } from './modules/nodes/nodes.module';
 
 @Module({
   imports: [
@@ -30,6 +36,7 @@ import { ProjectsModule } from './modules/projects/projects.module';
         },
       }),
     }),
+    ScheduleModule.forRoot(),
     VaultModule,
     UserModule,
     PrismaModule,
@@ -40,6 +47,12 @@ import { ProjectsModule } from './modules/projects/projects.module';
     DeploymentsModule,
     OrganizationsModule,
     ProjectsModule,
+    SecretsModule,
+    MonitoringModule,
+    MarketplaceModule,
+    DomainsModule,
+    AgentModule,
+    NodesModule,
     NetworkingModule],
   controllers: [AppController],
   providers: [AppService],

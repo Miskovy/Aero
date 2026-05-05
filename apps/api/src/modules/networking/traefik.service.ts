@@ -6,12 +6,16 @@ import { DomainsService } from '../domains/domain.service';
 export class TraefikService {
   constructor(private readonly domainsService: DomainsService) {}
 
-  buildLabelsForService(service: Service, domain: string, port: number = 3000): Record<string, string> {
+  buildLabelsForService(service: Service, domains: string[], port: number = 3000): Record<string, string> {
     const name = `aero-${service.slug}`;
     
+    // Support multiple domains using Traefik's OR syntax
+    // Example: Host(`a.com`) || Host(`b.com`)
+    const hostRule = domains.map(d => `Host(\`${d}\`)`).join(' || ');
+
     return {
       'traefik.enable': 'true',
-      [`traefik.http.routers.${name}.rule`]: `Host(\`${domain}\`)`,
+      [`traefik.http.routers.${name}.rule`]: hostRule,
       [`traefik.http.routers.${name}.entrypoints`]: 'websecure',
       [`traefik.http.routers.${name}.tls.certresolver`]: 'aero',
       [`traefik.http.services.${name}.loadbalancer.server.port`]: String(port), 
@@ -19,7 +23,18 @@ export class TraefikService {
   }
 
   async getRoutingLabels(service: Service, targetPort: number = 3000): Promise<Record<string, string>> {
-    const domain = await this.domainsService.getPrimaryDomain(service.id);
-    return this.buildLabelsForService(service, domain, targetPort);
+    const domainsRecords = await this.domainsService.getAllServiceDomains(service.id);
+    
+    // Filter for auto_generated or verified custom domains
+    const activeDomains = domainsRecords
+        .filter(d => d.type === 'auto_generated' || d.verification_status === 'verified')
+        .map(d => d.domain);
+
+    // Fallback to a placeholder if no domains exist
+    if (activeDomains.length === 0) {
+        activeDomains.push(`${service.id}.example.com`);
+    }
+
+    return this.buildLabelsForService(service, activeDomains, targetPort);
   }
 }

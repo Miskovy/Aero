@@ -1,0 +1,47 @@
+id: postgresql
+name: PostgreSQL
+version: "16"
+description: The world's most advanced open source relational database
+icon: postgresql.svg
+category: database
+tags: [database, sql, relational]
+
+services:
+  - name: postgresql
+    image: postgres:16-alpine
+    type: database
+    ports:
+      - 5432
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER:aero}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:generated}"
+      POSTGRES_DB: "${POSTGRES_DB:aero_db}"
+    volumes:
+      - name: pgdata
+        mountPath: /var/lib/postgresql/data
+    healthCheck:
+      type: exec
+      command: ["pg_isready", "-U", "${POSTGRES_USER}"]
+      interval: 10
+      timeout: 5
+    resourceLimits:
+      cpu: "0.5"
+      memory: "256m"
+
+configFields:
+  - key: POSTGRES_USER
+    label: Database User
+    type: text
+    default: aero
+    required: true
+  - key: POSTGRES_PASSWORD
+    label: Database Password
+    type: password
+    default: ""
+    generated: true
+    length: 24
+  - key: POSTGRES_DB
+    label: Database Name
+    type: text
+    default: aero_db
+    required: true

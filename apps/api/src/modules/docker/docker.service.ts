@@ -83,7 +83,7 @@ export class DockerService {
   async getContainerStats(containerId: string): Promise<ContainerStats> {
     try {
       const container = this.docker.getContainer(containerId);
-      const stats = await container.stats();
+      const stats = await container.stats({ stream: false });
       return stats;
     } catch (error) {
       console.error('Failed to get container stats:', error);
