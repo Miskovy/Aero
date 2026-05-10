@@ -15,14 +15,14 @@ import { Logger } from '@nestjs/common';
 })
 export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   private readonly logger = new Logger(AgentGateway.name);
 
   constructor(private readonly agentService: AgentService) {}
 
   async handleConnection(client: Socket) {
-    const token = client.handshake.auth?.token || client.handshake.headers?.['authorization'];
+    const token: string = client.handshake.auth?.token || client.handshake.headers?.['authorization'];
     
     if (!token) {
       this.logger.warn(`Agent connected without token. Disconnecting ${client.id}`);

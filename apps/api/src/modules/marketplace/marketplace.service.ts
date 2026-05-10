@@ -5,20 +5,7 @@ import { VaultService } from '../vault/vault.service';
 import * as yaml from 'js-yaml';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-
-export interface MarketplaceTemplate {
-  id: string;
-  name: string;
-  description: string;
-  logo?: string;
-  categories: string[];
-  compose_url: string;
-}
-
-export interface RegistryData {
-  version: string;
-  templates: MarketplaceTemplate[];
-}
+import { MarketplaceTemplate, RegistryData } from './interfaces/marketplace.interface';
 
 @Injectable()
 export class MarketplaceService {

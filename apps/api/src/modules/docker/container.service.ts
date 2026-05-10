@@ -6,32 +6,7 @@ import * as Docker from 'dockerode';
 import { DockerService } from './docker.service';
 import { VaultService } from '../vault/vault.service';
 import { TraefikService } from '../networking/traefik.service';
-
-export interface RestartPolicyConfig {
-  condition?: 'no' | 'always' | 'on-failure' | 'unless-stopped';
-  max_retries?: number;
-}
-
-export interface ResourceLimitsConfig {
-  cpu?: string | number;
-  memory?: string;
-}
-
-export interface HealthCheckConfig {
-  test?: string[];
-  interval?: string;
-  timeout?: string;
-  retries?: number;
-  start_period?: string;
-}
-
-interface VaultItem {
-  key: string;
-  value?: string;
-  encrypted_value?: string;
-  iv: string;
-  auth_tag: string;
-}
+import { RestartPolicyConfig, ResourceLimitsConfig , HealthCheckConfig , VaultItem} from './interfaces/container.interface';
 
 @Injectable()
 export class ContainerService {

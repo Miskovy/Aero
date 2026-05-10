@@ -6,9 +6,8 @@ import { LoginDto } from './dto/login.dto';
 import { User } from '../../generated/prisma/client';
 import { Profile } from 'passport-github2';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { GitHubEmail , GitHubUser } from './interfaces/auth.interface';
 
-interface GitHubUser { id: number; login: string; name: string; html_url: string; avatar_url: string; }
-interface GitHubEmail { email: string; primary: boolean; }
 
 @Injectable()
 export class AuthService {

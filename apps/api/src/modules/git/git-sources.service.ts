@@ -7,35 +7,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
-
-export interface Repository {
-  id: number;
-  name: string;
-  fullName: string;
-  cloneUrl: string;
-}
-
-export interface WebhookData {
-  branch: string;
-  commitSha: string;
-  repository: string;
-  provider: string;
-}
-
-interface GitHubPayload {
-  ref?: string;
-  after?: string;
-  head_commit?: { id: string };
-  repository?: { full_name: string };
-}
-
-interface GitLabPayload {
-  ref?: string;
-  checkout_sha?: string;
-  commits?: Array<{ id: string }>;
-  project?: { path_with_namespace: string };
-}
-
+import { Repository , WebhookData , GitHubPayload ,GitLabPayload } from './interfaces/git-sources.interface';
 @Injectable()
 export class GitSourcesService {
   private readonly logger = new Logger(GitSourcesService.name);

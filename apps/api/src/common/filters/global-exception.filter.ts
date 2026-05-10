@@ -7,12 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-
-interface NestHttpExceptionResponse {
-  message?: string | string[];
-  error?: string;
-  statusCode?: number;
-}
+import { NestHttpExceptionResponse } from '../interfaces/filters.interface';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {

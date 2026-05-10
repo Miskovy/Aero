@@ -5,12 +5,8 @@ import Docker, {
   ImageBuildOptions,
 } from 'dockerode';
 import { Logger } from '@nestjs/common';
+import { DockerProgressEvent } from './interfaces/docker.interface';
 
-export interface DockerProgressEvent {
-  status?: string;
-  id?: string;
-  progress?: string;
-}
 
 @Injectable()
 export class DockerService {

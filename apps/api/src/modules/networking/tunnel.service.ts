@@ -2,30 +2,8 @@ import { Injectable, Logger, OnApplicationBootstrap, BadRequestException } from 
 import { ConfigService } from '@nestjs/config';
 import { DockerService } from '../docker/docker.service';
 import { VaultService } from '../vault/vault.service';
-import { Service, Project, Organization } from '../../../generated/prisma/client';
+import { ServiceWithRelations } from './types/tunnel.type';
 
-type ServiceWithRelations = Service & {
-  project: Project & { organization: Organization }
-};
-
-interface CloudflareSettings {
-  apiTokenEncrypted?: string;
-  tunnelTokenEnc?: string;
-  iv?: string;
-  authTag?: string;
-  zoneId?: string;
-  tunnelId?: string;
-  customDomain?: string;
-}
-
-interface ProjectSettings {
-  cloudflare?: CloudflareSettings;
-}
-
-interface CloudflareApiResponse {
-  success: boolean;
-  errors?: Array<{ code: number; message: string }>;
-}
 
 
 

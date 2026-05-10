@@ -6,15 +6,7 @@ import { ContainerStats } from "dockerode";
 import * as os from "os";
 import * as si from "systeminformation";
 import { PrismaService } from "../../prisma/prisma.service";
-
-export interface ContainerMetrics {
-    cpuPercent: number;
-    memoryUsageBytes: number;
-    memoryLimitBytes: number;
-    memoryPercent: number;
-    networkRxBytes: number;
-    networkTxBytes: number;
-}
+import { ContainerMetrics } from "./interfaces/metrics.interface";
 
 @Injectable()
 export class MetricsService {

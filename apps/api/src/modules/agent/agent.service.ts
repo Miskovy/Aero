@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '../../../generated/prisma/client';
 
 @Injectable()
 export class AgentService {
@@ -15,13 +16,13 @@ export class AgentService {
     return this.prisma.node.update({
       where: { id: nodeId },
       data: { 
-        status: status as any, // Cast to any to bypass exact enum type temporarily if prisma hasn't fully inferred
+        status: status,
         last_heartbeat_at: status === 'online' ? new Date() : undefined
       },
     });
   }
 
-  async updateHeartbeat(nodeId: string, metrics: any) {
+  async updateHeartbeat(nodeId: string, metrics: Prisma.InputJsonObject) {
     return this.prisma.node.update({
       where: { id: nodeId },
       data: { 

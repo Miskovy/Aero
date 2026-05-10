@@ -29,7 +29,7 @@ import { NodesModule } from './modules/nodes/nodes.module';
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         connection: {
           host: configService.get('REDIS_HOST', '127.0.0.1'),
           port: parseInt(configService.get('REDIS_PORT', '6379'), 10),

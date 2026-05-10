@@ -8,20 +8,8 @@ import { ContainerService } from '../../docker/container.service';
 import { GitSourcesService } from 'src/modules/git/git-sources.service';
 import { HealthCheckService } from 'src/modules/health/health-check.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { DeploymentJob , DeploymentResult } from '../interfaces/deployment.interface';
 
-export interface DeploymentJob {
-    serviceId: string;
-    deploymentId: string;
-    gitUrl: string;
-    branch: string;
-    commitSha?: string;
-}
-
-export interface DeploymentResult {
-    success: boolean;
-    containerId?: string;
-    imageTag?: string;
-}
 
 export type LogPhase =  'clone' | 'build' | 'push' | 'deploy' | 'health_check' | 'routing' | 'failed' | 'completed';
 
