@@ -6,7 +6,7 @@ import {
   IsNumber,
   IsObject,
 } from 'class-validator';
-import { SourceType } from '../../../../../generated/prisma';
+import { SourceType } from '../../../../generated/prisma/client';
 
 export class CreateServiceDto {
   @IsString()
