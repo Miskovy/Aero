@@ -8,12 +8,14 @@ import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Deployment } from '../../../generated/prisma/client';
 import { CreateServiceDto } from './dto/create-service.dto';
+import { VaultService } from '../vault/vault.service';
 
 @Injectable()
 export class DeploymentsService {
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue('deployments') private readonly deploymentsQueue: Queue,
+    private readonly vaultService: VaultService,
   ) {}
 
   async listAllServices(userId?: string) {
@@ -63,12 +65,38 @@ export class DeploymentsService {
   }
 
   async createService(data: CreateServiceDto, userId?: string) {
-    const { projectId, repo, branch, buildCmd, startCmd } = data;
+    const {
+      projectId,
+      repo,
+      branch,
+      buildCmd,
+      startCmd,
+      sourceType = 'git',
+      dockerImage,
+      domain,
+      internalPort,
+      envVars,
+    } = data;
 
-    // Generate a unique slug based on the repo name and a random string
-    const baseSlug = repo.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+    // Validate inputs based on source_type
+    if (sourceType === 'git' && (!repo || !branch)) {
+      throw new BadRequestException(
+        'repo and branch are required when source_type is git',
+      );
+    }
+    if (sourceType === 'docker_image' && !dockerImage) {
+      throw new BadRequestException(
+        'dockerImage is required when source_type is docker_image',
+      );
+    }
+
+    const baseName =
+      sourceType === 'git'
+        ? repo?.split('/').pop() || 'new-service'
+        : dockerImage?.split('/').pop() || 'new-service';
+    const baseSlug = baseName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
     const slug = `${baseSlug}-${Math.random().toString(36).substring(2, 8)}`;
-    const name = repo.split('/').pop() || 'New Service';
+    const name = baseName;
 
     const service = await this.prisma.service.create({
       data: {
@@ -76,10 +104,36 @@ export class DeploymentsService {
         name,
         slug,
         type: 'application',
-        source_type: 'git',
+        source_type: sourceType,
         git_branch: branch,
+        docker_image: dockerImage,
         build_command: buildCmd,
         start_command: startCmd,
+        internal_port: internalPort || 3000,
+        ...(envVars && {
+          variables: {
+            create: Object.entries(envVars).map(([key, value]) => {
+              const encrypted = this.vaultService.encrypt(value);
+              return {
+                key,
+                encrypted_value: encrypted.encryptedValue,
+                iv: encrypted.iv,
+                auth_tag: encrypted.authTag,
+                key_version: encrypted.version,
+              };
+            }),
+          },
+        }),
+        ...(domain && {
+          domains: {
+            create: [
+              {
+                domain,
+                type: 'custom',
+              },
+            ],
+          },
+        }),
       },
     });
 

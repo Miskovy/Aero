@@ -1,4 +1,10 @@
-import { Injectable, InternalServerErrorException, Logger, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { simpleGit, SimpleGit } from 'simple-git';
 import { Octokit } from '@octokit/rest';
 import { VaultService } from '../vault/vault.service';
@@ -7,7 +13,12 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
-import { Repository , WebhookData , GitHubPayload ,GitLabPayload } from './interfaces/git-sources.interface';
+import {
+  Repository,
+  WebhookData,
+  GitHubPayload,
+  GitLabPayload,
+} from './interfaces/git-sources.interface';
 @Injectable()
 export class GitSourcesService {
   private readonly logger = new Logger(GitSourcesService.name);
@@ -15,10 +26,13 @@ export class GitSourcesService {
   constructor(
     private readonly vaultService: VaultService,
     private readonly prisma: PrismaService,
-  ) { }
+  ) {}
 
-  async clone(gitUrl: string, branch: string, commitSha?: string): Promise<string> {
-
+  async clone(
+    gitUrl: string,
+    branch: string,
+    commitSha?: string,
+  ): Promise<string> {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'git-repo-'));
     const git: SimpleGit = simpleGit(tempDir);
 
@@ -33,7 +47,6 @@ export class GitSourcesService {
       }
 
       return tempDir;
-
     } catch (error: unknown) {
       if (error instanceof Error) {
         this.logger.error(`Failed to clone repository: ${error.message}`);
@@ -42,36 +55,40 @@ export class GitSourcesService {
       }
 
       await fs.rm(tempDir, { recursive: true, force: true }).catch(() => null);
-      
+
       throw new InternalServerErrorException('Failed to clone repository');
     }
   }
 
   async listRepos(sourceId: string): Promise<Repository[]> {
     try {
-
       const sourceRecord = await this.prisma.gitSource.findUnique({
-        where: { id: sourceId }
+        where: { id: sourceId },
       });
 
       if (!sourceRecord || !sourceRecord.access_token_encrypted) {
-        throw new UnauthorizedException('Git connection not found or token is missing.');
+        throw new UnauthorizedException(
+          'Git connection not found or token is missing.',
+        );
       }
 
       const githubToken = this.vaultService.decrypt(
         sourceRecord.access_token_encrypted,
         sourceRecord.iv,
         sourceRecord.auth_tag,
-        sourceRecord.key_version
+        sourceRecord.key_version,
       );
 
       const octokit = new Octokit({ auth: githubToken });
 
-      const allRepositories = await octokit.paginate(octokit.rest.repos.listForAuthenticatedUser, {
-        visibility: 'all',
-        sort: 'updated',
-        per_page: 100,
-      });
+      const allRepositories = await octokit.paginate(
+        octokit.rest.repos.listForAuthenticatedUser,
+        {
+          visibility: 'all',
+          sort: 'updated',
+          per_page: 100,
+        },
+      );
 
       return allRepositories.map((repo) => ({
         id: repo.id,
@@ -79,7 +96,6 @@ export class GitSourcesService {
         fullName: repo.full_name,
         cloneUrl: repo.clone_url,
       }));
-
     } catch (error) {
       if (error instanceof Error) {
         this.logger.error(`Failed to list repositories: ${error.message}`);
@@ -90,11 +106,17 @@ export class GitSourcesService {
         throw error;
       }
 
-      throw new InternalServerErrorException('Failed to fetch repositories from GitHub');
+      throw new InternalServerErrorException(
+        'Failed to fetch repositories from GitHub',
+      );
     }
   }
 
-  validateWebhookSignature(payload: Buffer, signature: string, secret: string): boolean {
+  validateWebhookSignature(
+    payload: Buffer,
+    signature: string,
+    secret: string,
+  ): boolean {
     if (!signature || !payload) return false;
 
     try {
@@ -107,7 +129,10 @@ export class GitSourcesService {
       }
 
       const hmac = crypto.createHmac(algorithm, secret);
-      const digest = Buffer.from(algorithm + '=' + hmac.update(payload).digest('hex'), 'utf8');
+      const digest = Buffer.from(
+        algorithm + '=' + hmac.update(payload).digest('hex'),
+        'utf8',
+      );
       const checksum = Buffer.from(signature, 'utf8');
 
       if (digest.length !== checksum.length) {

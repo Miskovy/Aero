@@ -1,4 +1,10 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsString,
+  MinLength,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class RegisterDto {
@@ -18,8 +24,11 @@ export class RegisterDto {
   @MinLength(6)
   password: string;
 
-
-  @ApiProperty({ example: 'CLI', description: 'Authentication provider (e.g., web, CLI, desktop, github)', required: true })
+  @ApiProperty({
+    example: 'CLI',
+    description: 'Authentication provider (e.g., web, CLI, desktop, github)',
+    required: true,
+  })
   @IsString()
   @IsNotEmpty()
   @IsEnum(['web', 'CLI', 'desktop', 'github'])

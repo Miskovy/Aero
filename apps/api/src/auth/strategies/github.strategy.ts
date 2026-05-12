@@ -18,7 +18,7 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
     accessToken: string,
     refreshToken: string,
     profile: Profile,
-    done: (error: Error | null, user: User) => void
+    done: (error: Error | null, user: User) => void,
   ) {
     const user = await this.authService.validateOAuthUser(profile);
     done(null, user);

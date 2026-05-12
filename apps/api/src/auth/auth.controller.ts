@@ -9,7 +9,7 @@ import {
   Req,
   Res,
   BadRequestException,
-  Query
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -23,11 +23,17 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService, private readonly jwtStrategy: JwtStrategy) { }
+  constructor(
+    private readonly authService: AuthService,
+    private readonly jwtStrategy: JwtStrategy,
+  ) {}
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
-  @ApiResponse({ status: 201, description: 'The user has been successfully registered.' })
+  @ApiResponse({
+    status: 201,
+    description: 'The user has been successfully registered.',
+  })
   @ApiResponse({ status: 409, description: 'Email already exists.' })
   async register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
@@ -50,13 +56,19 @@ export class AuthController {
   @UseGuards(AuthGuard('github'))
   githubAuth(@Query('client') client: string, @Res() res: Response) {
     // Store the client origin in a short-lived cookie
-    res.cookie('auth_client', client || 'web', { maxAge: 300000, httpOnly: true });
+    res.cookie('auth_client', client || 'web', {
+      maxAge: 300000,
+      httpOnly: true,
+    });
   }
 
   // The Callback
   @Get('github/callback')
   @UseGuards(AuthGuard('github'))
-  githubAuthCallback(@Req() req: Request & { user: User }, @Res() res: Response) {
+  githubAuthCallback(
+    @Req() req: Request & { user: User },
+    @Res() res: Response,
+  ) {
     const jwt = this.jwtStrategy.generateToken(req.user);
 
     // Read the cookie to know where to send them
@@ -67,9 +79,13 @@ export class AuthController {
     if (client === 'desktop') {
       return res.redirect(`aero-app://auth?token=${jwt.access_token}`);
     } else if (client === 'cli') {
-      return res.redirect(`http://localhost:8080/callback?token=${jwt.access_token}`);
+      return res.redirect(
+        `http://localhost:8080/callback?token=${jwt.access_token}`,
+      );
     } else {
-      return res.redirect(`http://localhost:5173/login?token=${jwt.access_token}`);
+      return res.redirect(
+        `http://localhost:5173/login?token=${jwt.access_token}`,
+      );
     }
   }
 

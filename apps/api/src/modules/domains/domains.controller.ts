@@ -17,7 +17,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('services/:serviceId/domains')
 export class DomainsController {
-  constructor(private readonly domainsService: DomainsService) { }
+  constructor(private readonly domainsService: DomainsService) {}
 
   @Get()
   @ApiOperation({ summary: 'List all domains for a service' })
@@ -29,7 +29,7 @@ export class DomainsController {
   @ApiOperation({ summary: 'Add a custom domain to a service (Pro Only)' })
   async addDomain(
     @Param('serviceId') serviceId: string,
-    @Body() dto: AddDomainDto
+    @Body() dto: AddDomainDto,
   ) {
     return this.domainsService.addCustomDomain(serviceId, dto.domain);
   }
@@ -38,7 +38,7 @@ export class DomainsController {
   @ApiOperation({ summary: 'Verify DNS for a custom domain' })
   async verifyDomain(
     @Param('serviceId') serviceId: string,
-    @Param('domainId') domainId: string
+    @Param('domainId') domainId: string,
   ) {
     return this.domainsService.verifyDomain(serviceId, domainId);
   }
@@ -47,7 +47,7 @@ export class DomainsController {
   @ApiOperation({ summary: 'Remove a domain from a service' })
   async removeDomain(
     @Param('serviceId') serviceId: string,
-    @Param('domainId') domainId: string
+    @Param('domainId') domainId: string,
   ) {
     return this.domainsService.removeDomain(serviceId, domainId);
   }

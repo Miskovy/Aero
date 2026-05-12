@@ -21,7 +21,7 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly logger = new Logger(AgentGateway.name);
 
-  constructor(private readonly agentService: AgentService) { }
+  constructor(private readonly agentService: AgentService) {}
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     const auth = client.handshake.auth as { token?: string };

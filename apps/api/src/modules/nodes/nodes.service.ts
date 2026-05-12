@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as crypto from 'crypto';
 
@@ -10,13 +14,13 @@ export class NodesService {
     // Validate organization access
     const org = await this.prisma.organization.findUnique({
       where: { id: orgId },
-      include: { members: true }
+      include: { members: true },
     });
 
     if (!org) throw new NotFoundException('Organization not found');
 
     if (userId) {
-      const isMember = org.members.some(m => m.user_id === userId);
+      const isMember = org.members.some((m) => m.user_id === userId);
       if (!isMember) throw new ForbiddenException('Access denied');
     }
 
@@ -33,21 +37,25 @@ export class NodesService {
         last_heartbeat_at: true,
         system_info: true,
         resource_usage: true,
-      }
+      },
     });
   }
 
-  async createNode(orgId: string, data: { name: string; hostname: string; ip_address?: string }, userId?: string) {
+  async createNode(
+    orgId: string,
+    data: { name: string; hostname: string; ip_address?: string },
+    userId?: string,
+  ) {
     // Validate org access
     const org = await this.prisma.organization.findUnique({
       where: { id: orgId },
-      include: { members: true }
+      include: { members: true },
     });
 
     if (!org) throw new NotFoundException('Organization not found');
 
     if (userId) {
-      const isMember = org.members.some(m => m.user_id === userId);
+      const isMember = org.members.some((m) => m.user_id === userId);
       if (!isMember) throw new ForbiddenException('Access denied');
     }
 
@@ -62,8 +70,8 @@ export class NodesService {
         ip_address: data.ip_address,
         agent_token: token,
         status: 'offline',
-        role: 'worker'
-      }
+        role: 'worker',
+      },
     });
   }
 
@@ -71,27 +79,30 @@ export class NodesService {
     // Validate org access
     const org = await this.prisma.organization.findUnique({
       where: { id: orgId },
-      include: { members: true }
+      include: { members: true },
     });
 
     if (!org) throw new NotFoundException('Organization not found');
 
     if (userId) {
-        // Only owners or admins should be able to delete nodes
-        const membership = org.members.find(m => m.user_id === userId);
-        if (!membership || (membership.role !== 'owner' && membership.role !== 'admin')) {
-            throw new ForbiddenException('Only administrators can remove nodes');
-        }
+      // Only owners or admins should be able to delete nodes
+      const membership = org.members.find((m) => m.user_id === userId);
+      if (
+        !membership ||
+        (membership.role !== 'owner' && membership.role !== 'admin')
+      ) {
+        throw new ForbiddenException('Only administrators can remove nodes');
+      }
     }
 
     const node = await this.prisma.node.findFirst({
-        where: { id: nodeId, organization_id: orgId }
+      where: { id: nodeId, organization_id: orgId },
     });
 
     if (!node) throw new NotFoundException('Node not found');
 
     await this.prisma.node.delete({
-        where: { id: nodeId }
+      where: { id: nodeId },
     });
 
     return { success: true };

@@ -15,9 +15,9 @@ export class AgentService {
   async updateNodeStatus(nodeId: string, status: 'online' | 'offline') {
     return this.prisma.node.update({
       where: { id: nodeId },
-      data: { 
+      data: {
         status: status,
-        last_heartbeat_at: status === 'online' ? new Date() : undefined
+        last_heartbeat_at: status === 'online' ? new Date() : undefined,
       },
     });
   }
@@ -25,9 +25,9 @@ export class AgentService {
   async updateHeartbeat(nodeId: string, metrics: Prisma.InputJsonObject) {
     return this.prisma.node.update({
       where: { id: nodeId },
-      data: { 
+      data: {
         last_heartbeat_at: new Date(),
-        resource_usage: metrics || {}
+        resource_usage: metrics || {},
       },
     });
   }

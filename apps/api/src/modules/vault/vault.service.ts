@@ -6,14 +6,15 @@ export class VaultService implements OnModuleInit {
   private readonly logger = new Logger(VaultService.name);
   private readonly algorithm = 'aes-256-gcm';
 
-
   private keys: Map<string, Buffer> = new Map();
   private currentVersion?: string;
 
   onModuleInit() {
     this.currentVersion = process.env.AERO_VAULT_CURRENT_VERSION;
     if (!this.currentVersion) {
-      throw new Error('AERO_VAULT_CURRENT_VERSION is missing from environment.');
+      throw new Error(
+        'AERO_VAULT_CURRENT_VERSION is missing from environment.',
+      );
     }
     for (const [key, value] of Object.entries(process.env)) {
       if (key.startsWith('AERO_VAULT_KEY_V') && value) {
@@ -31,12 +32,15 @@ export class VaultService implements OnModuleInit {
     }
 
     if (!this.keys.has(this.currentVersion)) {
-      throw new Error(`Current version ${this.currentVersion} has no matching key in environment.`);
+      throw new Error(
+        `Current version ${this.currentVersion} has no matching key in environment.`,
+      );
     }
 
-    this.logger.log(`Vault initialized. Current encryption version: v${this.currentVersion}. Loaded ${this.keys.size} key(s).`);
+    this.logger.log(
+      `Vault initialized. Current encryption version: v${this.currentVersion}. Loaded ${this.keys.size} key(s).`,
+    );
   }
-
 
   encrypt(plainText: string) {
     const iv = crypto.randomBytes(16);
@@ -69,7 +73,9 @@ export class VaultService implements OnModuleInit {
     const keyToUse = this.keys.get(keyVersion);
 
     if (!keyToUse) {
-      this.logger.error(`Cannot decrypt: Key version v${keyVersion} is missing from environment.`);
+      this.logger.error(
+        `Cannot decrypt: Key version v${keyVersion} is missing from environment.`,
+      );
       throw new Error('Missing decryption key version');
     }
 
@@ -85,7 +91,9 @@ export class VaultService implements OnModuleInit {
 
       return decrypted;
     } catch (e) {
-      this.logger.error('Failed to decrypt value. Tampering detected or wrong key.');
+      this.logger.error(
+        'Failed to decrypt value. Tampering detected or wrong key.',
+      );
       throw e;
     }
   }
@@ -99,5 +107,4 @@ export class VaultService implements OnModuleInit {
   //     EXAMPLE_SECRET: 'decrypted_value',
   //   });
   // }
-
 }

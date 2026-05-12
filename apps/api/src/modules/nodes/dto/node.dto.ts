@@ -12,7 +12,10 @@ export class CreateNodeDto {
   @IsNotEmpty()
   hostname: string;
 
-  @ApiProperty({ required: false, description: 'Optional IP address of the server' })
+  @ApiProperty({
+    required: false,
+    description: 'Optional IP address of the server',
+  })
   @IsString()
   @IsOptional()
   ip_address?: string;

@@ -1,4 +1,10 @@
-import { Injectable, UnauthorizedException, ConflictException, Logger, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  Logger,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import * as bcrypt from 'bcryptjs';
 import { RegisterDto } from './dto/register.dto';
@@ -6,8 +12,7 @@ import { LoginDto } from './dto/login.dto';
 import { User } from '../../generated/prisma/client';
 import { Profile } from 'passport-github2';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { GitHubEmail , GitHubUser } from './interfaces/auth.interface';
-
+import { GitHubEmail, GitHubUser } from './interfaces/auth.interface';
 
 @Injectable()
 export class AuthService {
@@ -15,10 +20,12 @@ export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwtStrategy: JwtStrategy,
-  ) { }
+  ) {}
 
   async register(registerDto: RegisterDto) {
-    const existingUser = await this.userService.user({ email: registerDto.email });
+    const existingUser = await this.userService.user({
+      email: registerDto.email,
+    });
     if (existingUser) {
       throw new ConflictException('Email already exists');
     }
@@ -46,7 +53,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const isPasswordValid = await bcrypt.compare(loginDto.password, user.password_hash);
+    const isPasswordValid = await bcrypt.compare(
+      loginDto.password,
+      user.password_hash,
+    );
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -63,16 +73,17 @@ export class AuthService {
     try {
       const { id, username, emails, photos } = profile;
       const primaryEmail = emails?.[0]?.value;
-      const email = primaryEmail || `${id}+${username}@users.noreply.github.com`;
+      const email =
+        primaryEmail || `${id}+${username}@users.noreply.github.com`;
       const avatarUrl = photos?.[0]?.value || null;
 
       const existingUser = await this.userService.findFirst({
         where: {
           OR: [
             { auth_provider: 'github', auth_provider_id: id.toString() },
-            { email: email }
-          ]
-        }
+            { email: email },
+          ],
+        },
       });
 
       // PATH A: Brand New User
@@ -88,38 +99,53 @@ export class AuthService {
       }
 
       // PATH B: Returning GitHub User
-      if (existingUser.auth_provider === 'github' && existingUser.auth_provider_id === id) {
+      if (
+        existingUser.auth_provider === 'github' &&
+        existingUser.auth_provider_id === id
+      ) {
         return existingUser;
       }
 
       // PATH C: Account Linking (Email matched, but GitHub ID is not linked)
       if (existingUser.email === email) {
-        this.logger.log(`Linking GitHub account ${id} to existing user ${existingUser.id}`);
+        this.logger.log(
+          `Linking GitHub account ${id} to existing user ${existingUser.id}`,
+        );
         return await this.userService.updateUser({
           where: { id: existingUser.id },
           data: {
             auth_provider: 'github',
             auth_provider_id: id,
-            ...(!existingUser.avatar_url && { avatar_url: avatarUrl })
-          }
+            ...(!existingUser.avatar_url && { avatar_url: avatarUrl }),
+          },
         });
       }
 
-      throw new InternalServerErrorException('Unexpected user state during OAuth validation');
-
+      throw new InternalServerErrorException(
+        'Unexpected user state during OAuth validation',
+      );
     } catch (error: unknown) {
       if (error instanceof Error) {
-        this.logger.error(`OAuth Validation Failed for GitHub ID ${profile.id}:`, error.stack);
+        this.logger.error(
+          `OAuth Validation Failed for GitHub ID ${profile.id}:`,
+          error.stack,
+        );
       } else {
-        this.logger.error(`OAuth Validation Failed for GitHub ID ${profile.id}:`, String(error));
+        this.logger.error(
+          `OAuth Validation Failed for GitHub ID ${profile.id}:`,
+          String(error),
+        );
       }
-      throw new InternalServerErrorException('An error occurred during authentication.');
+      throw new InternalServerErrorException(
+        'An error occurred during authentication.',
+      );
     }
   }
 
-  async exchangeGithubToken(githubAccessToken: string): Promise<{ access_token: string }> {
+  async exchangeGithubToken(
+    githubAccessToken: string,
+  ): Promise<{ access_token: string }> {
     try {
-
       const profileResponse = await fetch('https://api.github.com/user', {
         headers: {
           Authorization: `Bearer ${githubAccessToken}`,

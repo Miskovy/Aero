@@ -12,7 +12,9 @@ export class CreateUserDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiPropertyOptional({ description: 'Pre-hashed password (if creating manually without auth flow)' })
+  @ApiPropertyOptional({
+    description: 'Pre-hashed password (if creating manually without auth flow)',
+  })
   @IsString()
   @IsOptional()
   password_hash?: string;

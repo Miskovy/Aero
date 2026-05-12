@@ -1,17 +1,45 @@
-import { IsString, IsOptional, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNotEmpty,
+  IsEnum,
+  IsNumber,
+  IsObject,
+} from 'class-validator';
+import { SourceType } from '../../../../../generated/prisma';
 
 export class CreateServiceDto {
   @IsString()
   @IsNotEmpty()
   projectId!: string;
 
-  @IsString()
-  @IsNotEmpty()
-  repo!: string;
+  @IsEnum(SourceType)
+  @IsOptional()
+  sourceType?: SourceType;
 
   @IsString()
-  @IsNotEmpty()
-  branch!: string;
+  @IsOptional()
+  repo?: string;
+
+  @IsString()
+  @IsOptional()
+  branch?: string;
+
+  @IsString()
+  @IsOptional()
+  dockerImage?: string;
+
+  @IsString()
+  @IsOptional()
+  domain?: string;
+
+  @IsNumber()
+  @IsOptional()
+  internalPort?: number;
+
+  @IsObject()
+  @IsOptional()
+  envVars?: Record<string, string>;
 
   @IsString()
   @IsOptional()

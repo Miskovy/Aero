@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { VaultService } from '../vault/vault.service';
 import { CreateSecretDto, UpdateSecretDto } from './dto/create-secret.dto';
@@ -18,10 +22,14 @@ export class SecretsService {
     });
 
     if (existing) {
-      throw new ConflictException(`Secret with key ${dto.key} already exists for this service`);
+      throw new ConflictException(
+        `Secret with key ${dto.key} already exists for this service`,
+      );
     }
 
-    const { encryptedValue, iv, authTag, version } = this.vaultService.encrypt(dto.value);
+    const { encryptedValue, iv, authTag, version } = this.vaultService.encrypt(
+      dto.value,
+    );
 
     const secret = await this.prisma.serviceSecret.create({
       data: {
@@ -39,7 +47,7 @@ export class SecretsService {
         description: true,
         created_at: true,
         updated_at: true,
-      }
+      },
     });
 
     return secret;
@@ -59,7 +67,11 @@ export class SecretsService {
     });
   }
 
-  async updateSecret(serviceId: string, secretId: string, dto: UpdateSecretDto) {
+  async updateSecret(
+    serviceId: string,
+    secretId: string,
+    dto: UpdateSecretDto,
+  ) {
     const secret = await this.prisma.serviceSecret.findUnique({
       where: { id: secretId },
     });
@@ -68,7 +80,9 @@ export class SecretsService {
       throw new NotFoundException('Secret not found');
     }
 
-    const { encryptedValue, iv, authTag, version } = this.vaultService.encrypt(dto.value);
+    const { encryptedValue, iv, authTag, version } = this.vaultService.encrypt(
+      dto.value,
+    );
 
     return this.prisma.serviceSecret.update({
       where: { id: secretId },
@@ -77,7 +91,8 @@ export class SecretsService {
         iv,
         auth_tag: authTag,
         key_version: version,
-        description: dto.description !== undefined ? dto.description : secret.description,
+        description:
+          dto.description !== undefined ? dto.description : secret.description,
         updated_at: new Date(),
       },
       select: {
@@ -86,7 +101,7 @@ export class SecretsService {
         description: true,
         created_at: true,
         updated_at: true,
-      }
+      },
     });
   }
 

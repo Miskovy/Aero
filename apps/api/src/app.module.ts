@@ -53,8 +53,9 @@ import { NodesModule } from './modules/nodes/nodes.module';
     DomainsModule,
     AgentModule,
     NodesModule,
-    NetworkingModule],
+    NetworkingModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

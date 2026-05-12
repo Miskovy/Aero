@@ -8,7 +8,13 @@ import {
   Delete,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { User as UserModel } from '../../generated/prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -22,9 +28,7 @@ export class UserController {
   @Post()
   @ApiOperation({ summary: 'Create a new user directly' })
   @ApiResponse({ status: 201, description: 'The created user.' })
-  async createUser(
-    @Body() userData: CreateUserDto,
-  ): Promise<UserModel> {
+  async createUser(@Body() userData: CreateUserDto): Promise<UserModel> {
     return this.userService.createUser(userData);
   }
 

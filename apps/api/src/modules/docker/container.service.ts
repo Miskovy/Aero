@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unused-vars */
 import { Injectable } from '@nestjs/common';
 import { Service, Deployment } from '../../../generated/prisma/client';
 import { HostRestartPolicy, HostConfig, HealthConfig } from 'dockerode';
@@ -6,7 +6,12 @@ import * as Docker from 'dockerode';
 import { DockerService } from './docker.service';
 import { VaultService } from '../vault/vault.service';
 import { TraefikService } from '../networking/traefik.service';
-import { RestartPolicyConfig, ResourceLimitsConfig , HealthCheckConfig , VaultItem} from './interfaces/container.interface';
+import {
+  RestartPolicyConfig,
+  ResourceLimitsConfig,
+  HealthCheckConfig,
+  VaultItem,
+} from './interfaces/container.interface';
 
 @Injectable()
 export class ContainerService {
@@ -14,7 +19,7 @@ export class ContainerService {
     private readonly dockerService: DockerService,
     private readonly vaultService: VaultService,
     private readonly traefikService: TraefikService,
-  ) { }
+  ) {}
 
   // Create an Aero-managed container from a service definition
   async createFromService(
@@ -22,17 +27,21 @@ export class ContainerService {
     deployment: Deployment,
     imageTagOverride?: string,
   ): Promise<string> {
-    const image = imageTagOverride || deployment.docker_image_tag || service.docker_image;
+    const image =
+      imageTagOverride || deployment.docker_image_tag || service.docker_image;
     if (!image) {
       throw new Error(
         'No Docker image specified for this service or deployment',
       );
     }
-    const traefikLabels = await this.traefikService.getRoutingLabels(service, 3000);
+    const traefikLabels = await this.traefikService.getRoutingLabels(
+      service,
+      3000,
+    );
 
     const allLabels = {
       ...this.buildLabels(service, deployment),
-      ...traefikLabels
+      ...traefikLabels,
     };
 
     const config: Docker.ContainerCreateOptions = {
@@ -51,25 +60,36 @@ export class ContainerService {
     return container.id;
   }
 
-  async removeOldContainers(serviceId: string, newContainerId: string): Promise<void> {
+  async removeOldContainers(
+    serviceId: string,
+    newContainerId: string,
+  ): Promise<void> {
     try {
       const containers = await this.dockerService.listContainers({
         all: true,
         filters: {
-          label: [`aero.service.id=${serviceId}`]
-        }
+          label: [`aero.service.id=${serviceId}`],
+        },
       });
       for (const containerInfo of containers) {
         if (containerInfo.Id !== newContainerId) {
           try {
-            await this.dockerService.removeContainer(containerInfo.Id, { force: true });
+            await this.dockerService.removeContainer(containerInfo.Id, {
+              force: true,
+            });
           } catch (e) {
-            console.warn(`Failed to remove old container ${containerInfo.Id}`, e);
+            console.warn(
+              `Failed to remove old container ${containerInfo.Id}`,
+              e,
+            );
           }
         }
       }
     } catch (error) {
-      console.error(`Failed to fetch old containers for service ${serviceId}`, error);
+      console.error(
+        `Failed to fetch old containers for service ${serviceId}`,
+        error,
+      );
     }
   }
 
@@ -201,11 +221,15 @@ export class ContainerService {
     // actually dockerode expects them in nanoseconds as numbers.
     // 1 second = 1e9 nanoseconds.
     if (check.interval) {
-      healthConfig.Interval = this.parseDurationToNanoseconds(String(check.interval));
+      healthConfig.Interval = this.parseDurationToNanoseconds(
+        String(check.interval),
+      );
     }
 
     if (check.timeout) {
-      healthConfig.Timeout = this.parseDurationToNanoseconds(String(check.timeout));
+      healthConfig.Timeout = this.parseDurationToNanoseconds(
+        String(check.timeout),
+      );
     }
 
     if (check.start_period) {

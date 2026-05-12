@@ -31,16 +31,18 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         const responseObj = exceptionResponse as NestHttpExceptionResponse;
         message = responseObj.message || exception.message;
         if (
-          status === HttpStatus.NOT_FOUND && 
-          typeof responseObj.message === 'string' && 
+          status === HttpStatus.NOT_FOUND &&
+          typeof responseObj.message === 'string' &&
           responseObj.message.includes('Cannot GET')
         ) {
-           message = `The route [${request.method}] ${request.url} does not exist.`;
+          message = `The route [${request.method}] ${request.url} does not exist.`;
         }
       }
-    } 
-    else if (exception instanceof Error) {
-      this.logger.error(`Unhandled Exception: ${exception.message}`, exception.stack);
+    } else if (exception instanceof Error) {
+      this.logger.error(
+        `Unhandled Exception: ${exception.message}`,
+        exception.stack,
+      );
       message = 'An unexpected error occurred on the server.';
     }
 

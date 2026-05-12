@@ -10,8 +10,8 @@ export interface JwtPayload {
   sub: string;
   email?: string;
   name?: string;
-  iat?: number;   // Issued at (auto-added by jwt)
-  exp?: number;   // Expiration (auto-added by jwt)
+  iat?: number; // Issued at (auto-added by jwt)
+  exp?: number; // Expiration (auto-added by jwt)
 }
 
 @Injectable()
@@ -35,7 +35,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       access_token: this.jwtService.sign(payload),
     };
   }
-  
+
   async validate(payload: JwtPayload) {
     const user = await this.userService.user({ id: payload.sub });
     if (!user) {

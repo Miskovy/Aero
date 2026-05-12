@@ -361,6 +361,7 @@ model Service {
   restart_policy       Json?          @default("{\"condition\": \"on-failure\", \"max_retries\": 5}")
   replicas             Int?           @default(1)
   node_id              String?        @db.Uuid
+  internal_port        Int?           @default(3000)
   created_at           DateTime?      @default(now()) @db.Timestamptz()
   updated_at           DateTime?      @default(now()) @db.Timestamptz()
 
