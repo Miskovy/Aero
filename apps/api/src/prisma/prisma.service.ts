@@ -1,11 +1,18 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { PrismaClient } from '../../generated/prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
-
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(PrismaService.name);
   private readonly pool: Pool;
 
@@ -19,9 +26,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
     const adapter = new PrismaPg(pool);
 
-    super({ 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    super({
       adapter,
-      log: ['warn', 'error'], 
+      log: ['warn', 'error'],
     } as any);
 
     this.pool = pool;
@@ -29,11 +37,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleInit() {
     this.logger.log('Checking database connection...');
-    
+
     try {
       await this.$connect();
       await this.$queryRaw`SELECT 1`;
-      
+
       this.logger.log('Database connected successfully and is ready!');
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -41,7 +49,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       } else {
         this.logger.error(`Database connection failed: ${String(error)}`);
       }
-      this.logger.warn('Application is starting, but database features will fail until Postgres is running.');
+      this.logger.warn(
+        'Application is starting, but database features will fail until Postgres is running.',
+      );
     }
   }
 

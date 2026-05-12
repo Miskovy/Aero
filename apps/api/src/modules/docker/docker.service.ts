@@ -7,7 +7,6 @@ import Docker, {
 import { Logger } from '@nestjs/common';
 import { DockerProgressEvent } from './interfaces/docker.interface';
 
-
 @Injectable()
 export class DockerService {
   private docker: Docker;
@@ -117,7 +116,9 @@ export class DockerService {
     }
   }
 
-  async inspectContainer(containerId: string): Promise<Docker.ContainerInspectInfo> {
+  async inspectContainer(
+    containerId: string,
+  ): Promise<Docker.ContainerInspectInfo> {
     try {
       const container = this.docker.getContainer(containerId);
       return await container.inspect();
@@ -221,38 +222,50 @@ export class DockerService {
     }
   }
 
-async pullImage(image: string, tag: string = 'latest'): Promise<void> {
+  async pullImage(image: string, tag: string = 'latest'): Promise<void> {
     return new Promise((resolve, reject) => {
       const fullImageName = `${image}:${tag}`;
-      this.logger.log(`Starting download for Docker image: ${fullImageName}...`);
+      this.logger.log(
+        `Starting download for Docker image: ${fullImageName}...`,
+      );
 
-      this.docker.pull(fullImageName, (err: Error, stream: NodeJS.ReadableStream) => {
-        if (err) {
-          this.logger.error(`Failed to initiate pull for ${fullImageName}`);
-          return reject(err);
-        }
-        this.docker.modem.followProgress(
-          stream,
-          (finishErr: Error | null, _output: unknown[]) => {
-            if (finishErr) {
-              this.logger.error(`Download failed for ${fullImageName}`, finishErr);
-              return reject(finishErr);
-            }
-            this.logger.log(`Successfully downloaded image: ${fullImageName}`);
-            resolve();
-          },
-          (event: DockerProgressEvent) => {
-            if (event.status === 'Pull complete' && event.id) {
-              this.logger.debug(`[${fullImageName}] Layer ${event.id} pulled successfully.`);
-            } else if (event.status && !event.id && !event.progress) {
-              this.logger.log(`[Docker] ${event.status}`);
-            }
+      void this.docker.pull(
+        fullImageName,
+        (err: Error, stream: NodeJS.ReadableStream) => {
+          if (err) {
+            this.logger.error(`Failed to initiate pull for ${fullImageName}`);
+            return reject(err);
           }
-        );
-      });
+          void this.docker.modem.followProgress(
+            stream,
+            (finishErr: Error | null) => {
+              if (finishErr) {
+                this.logger.error(
+                  `Download failed for ${fullImageName}`,
+                  finishErr,
+                );
+                return reject(finishErr);
+              }
+              this.logger.log(
+                `Successfully downloaded image: ${fullImageName}`,
+              );
+              resolve();
+            },
+            (event: DockerProgressEvent) => {
+              if (event.status === 'Pull complete' && event.id) {
+                this.logger.debug(
+                  `[${fullImageName}] Layer ${event.id} pulled successfully.`,
+                );
+              } else if (event.status && !event.id && !event.progress) {
+                this.logger.log(`[Docker] ${event.status}`);
+              }
+            },
+          );
+        },
+      );
     });
   }
-  
+
   async removeImage(imageId: string): Promise<void> {
     try {
       const image = this.docker.getImage(imageId);

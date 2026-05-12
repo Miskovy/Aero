@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -12,15 +12,18 @@ export class OrganizationsService {
     return this.prisma.organization.findMany({
       where: {
         members: {
-          some: { user_id: userId }
-        }
+          some: { user_id: userId },
+        },
       },
-      take: 50
+      take: 50,
     });
   }
 
   async createOrganization(name: string, userId?: string) {
-    const slug = name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() + '-' + Math.random().toString(36).substring(2, 6);
+    const slug =
+      name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() +
+      '-' +
+      Math.random().toString(36).substring(2, 6);
 
     if (!userId) {
       // Ideally handled by guards, but just in case
@@ -29,7 +32,7 @@ export class OrganizationsService {
           name,
           slug,
           owner_id: '00000000-0000-0000-0000-000000000000', // fallback uuid
-        }
+        },
       });
     }
 
@@ -41,10 +44,10 @@ export class OrganizationsService {
         members: {
           create: {
             user_id: userId,
-            role: 'owner'
-          }
-        }
-      }
+            role: 'owner',
+          },
+        },
+      },
     });
   }
 }

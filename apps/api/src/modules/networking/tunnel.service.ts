@@ -1,12 +1,18 @@
-import { Injectable, Logger, OnApplicationBootstrap, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+  BadRequestException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DockerService } from '../docker/docker.service';
 import { VaultService } from '../vault/vault.service';
 import { ServiceWithRelations } from './types/tunnel.type';
-
-
-
-
+import { Project } from '../../../generated/prisma/client';
+import {
+  ProjectSettings,
+  CloudflareApiResponse,
+} from './interfaces/tunnel.interface';
 @Injectable()
 export class TunnelService implements OnApplicationBootstrap {
   private readonly logger = new Logger(TunnelService.name);
@@ -14,8 +20,8 @@ export class TunnelService implements OnApplicationBootstrap {
   constructor(
     private readonly dockerService: DockerService,
     private readonly config: ConfigService,
-    private readonly vaultService: VaultService
-  ) { }
+    private readonly vaultService: VaultService,
+  ) {}
 
   async onApplicationBootstrap() {
     this.logger.log('Booting up Aero infrastructure...');
@@ -40,7 +46,7 @@ export class TunnelService implements OnApplicationBootstrap {
       isPaidPlan &&
       cfSettings?.apiTokenEncrypted &&
       cfSettings?.iv &&
-      cfSettings?.authTag
+      cfSettings?.authTag,
     );
 
     let apiToken: string;
@@ -52,8 +58,8 @@ export class TunnelService implements OnApplicationBootstrap {
       // --- PAID TIER: Extract from JSON and Decrypt ---
       apiToken = this.vaultService.decrypt(
         cfSettings.apiTokenEncrypted as string,
-        cfSettings.iv as string,
-        cfSettings.authTag as string
+        cfSettings.iv,
+        cfSettings.authTag,
       );
       zoneId = cfSettings.zoneId || '';
       tunnelId = cfSettings.tunnelId || '';
@@ -64,31 +70,37 @@ export class TunnelService implements OnApplicationBootstrap {
       zoneId = this.config.get<string>('CLOUDFLARE_ZONE_ID') || '';
       tunnelId = this.config.get<string>('CLOUDFLARE_TUNNEL_ID') || '';
 
-      const baseDomain = this.config.get<string>('TUNNEL_DOMAIN') || 'aero.local';
+      const baseDomain =
+        this.config.get<string>('TUNNEL_DOMAIN') || 'aero.local';
       fullDomainName = `${service.slug}.${baseDomain}`;
     }
 
     if (!apiToken || !zoneId || !tunnelId) {
-      throw new Error(`Cloudflare configuration is missing for ${useTenantTunnel ? 'Tenant' : 'Platform'}`);
+      throw new Error(
+        `Cloudflare configuration is missing for ${useTenantTunnel ? 'Tenant' : 'Platform'}`,
+      );
     }
 
     const cnameTarget = `${tunnelId}.cfargotunnel.com`;
 
     try {
-      const response = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiToken}`,
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'CNAME',
+            name: fullDomainName,
+            content: cnameTarget,
+            proxied: true,
+            comment: `Managed by Aero: ${service.slug} (Org: ${org.slug})`,
+          }),
         },
-        body: JSON.stringify({
-          type: 'CNAME',
-          name: fullDomainName,
-          content: cnameTarget,
-          proxied: true,
-          comment: `Managed by Aero: ${service.slug} (Org: ${org.slug})`,
-        }),
-      });
+      );
 
       const result = (await response.json()) as CloudflareApiResponse;
 
@@ -101,9 +113,11 @@ export class TunnelService implements OnApplicationBootstrap {
 
       this.logger.log(`DNS record configured for ${fullDomainName}`);
       return `https://${fullDomainName}`;
-
     } catch (error) {
-      this.logger.error(`DNS configuration failed for ${fullDomainName}`, error);
+      this.logger.error(
+        `DNS configuration failed for ${fullDomainName}`,
+        error,
+      );
       throw error;
     }
   }
@@ -117,28 +131,34 @@ export class TunnelService implements OnApplicationBootstrap {
       project &&
       cfSettings?.tunnelTokenEnc &&
       cfSettings?.iv &&
-      cfSettings?.authTag
+      cfSettings?.authTag,
     );
 
-    const tunnelName = isTenant ? `aero-cloudflared-${project?.id}` : 'aero-cloudflared-shared';
+    const tunnelName = isTenant
+      ? `aero-cloudflared-${project?.id}`
+      : 'aero-cloudflared-shared';
 
     let tunnelToken = '';
     if (isTenant && cfSettings) {
-
       tunnelToken = this.vaultService.decrypt(
         cfSettings.tunnelTokenEnc as string,
-        cfSettings.iv as string,
-        cfSettings.authTag as string
+        cfSettings.iv,
+        cfSettings.authTag,
       );
-
     } else {
       tunnelToken = this.config.get<string>('CLOUDFLARE_TUNNEL_TOKEN') || '';
     }
 
-    if (!tunnelToken) throw new BadRequestException(`Tunnel token is missing for ${tunnelName}`);
+    if (!tunnelToken)
+      throw new BadRequestException(
+        `Tunnel token is missing for ${tunnelName}`,
+      );
 
     // Prevent duplicate tunnels
-    const existing = await this.dockerService.listContainers({ all: true, filters: { name: [tunnelName] } });
+    const existing = await this.dockerService.listContainers({
+      all: true,
+      filters: { name: [tunnelName] },
+    });
 
     if (existing.length > 0) {
       if (existing[0].State !== 'running') {

@@ -1,5 +1,13 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { DomainsService } from './domain.service';
 import { AddDomainDto } from './dto/domain.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -9,7 +17,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('services/:serviceId/domains')
 export class DomainsController {
-  constructor(private readonly domainsService: DomainsService) {}
+  constructor(private readonly domainsService: DomainsService) { }
 
   @Get()
   @ApiOperation({ summary: 'List all domains for a service' })

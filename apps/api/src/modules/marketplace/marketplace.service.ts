@@ -1,11 +1,19 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DeploymentsService } from '../deployments/deployment.service';
 import { VaultService } from '../vault/vault.service';
 import * as yaml from 'js-yaml';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { MarketplaceTemplate, RegistryData } from './interfaces/marketplace.interface';
+import {
+  MarketplaceTemplate,
+  RegistryData,
+} from './interfaces/marketplace.interface';
 
 @Injectable()
 export class MarketplaceService {
@@ -18,11 +26,11 @@ export class MarketplaceService {
     private readonly prisma: PrismaService,
     private readonly deploymentsService: DeploymentsService,
     private readonly vaultService: VaultService,
-  ) { }
+  ) {}
 
   async getRegistry(): Promise<RegistryData> {
     const now = Date.now();
-    if (this.cachedRegistry && (now - this.lastFetchTime < this.CACHE_TTL)) {
+    if (this.cachedRegistry && now - this.lastFetchTime < this.CACHE_TTL) {
       return this.cachedRegistry;
     }
 
@@ -31,22 +39,28 @@ export class MarketplaceService {
     try {
       const response = await fetch(registryUrl);
       if (!response.ok) {
-        throw new Error(`Failed to fetch registry from ${registryUrl}: ${response.statusText}`);
+        throw new Error(
+          `Failed to fetch registry from ${registryUrl}: ${response.statusText}`,
+        );
       }
 
-      const data = await response.json() as RegistryData;
+      const data = (await response.json()) as RegistryData;
 
       this.cachedRegistry = data;
       this.lastFetchTime = now;
 
       return data;
-    } catch (error) {
-      this.logger.error(`Registry fetch error: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(`Registry fetch error: ${errorMessage}`);
       if (this.cachedRegistry) {
         this.logger.warn('Returning stale cache due to fetch error.');
         return this.cachedRegistry;
       }
-      throw new BadRequestException('Could not connect to the Aero Marketplace Registry');
+      throw new BadRequestException(
+        'Could not connect to the Aero Marketplace Registry',
+      );
     }
   }
 
@@ -57,14 +71,21 @@ export class MarketplaceService {
 
   async getTemplate(id: string): Promise<MarketplaceTemplate> {
     const registry = await this.getRegistry();
-    const template = registry.templates.find(t => t.id === id);
+    const template = registry.templates.find((t) => t.id === id);
     if (!template) {
-      throw new NotFoundException(`Template with ID ${id} not found in the registry`);
+      throw new NotFoundException(
+        `Template with ID ${id} not found in the registry`,
+      );
     }
     return template;
   }
 
-  async deployTemplate(projectId: string, templateId: string, envVars: Record<string, string>, userId?: string) {
+  async deployTemplate(
+    projectId: string,
+    templateId: string,
+    envVars: Record<string, string>,
+    userId?: string,
+  ) {
     const template = await this.getTemplate(templateId);
 
     let composeContent = '';
@@ -72,25 +93,40 @@ export class MarketplaceService {
       const response = await fetch(template.compose_url);
       if (!response.ok) throw new Error('Bad response');
       composeContent = await response.text();
-    } catch (e) {
-      throw new BadRequestException(`Failed to download template configuration from ${template.compose_url}`);
+    } catch {
+      throw new BadRequestException(
+        `Failed to download template configuration from ${template.compose_url}`,
+      );
     }
 
     let parsedYaml: Record<string, any>;
     try {
       parsedYaml = yaml.load(composeContent) as Record<string, any>;
-      if (!parsedYaml || typeof parsedYaml !== 'object' || !parsedYaml.services) {
-        throw new Error('Invalid docker-compose structure. Must contain "services" block.');
+      if (
+        !parsedYaml ||
+        typeof parsedYaml !== 'object' ||
+        !parsedYaml.services
+      ) {
+        throw new Error(
+          'Invalid docker-compose structure. Must contain "services" block.',
+        );
       }
 
       // Strict SSRF/Security Check: reject privileged mode
-      for (const [serviceName, serviceConfig] of Object.entries(parsedYaml.services as any)) {
-        if ((serviceConfig as any).privileged) {
-          throw new Error(`Service ${serviceName} requests privileged mode which is not allowed.`);
+      for (const [serviceName, serviceConfig] of Object.entries(
+        parsedYaml.services as Record<string, unknown>,
+      )) {
+        if ((serviceConfig as { privileged?: boolean })?.privileged) {
+          throw new Error(
+            `Service ${serviceName} requests privileged mode which is not allowed.`,
+          );
         }
       }
-    } catch (e) {
-      throw new BadRequestException(`Schema validation failed: ${e.message}`);
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      throw new BadRequestException(
+        `Schema validation failed: ${errorMessage}`,
+      );
     }
 
     const baseSlug = template.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
@@ -102,7 +138,6 @@ export class MarketplaceService {
 
     await fs.writeFile(composePath, composeContent, 'utf8');
 
-
     const service = await this.prisma.service.create({
       data: {
         project_id: projectId,
@@ -111,13 +146,13 @@ export class MarketplaceService {
         type: 'application',
         source_type: 'marketplace',
         docker_compose_path: composePath,
-      }
+      },
     });
-
 
     if (envVars && Object.keys(envVars).length > 0) {
       for (const [key, value] of Object.entries(envVars)) {
-        const { encryptedValue, iv, authTag, version } = this.vaultService.encrypt(value);
+        const { encryptedValue, iv, authTag, version } =
+          this.vaultService.encrypt(value);
         await this.prisma.environmentVariable.create({
           data: {
             service_id: service.id,
@@ -127,12 +162,15 @@ export class MarketplaceService {
             auth_tag: authTag,
             key_version: version,
             is_secret: true,
-          }
+          },
         });
       }
     }
 
-    const deployment = await this.deploymentsService.triggerDeployment(service.id, userId);
+    const deployment = await this.deploymentsService.triggerDeployment(
+      service.id,
+      userId,
+    );
 
     return { service, deployment };
   }

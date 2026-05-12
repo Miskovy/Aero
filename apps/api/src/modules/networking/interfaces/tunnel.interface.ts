@@ -1,4 +1,4 @@
-interface CloudflareSettings {
+export interface CloudflareSettings {
   apiTokenEncrypted?: string;
   tunnelTokenEnc?: string;
   iv?: string;
@@ -8,11 +8,11 @@ interface CloudflareSettings {
   customDomain?: string;
 }
 
-interface ProjectSettings {
+export interface ProjectSettings {
   cloudflare?: CloudflareSettings;
 }
 
-interface CloudflareApiResponse {
+export interface CloudflareApiResponse {
   success: boolean;
   errors?: Array<{ code: number; message: string }>;
 }

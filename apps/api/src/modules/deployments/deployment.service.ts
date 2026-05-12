@@ -1,21 +1,26 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Deployment } from '../../../generated/prisma/client';
+import { CreateServiceDto } from './dto/create-service.dto';
 
 @Injectable()
 export class DeploymentsService {
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue('deployments') private readonly deploymentsQueue: Queue
+    @InjectQueue('deployments') private readonly deploymentsQueue: Queue,
   ) {}
 
   async listAllServices(userId?: string) {
     if (!userId) {
       return this.prisma.service.findMany({ take: 50 });
     }
-    
+
     // We get services that belong to projects in organizations the user is a member of
     return this.prisma.service.findMany({
       where: {
@@ -23,16 +28,16 @@ export class DeploymentsService {
           organization: {
             members: {
               some: {
-                user_id: userId
-              }
-            }
-          }
-        }
+                user_id: userId,
+              },
+            },
+          },
+        },
       },
       include: {
-        project: true
+        project: true,
       },
-      take: 50
+      take: 50,
     });
   }
 
@@ -43,23 +48,23 @@ export class DeploymentsService {
     return this.prisma.organization.findMany({
       where: {
         members: {
-          some: { user_id: userId }
-        }
+          some: { user_id: userId },
+        },
       },
-      take: 50
+      take: 50,
     });
   }
 
-  async listProjects(orgId: string, userId?: string) {
+  async listProjects(orgId: string) {
     return this.prisma.project.findMany({
       where: { organization_id: orgId },
-      take: 50
+      take: 50,
     });
   }
 
-  async createService(data: any, userId?: string) {
+  async createService(data: CreateServiceDto, userId?: string) {
     const { projectId, repo, branch, buildCmd, startCmd } = data;
-    
+
     // Generate a unique slug based on the repo name and a random string
     const baseSlug = repo.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
     const slug = `${baseSlug}-${Math.random().toString(36).substring(2, 8)}`;
@@ -75,15 +80,18 @@ export class DeploymentsService {
         git_branch: branch,
         build_command: buildCmd,
         start_command: startCmd,
-      }
+      },
     });
 
     // Queue initial deployment
     return this.triggerDeployment(service.id, userId);
   }
-  async triggerDeployment(serviceId: string, userId?: string): Promise<Deployment> {
+  async triggerDeployment(
+    serviceId: string,
+    userId?: string,
+  ): Promise<Deployment> {
     const service = await this.prisma.service.findUnique({
-      where: { id: serviceId }
+      where: { id: serviceId },
     });
 
     if (!service) {
@@ -96,7 +104,7 @@ export class DeploymentsService {
         status: 'queued',
         trigger: 'manual',
         triggered_by: userId || null,
-      }
+      },
     });
 
     await this.deploymentsQueue.add('deploy', {
@@ -107,7 +115,10 @@ export class DeploymentsService {
     return deployment;
   }
 
-  async listDeployments(serviceId: string, limit: number = 10): Promise<Deployment[]> {
+  async listDeployments(
+    serviceId: string,
+    limit: number = 10,
+  ): Promise<Deployment[]> {
     return this.prisma.deployment.findMany({
       where: { service_id: serviceId },
       orderBy: { created_at: 'desc' },
@@ -116,7 +127,10 @@ export class DeploymentsService {
   }
 
   // GET /services/:serviceId/deployments/:id
-  async getDeploymentDetails(serviceId: string, deploymentId: string): Promise<Deployment> {
+  async getDeploymentDetails(
+    serviceId: string,
+    deploymentId: string,
+  ): Promise<Deployment> {
     const deployment = await this.prisma.deployment.findFirst({
       where: { id: deploymentId, service_id: serviceId },
       include: { logs: { orderBy: { created_at: 'asc' } } }, // Fetch logs too!
@@ -127,59 +141,77 @@ export class DeploymentsService {
   }
 
   // POST /services/:serviceId/deployments/:id/rollback
-  async triggerRollback(serviceId: string, deploymentId: string, userId?: string): Promise<Deployment> {
-    const failedDeployment = await this.prisma.deployment.findUnique({ where: { id: deploymentId } });
-    
+  async triggerRollback(
+    serviceId: string,
+    deploymentId: string,
+  ): Promise<Deployment> {
+    const failedDeployment = await this.prisma.deployment.findUnique({
+      where: { id: deploymentId },
+    });
+
     if (!failedDeployment || failedDeployment.status !== 'failed') {
-      throw new BadRequestException('You can only rollback from a failed deployment.');
+      throw new BadRequestException(
+        'You can only rollback from a failed deployment.',
+      );
     }
 
     const updatedDeployment = await this.prisma.deployment.update({
       where: { id: deploymentId },
-      data: { status: 'rolled_back' }
+      data: { status: 'rolled_back' },
     });
 
     await this.deploymentsQueue.add('rollback', {
       serviceId,
       deploymentId,
-      failedContainerId: failedDeployment.docker_image_tag
+      failedContainerId: failedDeployment.docker_image_tag,
     });
 
     return updatedDeployment;
   }
 
   // POST /services/:serviceId/deployments/:id/cancel
-  async cancelDeployment(serviceId: string, deploymentId: string): Promise<Deployment> {
+  async cancelDeployment(
+    serviceId: string,
+    deploymentId: string,
+  ): Promise<Deployment> {
     const deployment = await this.prisma.deployment.findFirst({
-      where: { id: deploymentId, service_id: serviceId }
+      where: { id: deploymentId, service_id: serviceId },
     });
 
     if (!deployment) throw new NotFoundException('Deployment not found');
 
     if (deployment.status !== 'queued' && deployment.status !== 'building') {
-      throw new BadRequestException(`Cannot cancel a deployment in status: ${deployment.status}`);
+      throw new BadRequestException(
+        `Cannot cancel a deployment in status: ${deployment.status}`,
+      );
     }
 
     // Update the database
     const cancelled = await this.prisma.deployment.update({
       where: { id: deploymentId },
-      data: { 
+      data: {
         status: 'cancelled',
-        finished_at: new Date()
-      }
+        finished_at: new Date(),
+      },
     });
 
     // Attempt to remove the job from the BullMQ queue if it hasn't started processing yet
     // BullMQ generates job IDs automatically
     try {
       const jobs = await this.deploymentsQueue.getJobs(['waiting', 'delayed']);
-      const jobToCancel = jobs.find(job => job.data.deploymentId === deploymentId);
-      
+      const jobToCancel = jobs.find(
+        (job) =>
+          (job.data as { deploymentId?: string }).deploymentId === deploymentId,
+      );
+
       if (jobToCancel) {
         await jobToCancel.remove();
       }
-    } catch (e) {
-      console.warn(`Failed to remove cancelled job ${deploymentId} from queue`);
+    } catch (e: unknown) {
+      console.warn(
+        `Failed to remove cancelled job ${deploymentId} from queue`,
+        e,
+      );
     }
 
     return cancelled;
