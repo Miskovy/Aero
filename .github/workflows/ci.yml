@@ -44,7 +44,7 @@ jobs:
         run: pnpm run typecheck
 
       - name: Run Unit Tests
-        run: pnpm run test --filter=!@aero/shared&&!@aero/cli
+        run: pnpm run test --filter=api
 
       - name: Build All Packages
         run: pnpm run build
