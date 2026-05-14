@@ -101,10 +101,12 @@ export class DeploymentsService {
     const service = await this.prisma.service.create({
       data: {
         project_id: projectId,
+        node_id: data.nodeId,
         name,
         slug,
         type: 'application',
         source_type: sourceType,
+        git_repository: repo,
         git_branch: branch,
         docker_image: dockerImage,
         build_command: buildCmd,
@@ -164,6 +166,8 @@ export class DeploymentsService {
     await this.deploymentsQueue.add('deploy', {
       serviceId,
       deploymentId: deployment.id,
+      gitUrl: service.git_repository ? `https://github.com/${service.git_repository}.git` : '',
+      branch: service.git_branch || 'main',
     });
 
     return deployment;

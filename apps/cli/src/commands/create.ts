@@ -108,64 +108,163 @@ export async function createAction() {
 
   if (p.isCancel(projectId) || projectId === 'cancel') return p.outro(chalk.gray('Cancelled.'));
 
-  const repo = await p.text({
-    message: 'Enter the GitHub repository you want to deploy (e.g., miskovy/aero-cli):',
-    placeholder: 'miskovy/my-repo'
-  });
-  if (p.isCancel(repo) || !repo) return p.outro(chalk.gray('Cancelled.'));
-
-  const branch = await p.text({
-    message: 'Which branch should we deploy?',
-    placeholder: 'main',
-    initialValue: 'main'
-  });
-  if (p.isCancel(branch)) return;
-
-  p.note('Let us configure the environment for deployment.', 'Configuration');
-  
-  const framework = await p.select({
-    message: 'What framework are you using?',
+  const sourceType = await p.select({
+    message: 'What is the source of your application?',
     options: [
-      { value: 'Next.js', label: 'Next.js' },
-      { value: 'Node.js', label: 'Node.js / Express' },
-      { value: 'React', label: 'React (Create React App)' },
-      { value: 'Dockerfile', label: 'Custom Dockerfile' },
-      { value: 'Other', label: 'Other/Static Web' }
+      { value: 'GITHUB', label: 'GitHub Repository' },
+      { value: 'DOCKER', label: 'Docker Image' }
     ]
   });
-  if (p.isCancel(framework)) return;
+  if (p.isCancel(sourceType)) return p.outro(chalk.gray('Cancelled.'));
 
-  const buildCmd = await p.text({
-    message: 'Build command (leave empty to skip):',
-    initialValue: framework === 'Next.js' ? 'npm run build' : 'npm install'
-  });
-  if (p.isCancel(buildCmd)) return;
+  let repo = '';
+  let branch = '';
+  let dockerImage = '';
 
-  const startCmd = await p.text({
-    message: 'Start command:',
-    initialValue: framework === 'Next.js' ? 'npm start' : 'node index.js'
+  if (sourceType === 'GITHUB') {
+    const r = await p.text({
+      message: 'Enter the GitHub repository (e.g., miskovy/aero-cli):',
+      placeholder: 'miskovy/my-repo'
+    });
+    if (p.isCancel(r) || !r) return p.outro(chalk.gray('Cancelled.'));
+    repo = r as string;
+
+    const b = await p.text({
+      message: 'Which branch should we deploy?',
+      placeholder: 'main',
+      initialValue: 'main'
+    });
+    if (p.isCancel(b)) return p.outro(chalk.gray('Cancelled.'));
+    branch = b as string;
+  } else {
+    const img = await p.text({
+      message: 'Enter the Docker image (e.g., nginx:latest):',
+      placeholder: 'nginx:latest'
+    });
+    if (p.isCancel(img) || !img) return p.outro(chalk.gray('Cancelled.'));
+    dockerImage = img as string;
+  }
+
+  const internalPort = await p.text({
+    message: 'What port does the application listen on internally?',
+    placeholder: '3000',
+    initialValue: '3000'
   });
-  if (p.isCancel(startCmd)) return;
+  if (p.isCancel(internalPort)) return p.outro(chalk.gray('Cancelled.'));
+
+  const domain = await p.text({
+    message: 'Custom domain (leave empty for auto-generated aerodeploy.app subdomain):',
+    placeholder: 'api.my-app.com',
+    initialValue: ''
+  });
+  if (p.isCancel(domain)) return p.outro(chalk.gray('Cancelled.'));
+
+  const envVarsRaw = await p.text({
+    message: 'Environment variables (comma separated KEY=VALUE, leave empty to skip):',
+    placeholder: 'NODE_ENV=production, API_KEY=secret',
+    initialValue: ''
+  });
+  if (p.isCancel(envVarsRaw)) return p.outro(chalk.gray('Cancelled.'));
+
+  let envVars: Record<string, string> = {};
+  if (envVarsRaw) {
+    (envVarsRaw as string).split(',').forEach(pair => {
+      const [key, ...rest] = pair.split('=');
+      if (key && rest.length > 0) {
+        envVars[key.trim()] = rest.join('=').trim();
+      }
+    });
+  }
+
+  sFetch.start('Loading available nodes...');
+  let nodes: any[] = [];
+  try {
+    nodes = await apiRequest<any[]>({ method: 'GET', url: `/nodes` });
+  } catch (err: any) {
+    // Ignore if nodes API is unavailable or failing
+  }
+  sFetch.stop('Nodes loaded!');
+
+  let nodeId: string | symbol = '';
+  const nodeOptions = [
+    { value: '', label: '☁️ Cloud (Aero Platform)' }
+  ];
+
+  nodes.forEach(n => {
+    nodeOptions.push({ value: n.id, label: `💻 Local Device: ${n.hostname || n.id} (${n.status})` });
+  });
+
+  if (nodeOptions.length > 1) {
+    nodeId = await p.select({
+      message: 'Where do you want to deploy this service?',
+      options: nodeOptions
+    });
+    if (p.isCancel(nodeId)) return p.outro(chalk.gray('Cancelled.'));
+  }
+
+  let buildCmd = '';
+  let startCmd = '';
+
+  if (sourceType === 'GITHUB') {
+    p.note('Let us configure the environment for deployment.', 'Configuration');
+    const framework = await p.select({
+      message: 'What framework are you using?',
+      options: [
+        { value: 'Next.js', label: 'Next.js' },
+        { value: 'Node.js', label: 'Node.js / Express' },
+        { value: 'React', label: 'React (Create React App)' },
+        { value: 'Dockerfile', label: 'Custom Dockerfile' },
+        { value: 'Other', label: 'Other/Static Web' }
+      ]
+    });
+    if (p.isCancel(framework)) return p.outro(chalk.gray('Cancelled.'));
+
+    if (framework !== 'Dockerfile') {
+      const bCmd = await p.text({
+        message: 'Build command (leave empty to skip):',
+        initialValue: framework === 'Next.js' ? 'npm run build' : 'npm install'
+      });
+      if (p.isCancel(bCmd)) return p.outro(chalk.gray('Cancelled.'));
+      buildCmd = bCmd as string;
+
+      const sCmd = await p.text({
+        message: 'Start command:',
+        initialValue: framework === 'Next.js' ? 'npm start' : 'node index.js'
+      });
+      if (p.isCancel(sCmd)) return p.outro(chalk.gray('Cancelled.'));
+      startCmd = sCmd as string;
+    }
+  }
 
   const confirm = await p.confirm({
-    message: `Ready to create and deploy ${chalk.cyan(repo as string)} to ${chalk.green(orgs.find(o=>o.id === orgId)?.name)}?`,
+    message: `Ready to create and deploy this service to ${chalk.green(orgs.find(o=>o.id === orgId)?.name)}?`,
     initialValue: true
   });
   if (p.isCancel(confirm) || !confirm) return p.outro('Aborted.');
 
   sFetch.start('Creating service and queueing deployment...');
   try {
+    const payload: any = {
+      projectId,
+      sourceType,
+      internalPort: parseInt(internalPort as string, 10)
+    };
+    if (sourceType === 'GITHUB') {
+      payload.repo = repo;
+      payload.branch = branch;
+    } else {
+      payload.dockerImage = dockerImage;
+    }
+    if (domain) payload.domain = domain as string;
+    if (Object.keys(envVars).length > 0) payload.envVars = envVars;
+    if (nodeId) payload.nodeId = nodeId as string;
+    if (buildCmd) payload.buildCmd = buildCmd as string;
+    if (startCmd) payload.startCmd = startCmd as string;
+
     const result = await apiRequest({
       method: 'POST',
       url: `/services`,
-      data: {
-        projectId,
-        repo,
-        branch,
-        framework,
-        buildCmd,
-        startCmd
-      }
+      data: payload
     });
     sFetch.stop('Service created and deployment triggered!');
     p.outro(`✅ You can now run ${chalk.cyan('aero logs')} to track its progress.`);

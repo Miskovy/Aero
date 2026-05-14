@@ -352,6 +352,7 @@ model Service {
   build_command        String?        @db.VarChar(1000)
   start_command        String?        @db.VarChar(1000)
   git_source_id        String?        @db.Uuid
+  git_repository       String?        @db.VarChar(500)
   git_branch           String?        @default("main") @db.VarChar(255)
   git_subdirectory     String?        @db.VarChar(500)
   active_deployment_id String?        @db.Uuid

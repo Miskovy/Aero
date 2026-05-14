@@ -11,6 +11,8 @@ import { Logger } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { AuthenticatedSocket } from './interfaces/gateway.interface';
 
+import { PrismaService } from '../../prisma/prisma.service';
+
 @WebSocketGateway({
   cors: { origin: '*' },
   namespace: '/agent',
@@ -21,7 +23,10 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly logger = new Logger(AgentGateway.name);
 
-  constructor(private readonly agentService: AgentService) {}
+  constructor(
+    private readonly agentService: AgentService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     const auth = client.handshake.auth as { token?: string };
@@ -71,6 +76,42 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
       await this.agentService.updateHeartbeat(nodeId, payload);
     }
     return { event: 'pong', data: { timestamp: new Date() } };
+  }
+
+  @SubscribeMessage('deploy_log')
+  async handleDeployLog(
+    client: AuthenticatedSocket,
+    payload: { deploymentId: string; phase: string; message: string; level?: string },
+  ): Promise<void> {
+    const nodeId = client.data.nodeId;
+    if (nodeId && payload.deploymentId) {
+      await this.prisma.deploymentLog.create({
+        data: {
+          deployment_id: payload.deploymentId,
+          phase: payload.phase || 'build',
+          message: payload.message,
+          level: payload.level || 'info',
+        },
+      });
+    }
+  }
+
+  @SubscribeMessage('deploy_status')
+  async handleDeployStatus(
+    client: AuthenticatedSocket,
+    payload: { deploymentId: string; status: 'completed' | 'failed' | 'rolled_back'; containerId?: string; imageTag?: string },
+  ): Promise<void> {
+    const nodeId = client.data.nodeId;
+    if (nodeId && payload.deploymentId) {
+      await this.prisma.deployment.update({
+        where: { id: payload.deploymentId },
+        data: {
+          status: payload.status,
+          docker_image_tag: payload.imageTag || null,
+          finished_at: new Date(),
+        },
+      });
+    }
   }
 
   // Method called by DeploymentsService to stream deployment commands down to the CLI agent

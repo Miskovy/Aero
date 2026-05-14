@@ -8,6 +8,7 @@ import { ContainerService } from '../../docker/container.service';
 import { GitSourcesService } from 'src/modules/git/git-sources.service';
 import { HealthCheckService } from 'src/modules/health/health-check.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { AgentGateway } from 'src/modules/agent/agent.gateway';
 import {
   DeploymentJob,
   DeploymentResult,
@@ -33,6 +34,7 @@ export class BuildProcessor extends WorkerHost {
     private readonly containerService: ContainerService,
     private readonly healthCheckService: HealthCheckService,
     private readonly prisma: PrismaService,
+    private readonly agentGateway: AgentGateway,
   ) {
     super();
   }
@@ -120,6 +122,20 @@ export class BuildProcessor extends WorkerHost {
       throw new Error(
         `Cannot process deployment: Service ${serviceId} not found.`,
       );
+    }
+
+    // Step 2: Route local deployments to the correct local device
+    if (service.node_id) {
+      this.logger.log(`Service ${service.id} targets Node ${service.node_id}. Delegating deployment to agent...`);
+      await this.updatePhase(deploymentId, 'clone', 'Delegating deployment to remote agent...');
+      
+      this.agentGateway.sendDeployCommand(service.node_id, {
+        service,
+        deploymentJob: job.data,
+      });
+
+      // The job technically "succeeds" locally by delegating it. It will be tracked via Socket.io logs.
+      return { success: true };
     }
 
     try {

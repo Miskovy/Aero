@@ -8,6 +8,8 @@ import { chatAction } from './commands/chat.js';
 import { logsAction } from './commands/logs.js';
 import { createDaemonCommand } from './commands/daemon.js';
 
+import { createAction } from './commands/create.js';
+
 const program = new Command();
 
 program
@@ -24,6 +26,11 @@ program
   .command('githublogin')
   .description('Login to Aero using GitHub authentication')
   .action(githubLoginAction);
+
+program
+  .command('create')
+  .description('Create a new service')
+  .action(createAction);
 
 program
   .command('deploy')

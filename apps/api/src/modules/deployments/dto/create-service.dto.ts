@@ -47,5 +47,9 @@ export class CreateServiceDto {
 
   @IsString()
   @IsOptional()
+  nodeId?: string;
+
+  @IsString()
+  @IsOptional()
   startCmd?: string;
 }
