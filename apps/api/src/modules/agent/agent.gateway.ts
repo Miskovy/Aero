@@ -8,7 +8,7 @@ import {
 import { Server } from 'socket.io';
 import { AgentService } from './agent.service';
 import { Logger } from '@nestjs/common';
-import { Prisma } from '../../../generated/prisma/client';
+import { Prisma, LogPhase, LogLevel, DeploymentStatus } from '../../../generated/prisma/client';
 import { AuthenticatedSocket } from './interfaces/gateway.interface';
 
 import { PrismaService } from '../../prisma/prisma.service';
@@ -81,16 +81,16 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('deploy_log')
   async handleDeployLog(
     client: AuthenticatedSocket,
-    payload: { deploymentId: string; phase: string; message: string; level?: string },
+    payload: { deploymentId: string; phase: LogPhase; message: string; level?: LogLevel },
   ): Promise<void> {
     const nodeId = client.data.nodeId;
     if (nodeId && payload.deploymentId) {
       await this.prisma.deploymentLog.create({
         data: {
           deployment_id: payload.deploymentId,
-          phase: payload.phase || 'build',
+          phase: payload.phase || LogPhase.build,
           message: payload.message,
-          level: payload.level || 'info',
+          level: payload.level || LogLevel.info,
         },
       });
     }
@@ -99,7 +99,7 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('deploy_status')
   async handleDeployStatus(
     client: AuthenticatedSocket,
-    payload: { deploymentId: string; status: 'completed' | 'failed' | 'rolled_back'; containerId?: string; imageTag?: string },
+    payload: { deploymentId: string; status: DeploymentStatus; containerId?: string; imageTag?: string },
   ): Promise<void> {
     const nodeId = client.data.nodeId;
     if (nodeId && payload.deploymentId) {
