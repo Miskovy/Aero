@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { DeploymentsController } from './deployment.controller';
 import { DeploymentsService } from './deployment.service';
 import { VaultModule } from '../vault/vault.module';
+import { CloudflareModule } from '../cloudflare/cloudflare.module';
 
 @Module({
   imports: [
@@ -10,6 +11,7 @@ import { VaultModule } from '../vault/vault.module';
       name: 'deployments',
     }),
     VaultModule,
+    CloudflareModule,
   ],
   controllers: [DeploymentsController],
   providers: [DeploymentsService],

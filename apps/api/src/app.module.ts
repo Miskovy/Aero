@@ -20,6 +20,7 @@ import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { DomainsModule } from './modules/domains/domains.module';
 import { AgentModule } from './modules/agent/agent.module';
 import { NodesModule } from './modules/nodes/nodes.module';
+import { CloudflareModule } from './modules/cloudflare/cloudflare.module';
 
 @Module({
   imports: [
@@ -50,10 +51,10 @@ import { NodesModule } from './modules/nodes/nodes.module';
     SecretsModule,
     MonitoringModule,
     MarketplaceModule,
-    DomainsModule,
     AgentModule,
     NodesModule,
     NetworkingModule,
+    CloudflareModule,
   ],
   controllers: [AppController],
   providers: [AppService],

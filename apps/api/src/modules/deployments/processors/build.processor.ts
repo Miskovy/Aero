@@ -13,18 +13,9 @@ import {
   DeploymentJob,
   DeploymentResult,
 } from '../interfaces/deployment.interface';
+import { LogPhase } from '../types/deployment.type';
 
-export type LogPhase =
-  | 'clone'
-  | 'build'
-  | 'push'
-  | 'deploy'
-  | 'health_check'
-  | 'routing'
-  | 'failed'
-  | 'completed';
-
-@Processor('deployment')
+@Processor('deployments')
 export class BuildProcessor extends WorkerHost {
   private readonly logger = new Logger(BuildProcessor.name);
 
@@ -128,7 +119,7 @@ export class BuildProcessor extends WorkerHost {
     if (service.node_id) {
       this.logger.log(`Service ${service.id} targets Node ${service.node_id}. Delegating deployment to agent...`);
       await this.updatePhase(deploymentId, 'clone', 'Delegating deployment to remote agent...');
-      
+
       this.agentGateway.sendDeployCommand(service.node_id, {
         service,
         deploymentJob: job.data,

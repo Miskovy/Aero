@@ -7,7 +7,16 @@ import { deployAction } from './commands/deploy.js';
 import { chatAction } from './commands/chat.js';
 import { logsAction } from './commands/logs.js';
 import { createDaemonCommand } from './commands/daemon.js';
-
+import { 
+  servicesListAction, 
+  servicesStartAction, 
+  servicesStopAction, 
+  servicesRestartAction, 
+  servicesDeleteAction, 
+  servicesInspectAction 
+} from './commands/services.js';
+import { envListAction, envSetAction, envUnsetAction, envImportAction } from './commands/env.js';
+import { nodeListAction, nodeAddAction, nodeRemoveAction } from './commands/nodes.js';
 import { createAction } from './commands/create.js';
 
 const program = new Command();
@@ -49,6 +58,29 @@ program
   .action(logsAction);
 
 program.addCommand(createDaemonCommand());
+
+const servicesCmd = new Command('services').description('Manage services');
+servicesCmd.command('list').description('List all services').action(servicesListAction);
+servicesCmd.command('inspect [id]').description('Inspect a service').action(servicesInspectAction);
+servicesCmd.command('start [id]').description('Start a service').action(servicesStartAction);
+servicesCmd.command('stop [id]').description('Stop a service').action(servicesStopAction);
+servicesCmd.command('restart [id]').description('Restart a service').action(servicesRestartAction);
+servicesCmd.command('delete [id]').description('Delete a service').action(servicesDeleteAction);
+
+program.addCommand(servicesCmd);
+
+const envCmd = new Command('env').description('Manage environment variables');
+envCmd.command('list [serviceId]').description('List all environment variables for a service').action(envListAction);
+envCmd.command('set [serviceId] [key] [value]').description('Set an environment variable').action(envSetAction);
+envCmd.command('unset [serviceId] [key]').description('Unset an environment variable').action(envUnsetAction);
+envCmd.command('import [serviceId] [filepath]').description('Import a .env file').action(envImportAction);
+program.addCommand(envCmd);
+
+const nodeCmd = new Command('node').description('Manage connected servers (nodes)');
+nodeCmd.command('list').description('List all servers').action(nodeListAction);
+nodeCmd.command('add [name]').description('Register a new server and generate a token').action(nodeAddAction);
+nodeCmd.command('remove').description('Revoke access for a server').action(nodeRemoveAction);
+program.addCommand(nodeCmd);
 
 if (process.argv.length === 2) {
   startInteractiveDashboard();

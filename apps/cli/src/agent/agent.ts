@@ -61,6 +61,50 @@ export class AeroAgent {
         this.socket.on('cmd_deploy', (payload) => {
             this.handleDeployCommand(payload);
         });
+
+        this.socket.on('cmd_service_stop', async (payload) => {
+            await this.handleServiceControl('stop', payload.serviceId);
+        });
+
+        this.socket.on('cmd_service_start', async (payload) => {
+            await this.handleServiceControl('start', payload.serviceId);
+        });
+
+        this.socket.on('cmd_service_restart', async (payload) => {
+            await this.handleServiceControl('restart', payload.serviceId);
+        });
+
+        this.socket.on('cmd_service_delete', async (payload) => {
+            await this.handleServiceControl('delete', payload.serviceId);
+        });
+    }
+
+    private async handleServiceControl(action: 'stop' | 'start' | 'restart' | 'delete', serviceId: string) {
+        console.log(chalk.cyan(`\n[CMD_RECEIVED] Received ${action} instruction for service ${serviceId}`));
+        
+        try {
+            // Find container by label aero.service.id
+            const { stdout } = await execAsync(`docker ps -a -q --filter "label=aero.service.id=${serviceId}"`);
+            const containerIds = stdout.trim().split('\n').filter(id => id.length > 0);
+            
+            if (containerIds.length === 0) {
+                console.log(chalk.yellow(`[WARN] No containers found for service ${serviceId}`));
+                return;
+            }
+
+            for (const id of containerIds) {
+                if (action === 'delete') {
+                    console.log(chalk.gray(`> Forcibly removing container ${id}...`));
+                    await execAsync(`docker rm -f ${id}`);
+                } else {
+                    console.log(chalk.gray(`> Executing 'docker ${action} ${id}'...`));
+                    await execAsync(`docker ${action} ${id}`);
+                }
+            }
+            console.log(chalk.green(`[SUCCESS] Service ${serviceId} successfully ${action}ed.`));
+        } catch (error: any) {
+             console.log(chalk.red(`[ERROR] Failed to ${action} service ${serviceId}: ${error.message}`));
+        }
     }
 
     private emitLog(deploymentId: string, phase: string, message: string, level: string = 'info') {

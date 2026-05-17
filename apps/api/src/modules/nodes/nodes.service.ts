@@ -2,13 +2,15 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as crypto from 'crypto';
+import { UpdateNodeDto } from './dto/updateNode.dto';
 
 @Injectable()
 export class NodesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async listNodes(orgId: string, userId?: string) {
     // Validate organization access
@@ -107,4 +109,82 @@ export class NodesService {
 
     return { success: true };
   }
+
+  async updateNode(
+    orgId: string,
+    nodeId: string,
+    data: UpdateNodeDto,
+    userId?: string) {
+
+    if (!orgId || !nodeId) {
+      throw new BadRequestException('Organization ID and Node ID are required');
+    }
+
+    // Validate org access
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      include: { members: true },
+    });
+
+    if (!org) throw new NotFoundException('Organization not found');
+
+    if (userId) {
+      const membership = org.members.find((m) => m.user_id === userId);
+      if (
+        !membership ||
+        (membership.role !== 'owner' && membership.role !== 'admin')
+      ) {
+        throw new ForbiddenException('Only administrators can update nodes');
+      }
+    }
+
+    const node = await this.prisma.node.findFirst({
+      where: { id: nodeId, organization_id: orgId },
+    });
+
+    if (!node) throw new NotFoundException('Node not found');
+
+    return this.prisma.node.update({
+      where: { id: nodeId },
+      data: {
+        ...data
+      },
+    });
+  }
+
+  async getNode(
+    orgId: string,
+    nodeId: string,
+    userId?: string
+  ) {
+    if (!orgId || !nodeId) {
+      throw new BadRequestException('Organization ID and Node ID are required');
+    }
+
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      include: { members: true },
+    });
+
+    if (!org) throw new NotFoundException('Organization not found');
+
+    if (userId) {
+      const membership = org.members.find((m) => m.user_id === userId);
+      if (
+        !membership ||
+        (membership.role !== 'owner' && membership.role !== 'admin')
+      ) {
+        throw new ForbiddenException('Only administrators can get nodes');
+      }
+    }
+
+    const node = await this.prisma.node.findFirst({
+      where: { id: nodeId, organization_id: orgId },
+    });
+
+    if (!node) throw new NotFoundException('Node not found');
+
+    return node;
+  }
+
 }

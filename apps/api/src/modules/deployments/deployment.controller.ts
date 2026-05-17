@@ -12,6 +12,8 @@ import { DeploymentsService } from './deployment.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../../common/interfaces/Authenticated.interface';
 import { CreateServiceDto } from './dto/create-service.dto';
+import { UpdateServiceDto } from './dto/update-service.dto';
+import { Delete, Patch } from '@nestjs/common';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -31,6 +33,61 @@ export class DeploymentsController {
   async listServices(@Req() req: AuthenticatedRequest) {
     const userId = req.user?.id;
     return this.deploymentsService.listAllServices(userId);
+  }
+
+  @Get('services/:serviceId')
+  async getService(
+    @Param('serviceId') serviceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?.id;
+    return this.deploymentsService.getServiceDetails(serviceId, userId);
+  }
+
+  @Patch('services/:serviceId')
+  async updateService(
+    @Param('serviceId') serviceId: string,
+    @Body() data: UpdateServiceDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?.id;
+    return this.deploymentsService.updateService(serviceId, data, userId);
+  }
+
+  @Delete('services/:serviceId')
+  async deleteService(
+    @Param('serviceId') serviceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?.id;
+    return this.deploymentsService.deleteService(serviceId, userId);
+  }
+
+  @Post('services/:serviceId/start')
+  async startService(
+    @Param('serviceId') serviceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?.id;
+    return this.deploymentsService.startService(serviceId, userId);
+  }
+
+  @Post('services/:serviceId/stop')
+  async stopService(
+    @Param('serviceId') serviceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?.id;
+    return this.deploymentsService.stopService(serviceId, userId);
+  }
+
+  @Post('services/:serviceId/restart')
+  async restartService(
+    @Param('serviceId') serviceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?.id;
+    return this.deploymentsService.restartService(serviceId, userId);
   }
 
   @Post('services/:serviceId/deployments')
