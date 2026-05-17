@@ -114,6 +114,36 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  @SubscribeMessage('service_crashed')
+  async handleServiceCrashed(
+    client: AuthenticatedSocket,
+    payload: { serviceId: string; containerName: string; exitCode: string },
+  ): Promise<void> {
+    const nodeId = client.data.nodeId;
+    if (nodeId && payload.serviceId) {
+      this.logger.warn(`Service ${payload.serviceId} crashed on node ${nodeId} with exit code ${payload.exitCode}`);
+      await this.prisma.service.update({
+        where: { id: payload.serviceId },
+        data: { status: 'failed' },
+      });
+      // Optionally add a log entry to the active deployment if we want
+      const activeDeployment = await this.prisma.deployment.findFirst({
+        where: { service_id: payload.serviceId },
+        orderBy: { created_at: 'desc' }
+      });
+      if (activeDeployment) {
+        await this.prisma.deploymentLog.create({
+          data: {
+            deployment_id: activeDeployment.id,
+            phase: LogPhase.health_check,
+            message: `Service container crashed with exit code ${payload.exitCode}`,
+            level: LogLevel.error,
+          }
+        });
+      }
+    }
+  }
+
   // Method called by DeploymentsService to stream deployment commands down to the CLI agent
   public sendDeployCommand(nodeId: string, payload: unknown): void {
     this.logger.log(`Sending DEPLOY command to Node ${nodeId}`);

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { DeploymentsController } from './deployment.controller';
 import { DeploymentsService } from './deployment.service';
+import { BuildProcessor } from './processors/build.processor';
 import { VaultModule } from '../vault/vault.module';
 import { CloudflareModule } from '../cloudflare/cloudflare.module';
 
@@ -14,7 +15,7 @@ import { CloudflareModule } from '../cloudflare/cloudflare.module';
     CloudflareModule,
   ],
   controllers: [DeploymentsController],
-  providers: [DeploymentsService],
+  providers: [DeploymentsService, BuildProcessor],
   exports: [DeploymentsService],
 })
 export class DeploymentsModule {}

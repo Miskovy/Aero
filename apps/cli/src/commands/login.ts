@@ -162,3 +162,7 @@ export async function githubLoginAction() {
   }
 }
 
+export async function logoutAction() {
+  saveStoredToken(null);
+  p.outro(chalk.green('Successfully logged out.'));
+}

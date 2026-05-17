@@ -2,11 +2,12 @@
 
 import { Command } from 'commander';
 import { startInteractiveDashboard } from './ui/dashboard.js';
-import { githubLoginAction, loginAction } from './commands/login.js';
+import { githubLoginAction, loginAction, logoutAction } from './commands/login.js';
 import { deployAction } from './commands/deploy.js';
 import { chatAction } from './commands/chat.js';
 import { logsAction } from './commands/logs.js';
 import { createDaemonCommand } from './commands/daemon.js';
+import { createMarketplaceCommand } from './commands/marketplace.js';
 import { 
   servicesListAction, 
   servicesStartAction, 
@@ -18,6 +19,7 @@ import {
 import { envListAction, envSetAction, envUnsetAction, envImportAction } from './commands/env.js';
 import { nodeListAction, nodeAddAction, nodeRemoveAction } from './commands/nodes.js';
 import { createAction } from './commands/create.js';
+import { statusAction } from './commands/status.js';
 
 const program = new Command();
 
@@ -25,6 +27,11 @@ program
   .name('aero')
   .description('Aero CLI tool for managing your self-hosted cloud platform')
   .version('1.0.0');
+
+program
+  .command('status')
+  .description('Check the overall health of the Aero control plane')
+  .action(statusAction);
 
 program
   .command('login')
@@ -35,6 +42,11 @@ program
   .command('githublogin')
   .description('Login to Aero using GitHub authentication')
   .action(githubLoginAction);
+
+program
+  .command('logout')
+  .description('Logout of your Aero instance')
+  .action(logoutAction);
 
 program
   .command('create')
@@ -56,8 +68,6 @@ program
   .description('View logs for a deployment')
   .argument('[serviceId]', 'ID of the service')
   .action(logsAction);
-
-program.addCommand(createDaemonCommand());
 
 const servicesCmd = new Command('services').description('Manage services');
 servicesCmd.command('list').description('List all services').action(servicesListAction);
@@ -81,6 +91,9 @@ nodeCmd.command('list').description('List all servers').action(nodeListAction);
 nodeCmd.command('add [name]').description('Register a new server and generate a token').action(nodeAddAction);
 nodeCmd.command('remove').description('Revoke access for a server').action(nodeRemoveAction);
 program.addCommand(nodeCmd);
+
+program.addCommand(createMarketplaceCommand());
+program.addCommand(createDaemonCommand());
 
 if (process.argv.length === 2) {
   startInteractiveDashboard();

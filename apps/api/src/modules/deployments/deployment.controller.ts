@@ -119,6 +119,14 @@ export class DeploymentsController {
     );
   }
 
+  @Get('services/:serviceId/deployments/:id/logs')
+  async getDeploymentLogs(
+    @Param('serviceId') serviceId: string,
+    @Param('id') deploymentId: string,
+  ) {
+    return this.deploymentsService.getDeploymentLogs(serviceId, deploymentId);
+  }
+
   @Post('services/:serviceId/deployments/:id/rollback')
   async triggerRollback(
     @Param('serviceId') serviceId: string,

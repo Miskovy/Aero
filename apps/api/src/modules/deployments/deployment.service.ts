@@ -406,6 +406,23 @@ export class DeploymentsService {
     return deployment;
   }
 
+  // GET /services/:serviceId/deployments/:id/logs
+  async getDeploymentLogs(
+    serviceId: string,
+    deploymentId: string,
+  ) {
+    const deployment = await this.prisma.deployment.findFirst({
+      where: { id: deploymentId, service_id: serviceId },
+    });
+
+    if (!deployment) throw new NotFoundException('Deployment not found');
+
+    return this.prisma.deploymentLog.findMany({
+      where: { deployment_id: deploymentId },
+      orderBy: { created_at: 'asc' },
+    });
+  }
+
   // POST /services/:serviceId/deployments/:id/rollback
   async triggerRollback(
     serviceId: string,

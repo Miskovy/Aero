@@ -77,6 +77,42 @@ export class AeroAgent {
         this.socket.on('cmd_service_delete', async (payload) => {
             await this.handleServiceControl('delete', payload.serviceId);
         });
+
+        this.startCrashMonitor();
+    }
+
+    private startCrashMonitor() {
+        const child = spawn('docker', ['events', '--filter', 'event=die', '--filter', 'label=aero.managed=true', '--format', '{{json .}}']);
+
+        child.stdout.on('data', (data) => {
+            const lines = data.toString().split('\n').filter((l: string) => l.trim().length > 0);
+            for (const line of lines) {
+                try {
+                    const event = JSON.parse(line);
+                    const serviceId = event.Actor?.Attributes?.['aero.service.id'];
+                    const containerName = event.Actor?.Attributes?.name;
+                    const exitCode = event.Actor?.Attributes?.exitCode;
+                    
+                    if (serviceId && exitCode !== "0" && exitCode !== "143" && exitCode !== "137") {
+                        console.log(chalk.red(`[CRASH_DETECTED] Service ${serviceId} (container ${containerName}) crashed with exit code ${exitCode}`));
+                        if (this.socket) {
+                            this.socket.emit('service_crashed', {
+                                serviceId,
+                                containerName,
+                                exitCode
+                            });
+                        }
+                    }
+                } catch(e) {
+                    // Ignore parse error
+                }
+            }
+        });
+
+        child.on('close', () => {
+            console.log(chalk.yellow('[WARN] Crash monitor disconnected. Restarting...'));
+            setTimeout(() => this.startCrashMonitor(), 5000);
+        });
     }
 
     private async handleServiceControl(action: 'stop' | 'start' | 'restart' | 'delete', serviceId: string) {
@@ -211,20 +247,58 @@ CMD ${service.start_command || 'npm start'}
                 // Ignore
             }
 
+            console.log(chalk.gray(`> Setting up project network...`));
+            const networkName = `aero-net-${service.project_id}`;
+            try {
+                await execAsync(`docker network create ${networkName}`);
+            } catch (e) {
+                // Ignore if network already exists
+            }
+
+            let volumesArgs = '';
+            if (service.volumes && Array.isArray(service.volumes) && service.volumes.length > 0) {
+                console.log(chalk.gray(`> Setting up persistent volumes...`));
+                for (const v of service.volumes) {
+                    const volName = `aero-vol-${v.id}`;
+                    try {
+                        await execAsync(`docker volume create ${volName}`);
+                    } catch (e) {} // Ignore if volume exists
+                }
+                volumesArgs = service.volumes.map((v: any) => `-v aero-vol-${v.id}:${v.mount_path}`).join(' ');
+            }
+
             console.log(chalk.gray(`> Starting container ${containerName}...`));
             this.emitLog(deploymentId, 'deploy', `Starting container ${containerName}...`);
             
+            let hostRules = `Host(\`${service.slug}.localhost\`)`;
+            let useTls = false;
+            
+            if (service.domains && Array.isArray(service.domains) && service.domains.length > 0) {
+                const hosts = service.domains.map((d: any) => `Host(\`${d.domain}\`)`);
+                hostRules = hosts.join(' || ');
+                useTls = service.domains.some((d: any) => !d.domain.endsWith('.localhost'));
+            }
+
             const labels = [
                 `--label "traefik.enable=true"`,
-                `--label "traefik.http.routers.${service.slug}.rule=Host(\`${service.slug}.localhost\`)"`,
+                `--label "traefik.docker.network=${networkName}"`,
+                `--label "traefik.http.routers.${service.slug}.rule=${hostRules}"`,
                 `--label "traefik.http.services.${service.slug}.loadbalancer.server.port=${internalPort}"`,
                 `--label "aero.managed=true"`,
-                `--label "aero.service.id=${service.id}"`
-            ].join(' ');
+                `--label "aero.service.id=${service.id}"`,
+                `--label "aero.project.id=${service.project_id}"`
+            ];
 
-            const envArgs = service.variables ? service.variables.map((v: any) => `-e ${v.key}="[ENCRYPTED_ON_API]"`).join(' ') : '';
+            if (useTls) {
+                labels.push(`--label "traefik.http.routers.${service.slug}.tls.certresolver=letsencrypt"`);
+            }
             
-            const startCmd = `docker run -d --name ${containerName} --restart unless-stopped -p ${internalPort} ${labels} ${envArgs} ${imageTag}`;
+            const labelsStr = labels.join(' ');
+
+            // Variables are now decrypted by the API before being sent to the agent payload!
+            const envArgs = service.variables ? service.variables.map((v: any) => `-e ${v.key}="${v.value || ''}"`).join(' ') : '';
+            
+            const startCmd = `docker run -d --name ${containerName} --network ${networkName} --restart unless-stopped -p ${internalPort} ${labelsStr} ${volumesArgs} ${envArgs} ${imageTag}`;
             
             await execAsync(startCmd);
 

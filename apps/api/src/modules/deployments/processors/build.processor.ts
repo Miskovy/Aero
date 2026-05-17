@@ -9,6 +9,7 @@ import { GitSourcesService } from 'src/modules/git/git-sources.service';
 import { HealthCheckService } from 'src/modules/health/health-check.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AgentGateway } from 'src/modules/agent/agent.gateway';
+import { VaultService } from 'src/modules/vault/vault.service';
 import {
   DeploymentJob,
   DeploymentResult,
@@ -26,6 +27,7 @@ export class BuildProcessor extends WorkerHost {
     private readonly healthCheckService: HealthCheckService,
     private readonly prisma: PrismaService,
     private readonly agentGateway: AgentGateway,
+    private readonly vaultService: VaultService,
   ) {
     super();
   }
@@ -106,7 +108,7 @@ export class BuildProcessor extends WorkerHost {
 
     const service = await this.prisma.service.findUnique({
       where: { id: serviceId },
-      include: { variables: true, secrets: true },
+      include: { variables: true, secrets: true, volumes: true, domains: true },
     });
 
     if (!service) {
@@ -120,8 +122,29 @@ export class BuildProcessor extends WorkerHost {
       this.logger.log(`Service ${service.id} targets Node ${service.node_id}. Delegating deployment to agent...`);
       await this.updatePhase(deploymentId, 'clone', 'Delegating deployment to remote agent...');
 
+      const servicePayload = {
+        ...service,
+        variables: service.variables?.map(v => {
+          try {
+            const decrypted = this.vaultService.decrypt(
+              v.encrypted_value,
+              v.iv!,
+              v.auth_tag!,
+              v.key_version!
+            );
+            return {
+              ...v,
+              value: decrypted
+            };
+          } catch (e) {
+            this.logger.error(`Failed to decrypt variable ${v.key} for service ${service.id}`);
+            return { ...v, value: '' };
+          }
+        })
+      };
+
       this.agentGateway.sendDeployCommand(service.node_id, {
-        service,
+        service: servicePayload,
         deploymentJob: job.data,
       });
 

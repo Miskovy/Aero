@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v2.10
+    container_name: aero-traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:80"
+      - "443:443"
+      # - "8080:8080" # Uncomment to expose Traefik Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-acme:/etc/traefik/acme # Stores Let's Encrypt certificates
+    command:
+      # Enable Docker provider and read labels
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      
+      # Entrypoints
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      
+      # Global HTTP -> HTTPS redirect
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+
+      # Let's Encrypt Settings (HTTP-01 Challenge)
+      # This is the default, scalable way to handle custom domains.
+      - "--certificatesresolvers.letsencrypt.acme.email=admin@aerodeploy.app" # CHANGE THIS EMAIL
+      - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+
+      # --- SCALABILITY & FUTURE CHANGES ---
+      # For Wildcard domains (*.aerodeploy.app), HTTP-01 is insufficient.
+      # You must switch to DNS-01 challenge.
+      # To do so, comment out the `httpchallenge` lines above and uncomment below:
+      
+      # - "--certificatesresolvers.letsencrypt.acme.dnschallenge=true"
+      # - "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare"
+      # - "--certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53"
+
+    # If using DNS challenge, uncomment and provide Cloudflare API credentials:
+    # environment:
+    #   - CF_API_EMAIL=admin@aerodeploy.app
+    #   - CF_DNS_API_TOKEN=your_cloudflare_api_token
+
+    networks:
+      - aero-global
+
+# The global network where Traefik lives.
+# Project-specific networks (aero-net-<project_id>) will automatically attach
+# to Traefik containers when deployed by the Agent via labels.
+networks:
+  aero-global:
+    name: aero-global
+    driver: bridge
+
+volumes:
+  traefik-acme:

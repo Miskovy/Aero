@@ -29,5 +29,23 @@ export function createDaemonCommand() {
       });
     });
 
+  daemonCmd
+    .command('status')
+    .description('Check the local Aero Agent environment and dependencies')
+    .action(async () => {
+      console.log(chalk.bold('Aero Agent Status\n'));
+      
+      try {
+        const { execSync } = await import('node:child_process');
+        execSync('docker info', { stdio: 'ignore' });
+        console.log(chalk.green('✓ Docker is running and accessible'));
+      } catch {
+        console.log(chalk.red('✗ Docker is NOT running or accessible. The agent requires Docker.'));
+      }
+
+      console.log(chalk.gray('\nNote: The Aero Agent currently runs in the foreground via `aero daemon start`.'));
+      console.log(chalk.gray('Background service management (systemd/launchd) will be added in a future update.'));
+    });
+
   return daemonCmd;
 }

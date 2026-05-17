@@ -33,7 +33,7 @@ export const cliState = {
   token: loadStoredToken(),
 };
 
-const apiClient = axios.create({
+export const apiClient = axios.create({
   baseURL: "http://localhost:3500",
   timeout: 10000,
 });
