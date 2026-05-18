@@ -136,7 +136,7 @@ export class BuildProcessor extends WorkerHost {
               ...v,
               value: decrypted
             };
-          } catch (e) {
+            } catch {
             this.logger.error(`Failed to decrypt variable ${v.key} for service ${service.id}`);
             return { ...v, value: '' };
           }
