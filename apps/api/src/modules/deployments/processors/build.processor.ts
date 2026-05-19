@@ -159,7 +159,56 @@ export class BuildProcessor extends WorkerHost {
         branch,
         commitSha,
       );
-      const strategy = await this.detectBuildStrategy(repoPath);
+      let strategy = await this.detectBuildStrategy(repoPath);
+
+      // If no Dockerfile/docker-compose found, generate one from service config
+      if (strategy === 'buildpacks') {
+        const buildCmd = service.build_command || 'npm run build';
+        const startCmd = service.start_command || 'node index.js';
+        const port = service.internal_port || 3000;
+
+        // Decrypt service environment variables for build-time injection
+        const envLines: string[] = [];
+        if (service.variables && service.variables.length > 0) {
+          for (const v of service.variables) {
+            try {
+              const decrypted = this.vaultService.decrypt(
+                v.encrypted_value,
+                v.iv!,
+                v.auth_tag!,
+                v.key_version!,
+              );
+              envLines.push(`ENV ${v.key}=${decrypted}`);
+            } catch {
+              this.logger.warn(
+                `Could not decrypt variable ${v.key} for build-time injection`,
+              );
+            }
+          }
+        }
+
+        const dockerfileLines = [
+          'FROM node:20-alpine',
+          'WORKDIR /app',
+          'COPY package*.json ./',
+          'RUN npm ci',
+          'COPY . .',
+          // Inject env vars before the build step so frameworks like Next.js can use them
+          ...envLines,
+          `RUN ${buildCmd}`,
+          `EXPOSE ${port}`,
+          `CMD ${JSON.stringify(startCmd.split(' '))}`,
+        ];
+
+        await fs.writeFile(
+          path.join(repoPath, 'Dockerfile'),
+          dockerfileLines.join('\n'),
+        );
+        this.logger.log(
+          `Generated Dockerfile for service ${service.slug} (build: "${buildCmd}", start: "${startCmd}", envVars: ${envLines.length})`,
+        );
+        strategy = 'dockerfile';
+      }
 
       await this.updatePhase(
         deploymentId,
@@ -182,6 +231,9 @@ export class BuildProcessor extends WorkerHost {
         deployment,
         imageTag,
       );
+
+      // Start the container — createFromService only creates it
+      await this.dockerService.startContainer(containerId);
 
       await this.updatePhase(deploymentId, 'health_check', 'Verifying...');
 

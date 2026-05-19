@@ -1,13 +1,14 @@
-﻿import * as p from '@clack/prompts';
+import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { setTimeout } from 'node:timers/promises';
 import { apiRequest } from '../api/api.js';
+import { watchDeploymentLogs } from './logs.js';
 
 export async function createAction() {
   p.intro(chalk.bgGreen.black(' CREATE SERVICE '));
-  
+
   const sFetch = p.spinner();
-  
+
   sFetch.start('Loading your organizations...');
   let orgs: any[] = [];
   try {
@@ -237,16 +238,19 @@ export async function createAction() {
   }
 
   const confirm = await p.confirm({
-    message: `Ready to create and deploy this service to ${chalk.green(orgs.find(o=>o.id === orgId)?.name)}?`,
+    message: `Ready to create and deploy this service to ${chalk.green(orgs.find(o => o.id === orgId)?.name)}?`,
     initialValue: true
   });
   if (p.isCancel(confirm) || !confirm) return p.outro('Aborted.');
 
   sFetch.start('Creating service and queueing deployment...');
   try {
+    // Map CLI selection values to API SourceType enum values
+    const apiSourceType = sourceType === 'GITHUB' ? 'git' : 'docker_image';
+
     const payload: any = {
       projectId,
-      sourceType,
+      sourceType: apiSourceType,
       internalPort: parseInt(internalPort as string, 10)
     };
     if (sourceType === 'GITHUB') {
@@ -261,13 +265,33 @@ export async function createAction() {
     if (buildCmd) payload.buildCmd = buildCmd as string;
     if (startCmd) payload.startCmd = startCmd as string;
 
-    const result = await apiRequest({
+    const result = await apiRequest<any>({
       method: 'POST',
       url: `/services`,
       data: payload
     });
     sFetch.stop('Service created and deployment triggered!');
-    p.outro(`✅ You can now run ${chalk.cyan('aero logs')} to track its progress.`);
+
+    // Auto-enter live log watcher for the new deployment
+    const serviceId = result?.id;
+    if (serviceId) {
+      // Fetch the latest deployment for this service
+      try {
+        const deployments = await apiRequest<any[]>({
+          method: 'GET',
+          url: `/services/${serviceId}/deployments?limit=1`
+        });
+        if (deployments && deployments.length > 0) {
+          p.log.info(chalk.dim('Entering live deployment watcher...'));
+          await watchDeploymentLogs(serviceId, deployments[0].id);
+        }
+      } catch {
+        // Fallback if we can't fetch the deployment
+        p.outro(`✅ Service created! Run ${chalk.cyan('aero logs')} to track progress.`);
+      }
+    } else {
+      p.outro(`✅ Service created! Run ${chalk.cyan('aero logs')} to track progress.`);
+    }
   } catch (err: any) {
     sFetch.stop(chalk.red('Failed to create the service or queue deployment.'));
     p.log.error(err.message || 'Unknown error occurred.');

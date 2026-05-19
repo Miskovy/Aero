@@ -5,7 +5,9 @@ import { DeploymentsService } from './deployment.service';
 import { BuildProcessor } from './processors/build.processor';
 import { VaultModule } from '../vault/vault.module';
 import { CloudflareModule } from '../cloudflare/cloudflare.module';
-
+import { HealthCheckService } from '../health/health-check.service';
+import { DockerModule } from '../docker/docker.module';
+import { NetworkingModule } from '../networking/networking.module';
 @Module({
   imports: [
     BullModule.registerQueue({
@@ -13,9 +15,11 @@ import { CloudflareModule } from '../cloudflare/cloudflare.module';
     }),
     VaultModule,
     CloudflareModule,
+    DockerModule,
+    NetworkingModule
   ],
   controllers: [DeploymentsController],
-  providers: [DeploymentsService, BuildProcessor],
+  providers: [DeploymentsService, BuildProcessor, HealthCheckService],
   exports: [DeploymentsService],
 })
-export class DeploymentsModule {}
+export class DeploymentsModule { }

@@ -210,12 +210,46 @@ export class DockerService {
 
   // Writing
   async buildImage(
-    context: string,
+    contextPath: string,
     options: ImageBuildOptions,
-  ): Promise<NodeJS.ReadableStream> {
+  ): Promise<void> {
     try {
-      const stream = await this.docker.buildImage(context, options);
-      return stream;
+      // Dockerode expects either a tar stream or { context, src } object.
+      // Passing a raw directory path string causes EISDIR because the modem
+      // tries to read() the directory as a file.
+      const buildContext = { context: contextPath, src: ['.'] };
+      const stream = await this.docker.buildImage(buildContext, options);
+
+      // Follow the build stream to completion so we catch errors
+      await new Promise<void>((resolve, reject) => {
+        this.docker.modem.followProgress(
+          stream,
+          (err: Error | null, output: DockerProgressEvent[]) => {
+            if (err) {
+              return reject(err);
+            }
+            // Check the last output messages for error indicators
+            const errorOutput = output?.find(
+              (o) => o.error || o.errorDetail,
+            );
+            if (errorOutput) {
+              return reject(
+                new Error(
+                  errorOutput.error ||
+                    errorOutput.errorDetail?.message ||
+                    'Build failed',
+                ),
+              );
+            }
+            resolve();
+          },
+          (event: DockerProgressEvent) => {
+            if (event.stream) {
+              this.logger.debug(`[build] ${event.stream.trim()}`);
+            }
+          },
+        );
+      });
     } catch (error) {
       console.error('Failed to build image:', error);
       throw error;

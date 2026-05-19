@@ -1,7 +1,112 @@
-﻿import * as p from '@clack/prompts';
+import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { setTimeout } from 'node:timers/promises';
 import { apiRequest } from '../api/api.js';
+import { statusDot } from '../ui/render.js';
+
+// ─── Phase Colors ────────────────────────────────────────────────────────────
+
+function phaseIcon(phase: string): string {
+  switch (phase) {
+    case 'clone':        return chalk.cyan('⬇');
+    case 'build':        return chalk.blue('🔨');
+    case 'deploy':       return chalk.yellow('🚀');
+    case 'health_check': return chalk.magenta('💓');
+    case 'routing':      return chalk.green('🔗');
+    case 'completed':    return chalk.green('✅');
+    case 'failed':       return chalk.red('❌');
+    default:             return chalk.gray('●');
+  }
+}
+
+function phaseColor(phase: string): (str: string) => string {
+  switch (phase) {
+    case 'clone':        return chalk.cyan;
+    case 'build':        return chalk.blue;
+    case 'deploy':       return chalk.yellow;
+    case 'health_check': return chalk.magenta;
+    case 'routing':      return chalk.green;
+    case 'completed':    return chalk.green;
+    case 'failed':       return chalk.red;
+    default:             return chalk.gray;
+  }
+}
+
+// ─── Live Log Watcher ────────────────────────────────────────────────────────
+
+const TERMINAL_STATUSES = ['completed', 'failed', 'cancelled', 'rolled_back'];
+
+export async function watchDeploymentLogs(serviceId: string, deploymentId: string) {
+  let lastLogCount = 0;
+  let lastStatus = '';
+  const shortId = deploymentId.substring(0, 8);
+
+  console.log('');
+  console.log(chalk.cyan.bold(`  ◆ Live Deployment Logs — ${shortId}`));
+  console.log(chalk.dim(`  ${'─'.repeat(50)}`));
+  console.log('');
+
+  while (true) {
+    try {
+      const details = await apiRequest<any>({
+        method: 'GET',
+        url: `/services/${serviceId}/deployments/${deploymentId}`,
+      });
+
+      const logs = details.logs || [];
+      const currentStatus = details.status;
+
+      // Print new log entries
+      for (let i = lastLogCount; i < logs.length; i++) {
+        const log = logs[i];
+        const icon = phaseIcon(log.phase);
+        const color = phaseColor(log.phase);
+        const time = new Date(log.created_at).toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        });
+
+        console.log(`  ${chalk.dim(time)}  ${icon}  ${color(log.message)}`);
+      }
+      lastLogCount = logs.length;
+
+      // Check if deployment reached terminal state
+      if (TERMINAL_STATUSES.includes(currentStatus) && currentStatus !== lastStatus) {
+        console.log('');
+        if (currentStatus === 'completed') {
+          console.log(chalk.green.bold('  ✅ Deployment completed successfully!'));
+
+          // Show domain if available
+          if (details.service?.domains?.length > 0) {
+            const domain = details.service.domains[0]?.domain;
+            if (domain) {
+              console.log(chalk.cyan(`  🌐 https://${domain}`));
+            }
+          }
+        } else if (currentStatus === 'failed') {
+          console.log(chalk.red.bold('  ❌ Deployment failed.'));
+        } else if (currentStatus === 'cancelled') {
+          console.log(chalk.yellow.bold('  ⚠ Deployment was cancelled.'));
+        } else if (currentStatus === 'rolled_back') {
+          console.log(chalk.yellow.bold('  ⏪ Deployment was rolled back.'));
+        }
+        console.log('');
+        break;
+      }
+
+      lastStatus = currentStatus;
+
+    } catch (err: any) {
+      console.log(chalk.dim(`  ⚠ Connection lost, retrying... (${err.message})`));
+    }
+
+    await setTimeout(2000);
+  }
+}
+
+// ─── Main Logs Action ────────────────────────────────────────────────────────
 
 export async function logsAction(initialServiceId?: string) {
   p.intro(chalk.bgCyan.black(' DEPLOYMENTS & LOGS '));
@@ -74,9 +179,10 @@ export async function logsAction(initialServiceId?: string) {
       options: [
         ...deployments.map(dep => {
             const dateStr = dep.created_at ? new Date(dep.created_at).toLocaleString() : 'Unknown Date';
+            const dot = statusDot(dep.status);
             return {
                 value: dep.id,
-                label: `${dep.id.substring(0, 8)} - ${dep.status} (${dateStr})`
+                label: `${dot} ${dep.id.substring(0, 8)} — ${dep.status} (${dateStr})`
             }
         }),
         { value: 'cancel', label: '❌ Cancel' }
@@ -91,7 +197,8 @@ export async function logsAction(initialServiceId?: string) {
     const action = await p.select({
       message: `What would you like to do for deployment ${chalk.cyan((deploymentId as string).substring(0, 8))}?`,
       options: [
-        { value: 'status', label: '�� View Status Details' },
+        { value: 'watch', label: '📺 Watch Live Logs' },
+        { value: 'status', label: '📋 View Status Details' },
         { value: 'rollback', label: '⏪ Rollback to this deployment' },
         { value: 'cancel', label: '❌ Cancel Deployment' },
         { value: 'back', label: '⬅ Back' }
@@ -100,7 +207,11 @@ export async function logsAction(initialServiceId?: string) {
 
     if (p.isCancel(action) || action === 'back') return;
 
-    if (action === 'status') {
+    if (action === 'watch') {
+      await watchDeploymentLogs(serviceId!, deploymentId as string);
+      await p.text({ message: 'Press Enter to continue...' });
+
+    } else if (action === 'status') {
       const ts = p.spinner();
       ts.start('Fetching details...');
       const details = await apiRequest({
@@ -108,7 +219,36 @@ export async function logsAction(initialServiceId?: string) {
         url: `/services/${serviceId}/deployments/${deploymentId}`
       });
       ts.stop('Details retrieved');
-      p.note(JSON.stringify(details, null, 2), 'Deployment Details');
+
+      // Render nicely instead of raw JSON
+      const d = details as any;
+      const logEntries = (d.logs || []) as any[];
+
+      console.log('');
+      console.log(chalk.bold(`  Deployment ${chalk.cyan(d.id?.substring(0, 8))}`));
+      console.log(chalk.dim(`  ${'─'.repeat(45)}`));
+      console.log(`  Status:     ${statusDot(d.status)} ${d.status}`);
+      console.log(`  Trigger:    ${d.trigger}`);
+      console.log(`  Created:    ${new Date(d.created_at).toLocaleString()}`);
+      if (d.started_at) console.log(`  Started:    ${new Date(d.started_at).toLocaleString()}`);
+      if (d.finished_at) console.log(`  Finished:   ${new Date(d.finished_at).toLocaleString()}`);
+      if (d.git_commit_sha) console.log(`  Commit:     ${d.git_commit_sha.substring(0, 7)}`);
+      console.log('');
+
+      if (logEntries.length > 0) {
+        console.log(chalk.bold('  Build Log'));
+        console.log(chalk.dim(`  ${'─'.repeat(45)}`));
+        for (const log of logEntries) {
+          const icon = phaseIcon(log.phase);
+          const color = phaseColor(log.phase);
+          const time = new Date(log.created_at).toLocaleTimeString('en-US', {
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+          });
+          console.log(`  ${chalk.dim(time)}  ${icon}  ${color(log.message)}`);
+        }
+        console.log('');
+      }
+
       await p.text({ message: 'Press Enter to continue...' });
 
     } else if (action === 'rollback') {
