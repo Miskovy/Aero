@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
-    "deploy": "next build && npx wrangler pages deploy out"
+    "deploy": "next build && npx wrangler pages deploy out --project-name=aero-landing"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
