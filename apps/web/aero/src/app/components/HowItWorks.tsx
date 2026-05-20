@@ -7,7 +7,7 @@ const STEPS = [
     number: '01',
     title: 'Install',
     desc: 'One command to get started. Works on any machine with Docker installed.',
-    code: '$ npm install -g @aero/cli',
+    code: '$ npm install -g aerodeploy',
     icon: 'download',
   },
   {

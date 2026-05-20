@@ -1,16 +1,28 @@
 {
-  "name": "@aero/cli",
-  "version": "1.0.0",
-  "description": "",
-  "main": "dist/index.js",
+  "name": "aerodeploy",
+  "version": "1.0.1",
+  "description": "Aero CLI - Self-hosted PaaS Control and Deployment Tool",
+  "main": "./dist/index.js",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format esm",
     "dev": "tsup src/index.ts --format cjs --watch"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "aero",
+    "paas",
+    "deployment",
+    "self-hosted",
+    "docker",
+    "cloudflare"
+  ],
+  "author": "Miskovy",
   "license": "ISC",
-  "packageManager": "pnpm@10.33.2",
   "dependencies": {
     "@clack/prompts": "^1.2.0",
     "axios": "^1.15.2",

@@ -1279,3 +1279,38 @@ body {
     padding: 2.5rem 1.5rem;
   }
 }
+
+/* ── GitHub Nav Link Premium Monospace Styling ── */
+.nav-github-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.45rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  text-decoration: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  letter-spacing: 0.01em;
+}
+
+.nav-github-link:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-elevated);
+}
+
+.nav-github-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-tertiary);
+  transition: color 0.2s ease;
+}
+
+.nav-github-link:hover .nav-github-icon {
+  color: var(--text-primary);
+}
