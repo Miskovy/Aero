@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "lint:fix": "eslint --fix"
+    "lint:fix": "eslint --fix",
+    "deploy": "next build && wrangler pages deploy out"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
