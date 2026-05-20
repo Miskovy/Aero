@@ -66,13 +66,32 @@ export async function nodeAddAction(name?: string) {
     name = namePrompt as string;
   }
 
+  const hostnamePrompt = await p.text({
+    message: 'Enter the hostname or IP of this machine:',
+    placeholder: 'server.example.com or 192.168.1.100',
+    initialValue: 'localhost',
+  });
+  if (p.isCancel(hostnamePrompt) || !hostnamePrompt) return;
+  const hostname = hostnamePrompt as string;
+
+  const ipPrompt = await p.text({
+    message: 'Enter the IP address (leave empty to auto-detect):',
+    placeholder: '0.0.0.0',
+  });
+  if (p.isCancel(ipPrompt)) return;
+  const ipAddress = (ipPrompt as string) || undefined;
+
   const s = p.spinner();
   s.start('Registering server and generating token...');
   try {
     const response = await apiRequest<any>({
       method: 'POST',
       url: `/organizations/${orgId}/nodes`,
-      data: { name }
+      data: {
+        name,
+        hostname,
+        ...(ipAddress && { ip_address: ipAddress }),
+      }
     });
     
     s.stop(chalk.green(`Server '${name}' successfully registered!`));

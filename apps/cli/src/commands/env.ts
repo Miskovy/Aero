@@ -36,18 +36,43 @@ export async function envListAction(serviceId?: string) {
   const s = p.spinner();
   s.start('Fetching environment variables...');
   try {
-    const secrets = await apiRequest<any[]>({ method: 'GET', url: `/services/${serviceId}/secrets` });
+    // Fetch from both sources: EnvironmentVariable table and ServiceSecret table
+    const [serviceDetails, secrets] = await Promise.allSettled([
+      apiRequest<any>({ method: 'GET', url: `/services/${serviceId}` }),
+      apiRequest<any[]>({ method: 'GET', url: `/services/${serviceId}/secrets` }),
+    ]);
     s.stop('Environment variables loaded!');
 
-    if (!secrets || secrets.length === 0) {
-      p.log.info(`No environment variables set for service ${serviceId}.`);
+    // Merge variables from both tables
+    const allVars: { key: string; source: string }[] = [];
+
+    // From EnvironmentVariable table (stored during service creation)
+    if (serviceDetails.status === 'fulfilled' && serviceDetails.value?.variables) {
+      for (const v of serviceDetails.value.variables) {
+        allVars.push({ key: v.key, source: 'env' });
+      }
+    }
+
+    // From ServiceSecret table (stored via /secrets endpoint)
+    if (secrets.status === 'fulfilled' && Array.isArray(secrets.value)) {
+      for (const s of secrets.value) {
+        // Avoid duplicates
+        if (!allVars.some(v => v.key === s.key)) {
+          allVars.push({ key: s.key, source: 'secret' });
+        }
+      }
+    }
+
+    if (allVars.length === 0) {
+      p.log.info(`No environment variables set for this service.`);
       return;
     }
 
-    console.log('\nKEY');
+    console.log('\nKEY                              SOURCE');
     console.log('--------------------------------------------------');
-    for (const secret of secrets) {
-      console.log(chalk.cyan(secret.key));
+    for (const v of allVars) {
+      const sourceLabel = v.source === 'env' ? chalk.cyan('env') : chalk.yellow('secret');
+      console.log(`${chalk.white(v.key.padEnd(32))} ${sourceLabel}`);
     }
     console.log();
   } catch (err: any) {

@@ -10,6 +10,7 @@ import { HealthCheckService } from 'src/modules/health/health-check.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AgentGateway } from 'src/modules/agent/agent.gateway';
 import { VaultService } from 'src/modules/vault/vault.service';
+import { CloudflareService } from '../../cloudflare/cloudflare.service';
 import {
   DeploymentJob,
   DeploymentResult,
@@ -28,6 +29,7 @@ export class BuildProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly agentGateway: AgentGateway,
     private readonly vaultService: VaultService,
+    private readonly cloudflareService: CloudflareService,
   ) {
     super();
   }
@@ -217,7 +219,36 @@ export class BuildProcessor extends WorkerHost {
       );
       const safeCommit = commitSha ? commitSha.substring(0, 7) : 'latest';
       const imageTag = `aero/${service.slug}:${safeCommit}`;
-      await this.dockerService.buildImage(repoPath, { t: imageTag });
+
+      // Stream build output to deployment logs so CLI can display it
+      let buildLogBatch: string[] = [];
+      const flushBuildLogs = async () => {
+        if (buildLogBatch.length === 0) return;
+        const batch = buildLogBatch.splice(0);
+        // Store as a single log entry to avoid excessive DB writes
+        await this.prisma.deploymentLog.create({
+          data: {
+            deployment_id: deploymentId,
+            phase: 'build',
+            message: batch.join('\n'),
+            level: 'debug',
+          },
+        });
+      };
+
+      // Flush every 3 seconds during build
+      const flushInterval = setInterval(() => {
+        flushBuildLogs().catch(() => {});
+      }, 3000);
+
+      try {
+        await this.dockerService.buildImage(repoPath, { t: imageTag }, (line) => {
+          buildLogBatch.push(line);
+        });
+      } finally {
+        clearInterval(flushInterval);
+        await flushBuildLogs(); // Flush remaining lines
+      }
 
       await this.updatePhase(deploymentId, 'deploy', 'Starting container...');
 
@@ -233,7 +264,16 @@ export class BuildProcessor extends WorkerHost {
       );
 
       // Start the container — createFromService only creates it
-      await this.dockerService.startContainer(containerId);
+      try {
+        await this.dockerService.startContainer(containerId);
+      } catch (startErr: unknown) {
+        // Container already started (304) is fine — ignore it
+        const msg = startErr instanceof Error ? startErr.message : String(startErr);
+        if (!msg.includes('304') && !msg.includes('already started')) {
+          throw startErr;
+        }
+        this.logger.warn(`Container ${containerId} was already running`);
+      }
 
       await this.updatePhase(deploymentId, 'health_check', 'Verifying...');
 
@@ -260,18 +300,90 @@ export class BuildProcessor extends WorkerHost {
       );
       await this.containerService.removeOldContainers(service.id, containerId);
 
+      // Update service status to running
+      await this.prisma.service.update({
+        where: { id: serviceId },
+        data: {
+          status: 'running',
+          active_deployment_id: deploymentId,
+        },
+      });
+
       await this.updatePhase(
         deploymentId,
         'completed',
         'Deployment successful',
       );
+
+      // Update deployment with image tag and timestamps
+      await this.prisma.deployment.update({
+        where: { id: deploymentId },
+        data: {
+          docker_image_tag: imageTag,
+          status: 'running',
+          finished_at: new Date(),
+        },
+      });
+
+      // Sync Cloudflare tunnel ingress rules with all running services
+      await this.syncTunnelIngress();
+
       return { success: true, containerId, imageTag };
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(`Deployment ${deploymentId} failed: ${errorMessage}`);
       await this.updatePhase(deploymentId, 'failed', `Failed: ${errorMessage}`);
+
+      // Mark service as failed
+      await this.prisma.service.update({
+        where: { id: serviceId },
+        data: { status: 'failed' },
+      }).catch(() => {});
+
       throw error;
+    }
+  }
+
+  /**
+   * Sync all running Aero services into the Cloudflare tunnel ingress config.
+   */
+  private async syncTunnelIngress() {
+    try {
+      // Get all running services with their domains
+      const runningServices = await this.prisma.service.findMany({
+        where: { status: 'running' },
+        include: { domains: true },
+      });
+
+      // Get the container IDs for each service
+      const ingressEntries: { slug: string; domain: string; containerId: string; port: number }[] = [];
+
+      for (const svc of runningServices) {
+        // Find the container for this service
+        const containers = await this.dockerService.listContainers({
+          all: false, // only running
+          filters: { label: [`aero.service.id=${svc.id}`] },
+        });
+
+        if (containers.length === 0) continue;
+
+        const activeDomain = svc.domains.find(d => d.type === 'auto_generated')?.domain;
+        if (!activeDomain) continue;
+
+        ingressEntries.push({
+          slug: svc.slug,
+          domain: activeDomain,
+          containerId: containers[0].Id,
+          port: svc.internal_port || 3000,
+        });
+      }
+
+      if (ingressEntries.length > 0) {
+        await this.cloudflareService.updateTunnelIngress(ingressEntries);
+      }
+    } catch (err) {
+      this.logger.warn('Failed to sync tunnel ingress (non-fatal)', err);
     }
   }
 }

@@ -3,6 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
+  OnApplicationBootstrap,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -12,15 +14,81 @@ import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { VaultService } from '../vault/vault.service';
 import { CloudflareService } from '../cloudflare/cloudflare.service';
+import { DockerService } from '../docker/docker.service';
 
 @Injectable()
-export class DeploymentsService {
+export class DeploymentsService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(DeploymentsService.name);
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue('deployments') private readonly deploymentsQueue: Queue,
     private readonly vaultService: VaultService,
     private readonly cloudflareService: CloudflareService,
+    private readonly dockerService: DockerService,
   ) {}
+
+  async onApplicationBootstrap() {
+    // Sync tunnel ingress on startup so existing running services are routed
+    this.syncTunnelIngress().catch((err) => {
+      this.logger.warn('Failed to sync tunnel ingress on startup', err);
+    });
+
+    // Auto-fix any queued/building deployments that are actually successfully running now
+    try {
+      const runningServices = await this.prisma.service.findMany({
+        where: { status: 'running', active_deployment_id: { not: null } },
+      });
+      for (const svc of runningServices) {
+        if (svc.active_deployment_id) {
+          await this.prisma.deployment.updateMany({
+            where: {
+              id: svc.active_deployment_id,
+              status: { in: ['queued', 'building', 'deploying'] },
+            },
+            data: { status: 'running', finished_at: new Date() },
+          });
+        }
+      }
+    } catch (err) {
+      this.logger.warn('Failed to auto-resolve active deployment statuses on bootstrap', err);
+    }
+  }
+
+  /**
+   * Sync all running Aero services into the Cloudflare tunnel ingress config.
+   */
+  async syncTunnelIngress() {
+    const runningServices = await this.prisma.service.findMany({
+      where: { status: 'running' },
+      include: { domains: true },
+    });
+
+    const ingressEntries: { slug: string; domain: string; containerId: string; port: number }[] = [];
+
+    for (const svc of runningServices) {
+      const containers = await this.dockerService.listContainers({
+        all: false,
+        filters: { label: [`aero.service.id=${svc.id}`] },
+      });
+      if (containers.length === 0) continue;
+
+      const activeDomain = svc.domains.find(d => d.type === 'auto_generated')?.domain;
+      if (!activeDomain) continue;
+
+      ingressEntries.push({
+        slug: svc.slug,
+        domain: activeDomain,
+        containerId: containers[0].Id,
+        port: svc.internal_port || 3000,
+      });
+    }
+
+    if (ingressEntries.length > 0) {
+      await this.cloudflareService.updateTunnelIngress(ingressEntries);
+    } else {
+      this.logger.log('No running services to configure in tunnel ingress');
+    }
+  }
 
   /**
    * Validates that the given user has membership access to the service's organization.
@@ -86,6 +154,14 @@ export class DeploymentsService {
       include: {
         project: true,
         domains: true,
+        variables: {
+          select: {
+            id: true,
+            key: true,
+            created_at: true,
+            updated_at: true,
+          },
+        },
         secrets: {
           select: {
             id: true,
@@ -185,9 +261,43 @@ export class DeploymentsService {
     return { success: true, message: 'Service deleted successfully' };
   }
 
+  /**
+   * Find the Docker container for a service by its aero.service.id label.
+   * Returns the container ID, or null if not found.
+   */
+  private async findServiceContainer(serviceId: string): Promise<string | null> {
+    try {
+      const containers = await this.dockerService.listContainers({
+        all: true,
+        filters: { label: [`aero.service.id=${serviceId}`] },
+      });
+      if (containers.length === 0) return null;
+      return containers[0].Id;
+    } catch {
+      return null;
+    }
+  }
+
   // POST /services/:serviceId/start
   async startService(serviceId: string, userId?: string) {
     await this.validateServiceAccess(serviceId, userId);
+
+    const containerId = await this.findServiceContainer(serviceId);
+    if (containerId) {
+      try {
+        await this.dockerService.startContainer(containerId);
+        this.logger.log(`Started container ${containerId} for service ${serviceId}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // Container already running is not an error
+        if (!msg.includes('already started') && !msg.includes('304')) {
+          this.logger.error(`Failed to start container: ${msg}`);
+          throw new BadRequestException(`Failed to start container: ${msg}`);
+        }
+      }
+    } else {
+      this.logger.warn(`No container found for service ${serviceId}`);
+    }
 
     const service = await this.prisma.service.update({
       where: { id: serviceId },
@@ -195,9 +305,9 @@ export class DeploymentsService {
       include: { node: true },
     });
 
-    // If service is assigned to a node, the agent should receive a start command.
-    // For MVP, we update the DB status. The agent-side command dispatch
-    // will be wired via the AgentGateway in a follow-up.
+    // Sync tunnel ingress so traffic routes to the newly started container
+    this.syncTunnelIngress().catch(() => {});
+
     return {
       success: true,
       message: `Service '${service.name}' started`,
@@ -209,11 +319,28 @@ export class DeploymentsService {
   async stopService(serviceId: string, userId?: string) {
     await this.validateServiceAccess(serviceId, userId);
 
+    const containerId = await this.findServiceContainer(serviceId);
+    if (containerId) {
+      try {
+        await this.dockerService.stopContainer(containerId);
+        this.logger.log(`Stopped container ${containerId} for service ${serviceId}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!msg.includes('already stopped') && !msg.includes('304')) {
+          this.logger.error(`Failed to stop container: ${msg}`);
+          throw new BadRequestException(`Failed to stop container: ${msg}`);
+        }
+      }
+    }
+
     const service = await this.prisma.service.update({
       where: { id: serviceId },
       data: { status: 'stopped' },
       include: { node: true },
     });
+
+    // Sync tunnel ingress to remove this service from routing
+    this.syncTunnelIngress().catch(() => {});
 
     return {
       success: true,
@@ -226,11 +353,28 @@ export class DeploymentsService {
   async restartService(serviceId: string, userId?: string) {
     await this.validateServiceAccess(serviceId, userId);
 
+    const containerId = await this.findServiceContainer(serviceId);
+    if (containerId) {
+      try {
+        await this.dockerService.restartContainer(containerId);
+        this.logger.log(`Restarted container ${containerId} for service ${serviceId}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Failed to restart container: ${msg}`);
+        throw new BadRequestException(`Failed to restart container: ${msg}`);
+      }
+    } else {
+      throw new NotFoundException('No container found for this service');
+    }
+
     const service = await this.prisma.service.update({
       where: { id: serviceId },
       data: { status: 'running' },
       include: { node: true },
     });
+
+    // Sync tunnel ingress for the restarted container
+    this.syncTunnelIngress().catch(() => {});
 
     return {
       success: true,

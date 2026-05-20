@@ -273,22 +273,16 @@ export async function createAction() {
     sFetch.stop('Service created and deployment triggered!');
 
     // Auto-enter live log watcher for the new deployment
-    const serviceId = result?.id;
-    if (serviceId) {
-      // Fetch the latest deployment for this service
-      try {
-        const deployments = await apiRequest<any[]>({
-          method: 'GET',
-          url: `/services/${serviceId}/deployments?limit=1`
-        });
-        if (deployments && deployments.length > 0) {
-          p.log.info(chalk.dim('Entering live deployment watcher...'));
-          await watchDeploymentLogs(serviceId, deployments[0].id);
-        }
-      } catch {
-        // Fallback if we can't fetch the deployment
-        p.outro(`✅ Service created! Run ${chalk.cyan('aero logs')} to track progress.`);
-      }
+    // createService returns a Deployment object with id and service_id
+    const deploymentId = result?.id;
+    const resultServiceId = result?.service_id;
+
+    if (deploymentId && resultServiceId) {
+      p.log.info(chalk.dim('Entering live deployment watcher...'));
+      await watchDeploymentLogs(resultServiceId, deploymentId);
+      // Let user see the result before returning to menu
+      const cont = await p.text({ message: chalk.dim('Press Enter to return to menu...') });
+      if (p.isCancel(cont)) return;
     } else {
       p.outro(`✅ Service created! Run ${chalk.cyan('aero logs')} to track progress.`);
     }

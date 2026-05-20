@@ -3,6 +3,68 @@ import chalk from 'chalk';
 import { setTimeout } from 'node:timers/promises';
 import { apiRequest } from '../api/api.js';
 import { statusDot } from '../ui/render.js';
+import { io } from 'socket.io-client';
+
+// Helper to clean 8-byte multiplexed headers and other control codes from Docker logs stream
+function cleanDockerLogChunk(chunk: string): string {
+  let cleaned = chunk;
+  
+  if (cleaned.length >= 8) {
+    const firstByte = cleaned.charCodeAt(0);
+    // 1 = stdout, 2 = stderr
+    if (firstByte === 1 || firstByte === 2) {
+      cleaned = cleaned.substring(8);
+    }
+  }
+  
+  // Remove binary/null/other non-printable control characters (excluding newline/tabs/carriage returns)
+  cleaned = cleaned.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F]/g, '');
+  return cleaned;
+}
+
+export async function watchRuntimeLogs(serviceId: string) {
+  console.log('');
+  console.log(chalk.green.bold(`  ◆ Live Container Runtime Logs`));
+  console.log(chalk.dim(`  ${'─'.repeat(60)}`));
+  console.log(chalk.dim('  Press Ctrl+C to return to menu'));
+  console.log('');
+
+  return new Promise<void>((resolve) => {
+    // Connect to LogsGateway on port 3501
+    const socket = io('http://localhost:3501', {
+      reconnection: true,
+      transports: ['websocket', 'polling']
+    });
+
+    socket.on('connect', () => {
+      socket.emit('subscribe:logs', { serviceId });
+    });
+
+    socket.on(`log:${serviceId}`, (data: { message: string }) => {
+      const cleaned = cleanDockerLogChunk(data.message);
+      process.stdout.write(cleaned);
+    });
+
+    socket.on('disconnect', () => {
+      resolve();
+    });
+
+    socket.on('connect_error', (err) => {
+      console.log(chalk.red(`\n[ERROR] Logs gateway connection failed: ${err.message}`));
+      socket.close();
+      resolve();
+    });
+
+    const handleSigint = () => {
+      socket.close();
+      process.removeListener('SIGINT', handleSigint);
+      console.log(chalk.gray('\nStopped watching runtime logs.'));
+      resolve();
+    };
+
+    process.on('SIGINT', handleSigint);
+  });
+}
 
 // ─── Phase Colors ────────────────────────────────────────────────────────────
 
@@ -34,7 +96,7 @@ function phaseColor(phase: string): (str: string) => string {
 
 // ─── Live Log Watcher ────────────────────────────────────────────────────────
 
-const TERMINAL_STATUSES = ['completed', 'failed', 'cancelled', 'rolled_back'];
+const TERMINAL_STATUSES = ['completed', 'running', 'failed', 'cancelled', 'rolled_back'];
 
 export async function watchDeploymentLogs(serviceId: string, deploymentId: string) {
   let lastLogCount = 0;
@@ -43,7 +105,8 @@ export async function watchDeploymentLogs(serviceId: string, deploymentId: strin
 
   console.log('');
   console.log(chalk.cyan.bold(`  ◆ Live Deployment Logs — ${shortId}`));
-  console.log(chalk.dim(`  ${'─'.repeat(50)}`));
+  console.log(chalk.dim(`  ${'─'.repeat(60)}`));
+  console.log(chalk.dim('  Press Ctrl+C to stop watching'));
   console.log('');
 
   while (true) {
@@ -68,14 +131,26 @@ export async function watchDeploymentLogs(serviceId: string, deploymentId: strin
           hour12: false,
         });
 
-        console.log(`  ${chalk.dim(time)}  ${icon}  ${color(log.message)}`);
+        // Handle multi-line log messages (build output batches)
+        const lines = (log.message || '').split('\n');
+        if (log.level === 'debug' && log.phase === 'build') {
+          // Detailed build output — render each line with indent
+          for (const line of lines) {
+            if (line.trim()) {
+              console.log(`  ${chalk.dim(time)}  ${chalk.dim('│')}  ${chalk.gray(line)}`);
+            }
+          }
+        } else {
+          // Phase-level messages — render with icon
+          console.log(`  ${chalk.dim(time)}  ${icon}  ${color(lines[0])}`);
+        }
       }
       lastLogCount = logs.length;
 
       // Check if deployment reached terminal state
       if (TERMINAL_STATUSES.includes(currentStatus) && currentStatus !== lastStatus) {
         console.log('');
-        if (currentStatus === 'completed') {
+        if (currentStatus === 'completed' || currentStatus === 'running') {
           console.log(chalk.green.bold('  ✅ Deployment completed successfully!'));
 
           // Show domain if available
@@ -197,7 +272,8 @@ export async function logsAction(initialServiceId?: string) {
     const action = await p.select({
       message: `What would you like to do for deployment ${chalk.cyan((deploymentId as string).substring(0, 8))}?`,
       options: [
-        { value: 'watch', label: '📺 Watch Live Logs' },
+        { value: 'runtime', label: '🟢 Watch Live Application Runtime Logs (Container stdout)' },
+        { value: 'watch', label: '📺 Watch Deployment Build Logs' },
         { value: 'status', label: '📋 View Status Details' },
         { value: 'rollback', label: '⏪ Rollback to this deployment' },
         { value: 'cancel', label: '❌ Cancel Deployment' },
@@ -207,7 +283,11 @@ export async function logsAction(initialServiceId?: string) {
 
     if (p.isCancel(action) || action === 'back') return;
 
-    if (action === 'watch') {
+    if (action === 'runtime') {
+      await watchRuntimeLogs(serviceId!);
+      await p.text({ message: 'Press Enter to continue...' });
+
+    } else if (action === 'watch') {
       await watchDeploymentLogs(serviceId!, deploymentId as string);
       await p.text({ message: 'Press Enter to continue...' });
 

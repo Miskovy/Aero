@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { DockerService } from '../docker/docker.service';
 
 @Injectable()
 export class CloudflareService {
@@ -6,6 +7,11 @@ export class CloudflareService {
   private readonly apiToken = process.env.CLOUDFLARE_API_TOKEN;
   private readonly zoneId = process.env.CLOUDFLARE_ZONE_ID;
   private readonly tunnelId = process.env.CLOUDFLARE_TUNNEL_ID;
+  private readonly accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+
+  constructor(
+    private readonly dockerService: DockerService,
+  ) {}
 
   async createDeploymentDomain(subdomain: string) {
     if (!this.apiToken || !this.zoneId) {
@@ -52,6 +58,84 @@ export class CloudflareService {
       return true;
     } catch (error) {
       this.logger.error(`Failed to register Cloudflare domain for ${subdomain}`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Updates the Cloudflare tunnel's ingress rules to route traffic to
+   * the correct Docker containers. Call this after deploying/removing services.
+   */
+  async updateTunnelIngress(
+    services: { slug: string; domain: string; containerId: string; port: number }[]
+  ): Promise<boolean> {
+    if (!this.apiToken || !this.accountId || !this.tunnelId) {
+      this.logger.warn('Cloudflare account/tunnel config missing. Cannot update ingress.');
+      return false;
+    }
+
+    try {
+      // Build ingress rules from running services
+      const ingressRules: any[] = [];
+
+      for (const svc of services) {
+        // Get the container's Docker bridge IP address
+        let originUrl = `http://localhost:${svc.port}`;
+        try {
+          const info = await this.dockerService.inspectContainer(svc.containerId);
+          const networkSettings = info.NetworkSettings as any;
+          let containerIp = networkSettings?.IPAddress as string | undefined;
+          
+          if (!containerIp && networkSettings?.Networks) {
+            const firstNetwork = Object.values(networkSettings.Networks)[0] as any;
+            containerIp = firstNetwork?.IPAddress;
+          }
+
+          if (containerIp) {
+            originUrl = `http://${containerIp}:${svc.port}`;
+          }
+        } catch {
+          this.logger.warn(`Could not inspect container for ${svc.slug}, using localhost`);
+        }
+
+        ingressRules.push({
+          hostname: svc.domain,
+          service: originUrl,
+        });
+      }
+
+      // Cloudflare requires a catch-all rule at the end
+      ingressRules.push({
+        service: 'http_status:404',
+      });
+
+      // Update tunnel configuration via Cloudflare API
+      const response = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/cfd_tunnel/${this.tunnelId}/configurations`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${this.apiToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            config: {
+              ingress: ingressRules,
+            },
+          }),
+        },
+      );
+
+      const result: any = await response.json();
+      if (result.success) {
+        this.logger.log(`Tunnel ingress updated with ${ingressRules.length - 1} service(s)`);
+        return true;
+      } else {
+        this.logger.error(`Failed to update tunnel ingress: ${JSON.stringify(result.errors)}`);
+        return false;
+      }
+    } catch (error) {
+      this.logger.error('Failed to update tunnel ingress', error);
       return false;
     }
   }

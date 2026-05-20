@@ -212,6 +212,7 @@ export class DockerService {
   async buildImage(
     contextPath: string,
     options: ImageBuildOptions,
+    onLog?: (line: string) => void,
   ): Promise<void> {
     try {
       // Dockerode expects either a tar stream or { context, src } object.
@@ -245,7 +246,11 @@ export class DockerService {
           },
           (event: DockerProgressEvent) => {
             if (event.stream) {
-              this.logger.debug(`[build] ${event.stream.trim()}`);
+              const line = event.stream.trim();
+              if (line) {
+                this.logger.debug(`[build] ${line}`);
+                if (onLog) onLog(line);
+              }
             }
           },
         );
