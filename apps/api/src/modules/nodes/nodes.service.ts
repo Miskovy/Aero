@@ -10,7 +10,7 @@ import { UpdateNodeDto } from './dto/updateNode.dto';
 
 @Injectable()
 export class NodesService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async listNodes(orgId: string, userId?: string) {
     // Validate organization access
@@ -114,8 +114,8 @@ export class NodesService {
     orgId: string,
     nodeId: string,
     data: UpdateNodeDto,
-    userId?: string) {
-
+    userId?: string,
+  ) {
     if (!orgId || !nodeId) {
       throw new BadRequestException('Organization ID and Node ID are required');
     }
@@ -147,16 +147,12 @@ export class NodesService {
     return this.prisma.node.update({
       where: { id: nodeId },
       data: {
-        ...data
+        ...data,
       },
     });
   }
 
-  async getNode(
-    orgId: string,
-    nodeId: string,
-    userId?: string
-  ) {
+  async getNode(orgId: string, nodeId: string, userId?: string) {
     if (!orgId || !nodeId) {
       throw new BadRequestException('Organization ID and Node ID are required');
     }
@@ -186,5 +182,4 @@ export class NodesService {
 
     return node;
   }
-
 }

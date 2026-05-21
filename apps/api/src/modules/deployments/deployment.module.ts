@@ -16,10 +16,10 @@ import { NetworkingModule } from '../networking/networking.module';
     VaultModule,
     CloudflareModule,
     DockerModule,
-    NetworkingModule
+    NetworkingModule,
   ],
   controllers: [DeploymentsController],
   providers: [DeploymentsService, BuildProcessor, HealthCheckService],
   exports: [DeploymentsService],
 })
-export class DeploymentsModule { }
+export class DeploymentsModule {}

@@ -50,7 +50,10 @@ export class DeploymentsService implements OnApplicationBootstrap {
         }
       }
     } catch (err) {
-      this.logger.warn('Failed to auto-resolve active deployment statuses on bootstrap', err);
+      this.logger.warn(
+        'Failed to auto-resolve active deployment statuses on bootstrap',
+        err,
+      );
     }
   }
 
@@ -63,7 +66,12 @@ export class DeploymentsService implements OnApplicationBootstrap {
       include: { domains: true },
     });
 
-    const ingressEntries: { slug: string; domain: string; containerId: string; port: number }[] = [];
+    const ingressEntries: {
+      slug: string;
+      domain: string;
+      containerId: string;
+      port: number;
+    }[] = [];
 
     for (const svc of runningServices) {
       const containers = await this.dockerService.listContainers({
@@ -72,7 +80,9 @@ export class DeploymentsService implements OnApplicationBootstrap {
       });
       if (containers.length === 0) continue;
 
-      const activeDomain = svc.domains.find(d => d.type === 'auto_generated')?.domain;
+      const activeDomain = svc.domains.find(
+        (d) => d.type === 'auto_generated',
+      )?.domain;
       if (!activeDomain) continue;
 
       ingressEntries.push({
@@ -265,7 +275,9 @@ export class DeploymentsService implements OnApplicationBootstrap {
    * Find the Docker container for a service by its aero.service.id label.
    * Returns the container ID, or null if not found.
    */
-  private async findServiceContainer(serviceId: string): Promise<string | null> {
+  private async findServiceContainer(
+    serviceId: string,
+  ): Promise<string | null> {
     try {
       const containers = await this.dockerService.listContainers({
         all: true,
@@ -286,7 +298,9 @@ export class DeploymentsService implements OnApplicationBootstrap {
     if (containerId) {
       try {
         await this.dockerService.startContainer(containerId);
-        this.logger.log(`Started container ${containerId} for service ${serviceId}`);
+        this.logger.log(
+          `Started container ${containerId} for service ${serviceId}`,
+        );
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         // Container already running is not an error
@@ -323,7 +337,9 @@ export class DeploymentsService implements OnApplicationBootstrap {
     if (containerId) {
       try {
         await this.dockerService.stopContainer(containerId);
-        this.logger.log(`Stopped container ${containerId} for service ${serviceId}`);
+        this.logger.log(
+          `Stopped container ${containerId} for service ${serviceId}`,
+        );
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         if (!msg.includes('already stopped') && !msg.includes('304')) {
@@ -357,7 +373,9 @@ export class DeploymentsService implements OnApplicationBootstrap {
     if (containerId) {
       try {
         await this.dockerService.restartContainer(containerId);
-        this.logger.log(`Restarted container ${containerId} for service ${serviceId}`);
+        this.logger.log(
+          `Restarted container ${containerId} for service ${serviceId}`,
+        );
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         this.logger.error(`Failed to restart container: ${msg}`);
@@ -473,13 +491,25 @@ export class DeploymentsService implements OnApplicationBootstrap {
           create: domain
             ? [
                 // User provided a custom domain
-                { domain, type: 'custom' as const, verification_status: 'pending' as const },
+                {
+                  domain,
+                  type: 'custom' as const,
+                  verification_status: 'pending' as const,
+                },
                 // Also create the auto-generated free subdomain
-                { domain: autoDomain, type: 'auto_generated' as const, verification_status: 'verified' as const },
+                {
+                  domain: autoDomain,
+                  type: 'auto_generated' as const,
+                  verification_status: 'verified' as const,
+                },
               ]
             : [
                 // No custom domain — only the auto-generated free subdomain
-                { domain: autoDomain, type: 'auto_generated' as const, verification_status: 'verified' as const },
+                {
+                  domain: autoDomain,
+                  type: 'auto_generated' as const,
+                  verification_status: 'verified' as const,
+                },
               ],
         },
       },
@@ -518,7 +548,9 @@ export class DeploymentsService implements OnApplicationBootstrap {
     await this.deploymentsQueue.add('deploy', {
       serviceId,
       deploymentId: deployment.id,
-      gitUrl: service.git_repository ? `https://github.com/${service.git_repository}.git` : '',
+      gitUrl: service.git_repository
+        ? `https://github.com/${service.git_repository}.git`
+        : '',
       branch: service.git_branch || 'main',
     });
 
@@ -551,10 +583,7 @@ export class DeploymentsService implements OnApplicationBootstrap {
   }
 
   // GET /services/:serviceId/deployments/:id/logs
-  async getDeploymentLogs(
-    serviceId: string,
-    deploymentId: string,
-  ) {
+  async getDeploymentLogs(serviceId: string, deploymentId: string) {
     const deployment = await this.prisma.deployment.findFirst({
       where: { id: deploymentId, service_id: serviceId },
     });

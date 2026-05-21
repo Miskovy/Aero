@@ -121,28 +121,36 @@ export class BuildProcessor extends WorkerHost {
 
     // Step 2: Route local deployments to the correct local device
     if (service.node_id) {
-      this.logger.log(`Service ${service.id} targets Node ${service.node_id}. Delegating deployment to agent...`);
-      await this.updatePhase(deploymentId, 'clone', 'Delegating deployment to remote agent...');
+      this.logger.log(
+        `Service ${service.id} targets Node ${service.node_id}. Delegating deployment to agent...`,
+      );
+      await this.updatePhase(
+        deploymentId,
+        'clone',
+        'Delegating deployment to remote agent...',
+      );
 
       const servicePayload = {
         ...service,
-        variables: service.variables?.map(v => {
+        variables: service.variables?.map((v) => {
           try {
             const decrypted = this.vaultService.decrypt(
               v.encrypted_value,
-              v.iv!,
-              v.auth_tag!,
-              v.key_version!
+              v.iv,
+              v.auth_tag,
+              v.key_version,
             );
             return {
               ...v,
-              value: decrypted
+              value: decrypted,
             };
-            } catch {
-            this.logger.error(`Failed to decrypt variable ${v.key} for service ${service.id}`);
+          } catch {
+            this.logger.error(
+              `Failed to decrypt variable ${v.key} for service ${service.id}`,
+            );
             return { ...v, value: '' };
           }
-        })
+        }),
       };
 
       this.agentGateway.sendDeployCommand(service.node_id, {
@@ -176,9 +184,9 @@ export class BuildProcessor extends WorkerHost {
             try {
               const decrypted = this.vaultService.decrypt(
                 v.encrypted_value,
-                v.iv!,
-                v.auth_tag!,
-                v.key_version!,
+                v.iv,
+                v.auth_tag,
+                v.key_version,
               );
               envLines.push(`ENV ${v.key}=${decrypted}`);
             } catch {
@@ -221,7 +229,7 @@ export class BuildProcessor extends WorkerHost {
       const imageTag = `aero/${service.slug}:${safeCommit}`;
 
       // Stream build output to deployment logs so CLI can display it
-      let buildLogBatch: string[] = [];
+      const buildLogBatch: string[] = [];
       const flushBuildLogs = async () => {
         if (buildLogBatch.length === 0) return;
         const batch = buildLogBatch.splice(0);
@@ -242,9 +250,13 @@ export class BuildProcessor extends WorkerHost {
       }, 3000);
 
       try {
-        await this.dockerService.buildImage(repoPath, { t: imageTag }, (line) => {
-          buildLogBatch.push(line);
-        });
+        await this.dockerService.buildImage(
+          repoPath,
+          { t: imageTag },
+          (line) => {
+            buildLogBatch.push(line);
+          },
+        );
       } finally {
         clearInterval(flushInterval);
         await flushBuildLogs(); // Flush remaining lines
@@ -268,7 +280,8 @@ export class BuildProcessor extends WorkerHost {
         await this.dockerService.startContainer(containerId);
       } catch (startErr: unknown) {
         // Container already started (304) is fine — ignore it
-        const msg = startErr instanceof Error ? startErr.message : String(startErr);
+        const msg =
+          startErr instanceof Error ? startErr.message : String(startErr);
         if (!msg.includes('304') && !msg.includes('already started')) {
           throw startErr;
         }
@@ -336,10 +349,12 @@ export class BuildProcessor extends WorkerHost {
       await this.updatePhase(deploymentId, 'failed', `Failed: ${errorMessage}`);
 
       // Mark service as failed
-      await this.prisma.service.update({
-        where: { id: serviceId },
-        data: { status: 'failed' },
-      }).catch(() => {});
+      await this.prisma.service
+        .update({
+          where: { id: serviceId },
+          data: { status: 'failed' },
+        })
+        .catch(() => {});
 
       throw error;
     }
@@ -357,7 +372,12 @@ export class BuildProcessor extends WorkerHost {
       });
 
       // Get the container IDs for each service
-      const ingressEntries: { slug: string; domain: string; containerId: string; port: number }[] = [];
+      const ingressEntries: {
+        slug: string;
+        domain: string;
+        containerId: string;
+        port: number;
+      }[] = [];
 
       for (const svc of runningServices) {
         // Find the container for this service
@@ -368,7 +388,9 @@ export class BuildProcessor extends WorkerHost {
 
         if (containers.length === 0) continue;
 
-        const activeDomain = svc.domains.find(d => d.type === 'auto_generated')?.domain;
+        const activeDomain = svc.domains.find(
+          (d) => d.type === 'auto_generated',
+        )?.domain;
         if (!activeDomain) continue;
 
         ingressEntries.push({

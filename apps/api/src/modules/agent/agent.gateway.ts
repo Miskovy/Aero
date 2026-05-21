@@ -8,7 +8,12 @@ import {
 import { Server } from 'socket.io';
 import { AgentService } from './agent.service';
 import { Logger } from '@nestjs/common';
-import { Prisma, LogPhase, LogLevel, DeploymentStatus } from '../../../generated/prisma/client';
+import {
+  Prisma,
+  LogPhase,
+  LogLevel,
+  DeploymentStatus,
+} from '../../../generated/prisma/client';
 import { AuthenticatedSocket } from './interfaces/gateway.interface';
 
 import { PrismaService } from '../../prisma/prisma.service';
@@ -81,7 +86,12 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('deploy_log')
   async handleDeployLog(
     client: AuthenticatedSocket,
-    payload: { deploymentId: string; phase: LogPhase; message: string; level?: LogLevel },
+    payload: {
+      deploymentId: string;
+      phase: LogPhase;
+      message: string;
+      level?: LogLevel;
+    },
   ): Promise<void> {
     const nodeId = client.data.nodeId;
     if (nodeId && payload.deploymentId) {
@@ -99,7 +109,12 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('deploy_status')
   async handleDeployStatus(
     client: AuthenticatedSocket,
-    payload: { deploymentId: string; status: DeploymentStatus; containerId?: string; imageTag?: string },
+    payload: {
+      deploymentId: string;
+      status: DeploymentStatus;
+      containerId?: string;
+      imageTag?: string;
+    },
   ): Promise<void> {
     const nodeId = client.data.nodeId;
     if (nodeId && payload.deploymentId) {
@@ -121,7 +136,9 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): Promise<void> {
     const nodeId = client.data.nodeId;
     if (nodeId && payload.serviceId) {
-      this.logger.warn(`Service ${payload.serviceId} crashed on node ${nodeId} with exit code ${payload.exitCode}`);
+      this.logger.warn(
+        `Service ${payload.serviceId} crashed on node ${nodeId} with exit code ${payload.exitCode}`,
+      );
       await this.prisma.service.update({
         where: { id: payload.serviceId },
         data: { status: 'failed' },
@@ -129,7 +146,7 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // Optionally add a log entry to the active deployment if we want
       const activeDeployment = await this.prisma.deployment.findFirst({
         where: { service_id: payload.serviceId },
-        orderBy: { created_at: 'desc' }
+        orderBy: { created_at: 'desc' },
       });
       if (activeDeployment) {
         await this.prisma.deploymentLog.create({
@@ -138,7 +155,7 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
             phase: LogPhase.health_check,
             message: `Service container crashed with exit code ${payload.exitCode}`,
             level: LogLevel.error,
-          }
+          },
         });
       }
     }

@@ -230,9 +230,7 @@ export class DockerService {
               return reject(err);
             }
             // Check the last output messages for error indicators
-            const errorOutput = output?.find(
-              (o) => o.error || o.errorDetail,
-            );
+            const errorOutput = output?.find((o) => o.error || o.errorDetail);
             if (errorOutput) {
               return reject(
                 new Error(

@@ -21,7 +21,7 @@ import { UpdateNodeDto } from './dto/updateNode.dto';
 @UseGuards(JwtAuthGuard)
 @Controller('organizations/:orgId/nodes')
 export class NodesController {
-  constructor(private readonly nodesService: NodesService) { }
+  constructor(private readonly nodesService: NodesService) {}
 
   @Get()
   @ApiOperation({ summary: 'List all connected servers for an organization' })
@@ -68,7 +68,6 @@ export class NodesController {
     return this.nodesService.getNode(orgId, nodeId, userId);
   }
 
-
   @Patch(':nodeId')
   @ApiOperation({ summary: 'Update a specific server' })
   async updateNode(
@@ -80,5 +79,4 @@ export class NodesController {
     const userId = req.user?.id;
     return this.nodesService.updateNode(orgId, nodeId, dto, userId);
   }
-
 }

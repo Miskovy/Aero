@@ -30,7 +30,8 @@ export class LogsGateway implements OnGatewayConnection {
       if (containers.length === 0) {
         client.emit(`log:${data.serviceId}`, {
           serviceId: data.serviceId,
-          message: 'Error: No active running container found for this service.\n',
+          message:
+            'Error: No active running container found for this service.\n',
           timestamp: new Date().toISOString(),
         });
         return;
@@ -38,7 +39,7 @@ export class LogsGateway implements OnGatewayConnection {
 
       const containerId = containers[0].Id;
       const container = this.dockerService.getContainer(containerId);
-      
+
       const logStream = await container.logs({
         follow: true,
         stdout: true,
@@ -59,13 +60,19 @@ export class LogsGateway implements OnGatewayConnection {
         console.log(`Client ${client.id} disconnected`);
         try {
           // close/destroy the stream if supported
-          (logStream as any).destroy?.();
-        } catch {}
+          const destroyableStream = logStream as unknown as {
+            destroy?: () => void;
+          };
+          destroyableStream.destroy?.();
+        } catch {
+          // Ignore stream destruction errors
+        }
       });
-    } catch (err: any) {
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
       client.emit(`log:${data.serviceId}`, {
         serviceId: data.serviceId,
-        message: `Error retrieving logs: ${err.message}\n`,
+        message: `Error retrieving logs: ${errorMessage}\n`,
         timestamp: new Date().toISOString(),
       });
     }
