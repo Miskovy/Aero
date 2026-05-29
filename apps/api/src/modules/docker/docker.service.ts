@@ -25,7 +25,7 @@ export class DockerService {
       await this.docker.ping();
       return true;
     } catch (error) {
-      console.error('Docker ping failed:', error);
+      this.logger.debug('Docker daemon is not available locally.');
       return false;
     }
   }
