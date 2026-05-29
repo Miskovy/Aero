@@ -20,7 +20,13 @@ export class ProjectsService {
       where: { id: projectId },
       include: {
         services: {
-          select: { id: true, name: true, slug: true, status: true, source_type: true },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            status: true,
+            source_type: true,
+          },
           take: 50,
         },
         _count: { select: { services: true, environments: true } },
@@ -45,15 +51,22 @@ export class ProjectsService {
     });
   }
 
-  async updateProject(projectId: string, data: { name?: string; description?: string }) {
-    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+  async updateProject(
+    projectId: string,
+    data: { name?: string; description?: string },
+  ) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+    });
     if (!project) throw new NotFoundException('Project not found');
 
     return this.prisma.project.update({
       where: { id: projectId },
       data: {
         ...(data.name !== undefined && { name: data.name }),
-        ...(data.description !== undefined && { description: data.description }),
+        ...(data.description !== undefined && {
+          description: data.description,
+        }),
       },
     });
   }
@@ -66,6 +79,9 @@ export class ProjectsService {
     if (!project) throw new NotFoundException('Project not found');
 
     await this.prisma.project.delete({ where: { id: projectId } });
-    return { success: true, message: `Project '${project.name}' deleted successfully` };
+    return {
+      success: true,
+      message: `Project '${project.name}' deleted successfully`,
+    };
   }
 }

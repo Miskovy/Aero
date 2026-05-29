@@ -524,7 +524,10 @@ export class DeploymentsService implements OnApplicationBootstrap {
     // Also register the custom domain with Cloudflare DNS if the user provided one
     if (domain) {
       this.cloudflareService.createDeploymentDomain(domain).catch((err) => {
-        console.warn(`Failed to register DNS for custom domain ${domain}:`, err);
+        console.warn(
+          `Failed to register DNS for custom domain ${domain}:`,
+          err,
+        );
       });
     }
 

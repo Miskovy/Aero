@@ -4,8 +4,8 @@ import {
   CloudflareError,
   CloudflareResponse,
   CloudflareDnsSearchResponse,
-  DockerNetworkSettings
-} from './interfaces/cloudflare.interface'
+  DockerNetworkSettings,
+} from './interfaces/cloudflare.interface';
 
 @Injectable()
 export class CloudflareService {
@@ -15,7 +15,7 @@ export class CloudflareService {
   private readonly tunnelId = process.env.CLOUDFLARE_TUNNEL_ID;
   private readonly accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
 
-  constructor(private readonly dockerService: DockerService) { }
+  constructor(private readonly dockerService: DockerService) {}
 
   async createDeploymentDomain(subdomain: string) {
     if (!this.apiToken || !this.zoneId) {

@@ -32,7 +32,7 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly agentService: AgentService,
     private readonly prisma: PrismaService,
-  ) { }
+  ) {}
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     const auth = client.handshake.auth as { token?: string };
@@ -154,7 +154,9 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
           data: {
             deployment_id: activeDeployment.id,
             phase: LogPhase.health_check,
-            message: sanitizeLogMessage(`Service container crashed with exit code ${payload.exitCode}`),
+            message: sanitizeLogMessage(
+              `Service container crashed with exit code ${payload.exitCode}`,
+            ),
             level: LogLevel.error,
           },
         });

@@ -42,8 +42,12 @@ import { CloudflareModule } from './modules/cloudflare/cloudflare.module';
               connection: {
                 host: parsed.hostname,
                 port: parseInt(parsed.port || '6379', 10),
-                username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
-                password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
+                username: parsed.username
+                  ? decodeURIComponent(parsed.username)
+                  : undefined,
+                password: parsed.password
+                  ? decodeURIComponent(parsed.password)
+                  : undefined,
                 tls: urlStr.startsWith('rediss://') ? {} : undefined,
               },
             };

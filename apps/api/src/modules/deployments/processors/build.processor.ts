@@ -177,9 +177,13 @@ export class BuildProcessor extends WorkerHost {
       if (service.git_subdirectory) {
         const exists = await this.fileExists(buildWorkingDir);
         if (!exists) {
-          throw new Error(`Configured git subdirectory "${service.git_subdirectory}" does not exist in the repository.`);
+          throw new Error(
+            `Configured git subdirectory "${service.git_subdirectory}" does not exist in the repository.`,
+          );
         }
-        this.logger.log(`Using working subdirectory for build: ${buildWorkingDir}`);
+        this.logger.log(
+          `Using working subdirectory for build: ${buildWorkingDir}`,
+        );
       }
 
       let strategy = await this.detectBuildStrategy(buildWorkingDir);
@@ -207,19 +211,11 @@ export class BuildProcessor extends WorkerHost {
           await this.fileExists(path.join(buildWorkingDir, 'yarn.lock'))
         ) {
           packageManager = 'yarn';
-        } else if (
-          await this.fileExists(path.join(repoPath, 'yarn.lock'))
-        ) {
+        } else if (await this.fileExists(path.join(repoPath, 'yarn.lock'))) {
           packageManager = 'yarn';
-        } else if (
-          buildCmd.includes('pnpm') ||
-          startCmd.includes('pnpm')
-        ) {
+        } else if (buildCmd.includes('pnpm') || startCmd.includes('pnpm')) {
           packageManager = 'pnpm';
-        } else if (
-          buildCmd.includes('yarn') ||
-          startCmd.includes('yarn')
-        ) {
+        } else if (buildCmd.includes('yarn') || startCmd.includes('yarn')) {
           packageManager = 'yarn';
         }
 
@@ -244,8 +240,10 @@ export class BuildProcessor extends WorkerHost {
         }
 
         // Determine if this is a monorepo subdirectory build
-        const isMonorepoSubdir = !!service.git_subdirectory && buildWorkingDir !== repoPath;
-        const baseImage = packageManager === 'pnpm' ? 'node:22-alpine' : 'node:20-alpine';
+        const isMonorepoSubdir =
+          !!service.git_subdirectory && buildWorkingDir !== repoPath;
+        const baseImage =
+          packageManager === 'pnpm' ? 'node:22-alpine' : 'node:20-alpine';
 
         const hasPrisma = await this.fileExists(
           path.join(buildWorkingDir, 'prisma', 'schema.prisma'),
@@ -285,7 +283,11 @@ export class BuildProcessor extends WorkerHost {
             'COPY --from=builder /app/packages* ./packages/',
             '# Install production dependencies only',
             'RUN pnpm install --prod --frozen-lockfile || pnpm install --prod',
-            ...(hasPrisma ? [`COPY --from=builder /app/${subdir}/generated/prisma /app/${subdir}/generated/prisma`] : []),
+            ...(hasPrisma
+              ? [
+                  `COPY --from=builder /app/${subdir}/generated/prisma /app/${subdir}/generated/prisma`,
+                ]
+              : []),
             `WORKDIR /app/${subdir}`,
             `EXPOSE ${port}`,
             `CMD ${JSON.stringify(startCmd.split(' '))}`,
@@ -301,7 +303,10 @@ export class BuildProcessor extends WorkerHost {
             '.idea',
             'dist',
           ].join('\n');
-          await fs.writeFile(path.join(repoPath, '.dockerignore'), dockerignore);
+          await fs.writeFile(
+            path.join(repoPath, '.dockerignore'),
+            dockerignore,
+          );
 
           // Write Dockerfile at repo root (the build context)
           await fs.writeFile(
@@ -389,7 +394,7 @@ export class BuildProcessor extends WorkerHost {
 
       // Flush every 3 seconds during build
       const flushInterval = setInterval(() => {
-        flushBuildLogs().catch(() => { });
+        flushBuildLogs().catch(() => {});
       }, 3000);
 
       try {
@@ -497,7 +502,7 @@ export class BuildProcessor extends WorkerHost {
           where: { id: serviceId },
           data: { status: 'failed' },
         })
-        .catch(() => { });
+        .catch(() => {});
 
       throw error;
     }

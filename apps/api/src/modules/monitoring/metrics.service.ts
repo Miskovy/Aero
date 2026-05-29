@@ -175,7 +175,9 @@ export class MetricsService {
         };
         dockerVersion = versionInfo.Version;
 
-        const containers = await this.dockerService.listContainers({ all: true });
+        const containers = await this.dockerService.listContainers({
+          all: true,
+        });
         containersRunning = containers.filter(
           (c) => c.State === 'running',
         ).length;

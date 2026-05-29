@@ -1,31 +1,31 @@
 export interface CloudflareError {
-    code: number;
-    message: string;
+  code: number;
+  message: string;
 }
 
 export interface CloudflareResponse {
-    success: boolean;
-    errors?: CloudflareError[];
+  success: boolean;
+  errors?: CloudflareError[];
 }
 
 export interface CloudflareDnsRecord {
-    id: string;
-    name: string;
-    type: string;
-    content: string;
+  id: string;
+  name: string;
+  type: string;
+  content: string;
 }
 
 export interface CloudflareDnsSearchResponse extends CloudflareResponse {
-    result?: CloudflareDnsRecord[];
+  result?: CloudflareDnsRecord[];
 }
 
 export interface DockerNetwork {
-    IPAddress?: string;
-    [key: string]: unknown;
+  IPAddress?: string;
+  [key: string]: unknown;
 }
 
 export interface DockerNetworkSettings {
-    IPAddress?: string;
-    Networks?: Record<string, DockerNetwork>;
-    [key: string]: unknown;
+  IPAddress?: string;
+  Networks?: Record<string, DockerNetwork>;
+  [key: string]: unknown;
 }
