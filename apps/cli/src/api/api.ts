@@ -34,7 +34,7 @@ export const cliState = {
 };
 
 export const apiClient = axios.create({
-  baseURL: "http://localhost:3500",
+  baseURL: "https://aero-y6mm.onrender.com",
   timeout: 10000,
 });
 

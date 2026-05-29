@@ -1,7 +1,7 @@
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { setTimeout } from 'node:timers/promises';
-import { apiRequest } from '../api/api.js';
+import { apiRequest, apiClient } from '../api/api.js';
 import { statusDot } from '../ui/render.js';
 import { io } from 'socket.io-client';
 
@@ -31,7 +31,8 @@ export async function watchRuntimeLogs(serviceId: string) {
 
   return new Promise<void>((resolve) => {
     // Connect to LogsGateway on port 3501
-    const socket = io('http://localhost:3501', {
+    const socketUrl = `${apiClient.defaults.baseURL || 'https://aero-y6mm.onrender.com'}/logs`;
+    const socket = io(socketUrl, {
       reconnection: true,
       transports: ['websocket', 'polling']
     });

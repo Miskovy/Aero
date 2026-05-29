@@ -14,7 +14,7 @@ export class AeroAgent {
     private readonly apiUrl: string;
     private readonly token: string;
 
-    constructor(token: string, apiUrl: string = 'http://localhost:3500') {
+    constructor(token: string, apiUrl: string = 'https://aero-y6mm.onrender.com') {
         this.token = token;
         this.apiUrl = apiUrl;
     }

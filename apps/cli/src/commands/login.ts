@@ -7,7 +7,7 @@ import { saveStoredToken, exchangeGithubTokenWithAero } from '../api/api.js';
 
 
 const GITHUB_CLIENT_ID = 'Ov23lir8cKuGCkvvY1bE';
-const AERO_API_URL = 'http://localhost:3500';
+const AERO_API_URL = 'https://aero-y6mm.onrender.com';
 
 interface LoginResponse {
   access_token: string;

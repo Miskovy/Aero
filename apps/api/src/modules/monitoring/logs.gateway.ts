@@ -6,7 +6,10 @@ import {
 import { DockerService } from '../docker/docker.service';
 import { Socket } from 'socket.io';
 
-@WebSocketGateway(3501, { cors: true })
+@WebSocketGateway({
+  cors: { origin: '*' },
+  namespace: '/logs',
+})
 export class LogsGateway implements OnGatewayConnection {
   constructor(private readonly dockerService: DockerService) {}
 

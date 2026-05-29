@@ -6,7 +6,10 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 
-@WebSocketGateway(3502, { cors: true })
+@WebSocketGateway({
+  cors: { origin: '*' },
+  namespace: '/metrics',
+})
 export class MetricsGateway implements OnGatewayConnection {
   @WebSocketServer()
   server: Server;
