@@ -469,6 +469,7 @@ export class DeploymentsService implements OnApplicationBootstrap {
         source_type: sourceType,
         git_repository: repo,
         git_branch: branch,
+        git_subdirectory: data.gitSubdirectory,
         docker_image: dockerImage,
         build_command: buildCmd,
         start_command: startCmd,
@@ -519,6 +520,13 @@ export class DeploymentsService implements OnApplicationBootstrap {
     this.cloudflareService.createDeploymentDomain(autoDomain).catch((err) => {
       console.warn(`Failed to register DNS for ${autoDomain}:`, err);
     });
+
+    // Also register the custom domain with Cloudflare DNS if the user provided one
+    if (domain) {
+      this.cloudflareService.createDeploymentDomain(domain).catch((err) => {
+        console.warn(`Failed to register DNS for custom domain ${domain}:`, err);
+      });
+    }
 
     // Queue initial deployment
     return this.triggerDeployment(service.id, userId);

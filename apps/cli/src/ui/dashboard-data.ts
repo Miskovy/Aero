@@ -115,7 +115,9 @@ export async function fetchDashboardData(): Promise<DashboardData> {
 export function buildDashboardLayout(data: DashboardData) {
   const now = new Date();
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-  const tzName = Intl.DateTimeFormat().resolvedOptions().timeZone?.split('/').pop() || '';
+  const tzName = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+    .formatToParts(now)
+    .find(part => part.type === 'timeZoneName')?.value || '';
 
   const healthItems = data.health ? [
     { label: 'Status', value: data.health.status === 'healthy' ? chalk.green('Healthy') : chalk.red('Degraded'), dot: statusDot(data.health.status) },

@@ -17,6 +17,7 @@ import {
 import { AuthenticatedSocket } from './interfaces/gateway.interface';
 
 import { PrismaService } from '../../prisma/prisma.service';
+import { sanitizeLogMessage } from '../../common/utils/log-sanitizer';
 
 @WebSocketGateway({
   cors: { origin: '*' },
@@ -31,7 +32,7 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly agentService: AgentService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     const auth = client.handshake.auth as { token?: string };
@@ -99,7 +100,7 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
         data: {
           deployment_id: payload.deploymentId,
           phase: payload.phase || LogPhase.build,
-          message: payload.message,
+          message: sanitizeLogMessage(payload.message),
           level: payload.level || LogLevel.info,
         },
       });
@@ -153,7 +154,7 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
           data: {
             deployment_id: activeDeployment.id,
             phase: LogPhase.health_check,
-            message: `Service container crashed with exit code ${payload.exitCode}`,
+            message: sanitizeLogMessage(`Service container crashed with exit code ${payload.exitCode}`),
             level: LogLevel.error,
           },
         });

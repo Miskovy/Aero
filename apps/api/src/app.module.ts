@@ -30,12 +30,35 @@ import { CloudflareModule } from './modules/cloudflare/cloudflare.module';
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        connection: {
-          host: configService.get('REDIS_HOST', '127.0.0.1'),
-          port: parseInt(configService.get('REDIS_PORT', '6379'), 10),
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const upstashUrl = configService.get<string>('UPSTASH_REDIS_URL');
+        const redisUrl = configService.get<string>('REDIS_URL');
+        const urlStr = upstashUrl || redisUrl;
+
+        if (urlStr) {
+          try {
+            const parsed = new URL(urlStr);
+            return {
+              connection: {
+                host: parsed.hostname,
+                port: parseInt(parsed.port || '6379', 10),
+                username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
+                password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
+                tls: urlStr.startsWith('rediss://') ? {} : undefined,
+              },
+            };
+          } catch {
+            // Fall back to standard settings if URL parsing fails
+          }
+        }
+
+        return {
+          connection: {
+            host: configService.get('REDIS_HOST', '127.0.0.1'),
+            port: parseInt(configService.get('REDIS_PORT', '6379'), 10),
+          },
+        };
+      },
     }),
     ScheduleModule.forRoot(),
     VaultModule,

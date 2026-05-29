@@ -102,9 +102,29 @@ export async function createAction() {
       message: 'Select a Project:',
       options: [
         ...projects.map(p => ({ value: p.id, label: p.name || p.slug })),
+        { value: '__new__', label: '➕ Create New Project' },
         { value: 'cancel', label: '❌ Cancel' }
       ]
     });
+
+    if (projectId === '__new__') {
+      const projName = await p.text({
+        message: 'Enter a name for your new Project:',
+        placeholder: 'Next.js App'
+      });
+      if (p.isCancel(projName) || !projName) return p.outro(chalk.gray('Cancelled.'));
+
+      sFetch.start('Creating project...');
+      try {
+        const newProj = await apiRequest<any>({ method: 'POST', url: '/projects', data: { orgId: String(orgId), name: projName } });
+        projectId = newProj.id;
+        sFetch.stop('Project created successfully!');
+      } catch (e: any) {
+        sFetch.stop(chalk.red('Failed to create project.'));
+        p.log.error(e.message || 'Unknown error');
+        return p.outro(chalk.gray('Returning...'));
+      }
+    }
   }
 
   if (p.isCancel(projectId) || projectId === 'cancel') return p.outro(chalk.gray('Cancelled.'));
@@ -120,6 +140,7 @@ export async function createAction() {
 
   let repo = '';
   let branch = '';
+  let gitSubdirectory = '';
   let dockerImage = '';
 
   if (sourceType === 'GITHUB') {
@@ -137,6 +158,14 @@ export async function createAction() {
     });
     if (p.isCancel(b)) return p.outro(chalk.gray('Cancelled.'));
     branch = b as string;
+
+    const subDir = await p.text({
+      message: 'Subdirectory path (for monorepos, leave empty for repository root):',
+      placeholder: 'apps/api',
+      initialValue: ''
+    });
+    if (p.isCancel(subDir)) return p.outro(chalk.gray('Cancelled.'));
+    gitSubdirectory = subDir as string;
   } else {
     const img = await p.text({
       message: 'Enter the Docker image (e.g., nginx:latest):',
@@ -153,12 +182,28 @@ export async function createAction() {
   });
   if (p.isCancel(internalPort)) return p.outro(chalk.gray('Cancelled.'));
 
-  const domain = await p.text({
-    message: 'Custom domain (leave empty for auto-generated aerodeploy.app subdomain):',
-    placeholder: 'api.my-app.com',
-    initialValue: ''
+  const domainChoice = await p.select({
+    message: 'Configure Domain Access:',
+    options: [
+      { value: 'free', label: '☁️  Free Auto-Generated Subdomain' },
+      { value: 'custom', label: '🌐 Use a Custom Domain' }
+    ]
   });
-  if (p.isCancel(domain)) return p.outro(chalk.gray('Cancelled.'));
+  if (p.isCancel(domainChoice)) return p.outro(chalk.gray('Cancelled.'));
+
+  let domain = '';
+  if (domainChoice === 'custom') {
+    const d = await p.text({
+      message: 'Enter your custom domain:',
+      placeholder: 'api.my-app.com',
+      validate: (value) => {
+        if (!value || !value.trim()) return 'Domain name cannot be empty.';
+        return;
+      }
+    });
+    if (p.isCancel(d)) return p.outro(chalk.gray('Cancelled.'));
+    domain = d as string;
+  }
 
   const envVarsRaw = await p.text({
     message: 'Environment variables (comma separated KEY=VALUE, leave empty to skip):',
@@ -256,6 +301,7 @@ export async function createAction() {
     if (sourceType === 'GITHUB') {
       payload.repo = repo;
       payload.branch = branch;
+      if (gitSubdirectory) payload.gitSubdirectory = gitSubdirectory;
     } else {
       payload.dockerImage = dockerImage;
     }

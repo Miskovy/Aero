@@ -31,6 +31,10 @@ export class CreateServiceDto {
 
   @IsString()
   @IsOptional()
+  gitSubdirectory?: string;
+
+  @IsString()
+  @IsOptional()
   domain?: string;
 
   @IsNumber()

@@ -18,6 +18,7 @@ import {
 } from './commands/services.js';
 import { envListAction, envSetAction, envUnsetAction, envImportAction } from './commands/env.js';
 import { nodeListAction, nodeAddAction, nodeRemoveAction } from './commands/nodes.js';
+import { projectsListAction, projectsInspectAction, projectsCreateAction, projectsUpdateAction, projectsDeleteAction } from './commands/projects.js';
 import { createAction } from './commands/create.js';
 import { statusAction } from './commands/status.js';
 
@@ -91,6 +92,14 @@ nodeCmd.command('list').description('List all servers').action(nodeListAction);
 nodeCmd.command('add [name]').description('Register a new server and generate a token').action(nodeAddAction);
 nodeCmd.command('remove').description('Revoke access for a server').action(nodeRemoveAction);
 program.addCommand(nodeCmd);
+
+const projectsCmd = new Command('projects').description('Manage projects');
+projectsCmd.command('list').description('List all projects').action(projectsListAction);
+projectsCmd.command('inspect').description('Inspect a project').action(projectsInspectAction);
+projectsCmd.command('create').description('Create a new project').action(projectsCreateAction);
+projectsCmd.command('update').description('Rename or update a project').action(projectsUpdateAction);
+projectsCmd.command('delete').description('Delete a project').action(projectsDeleteAction);
+program.addCommand(projectsCmd);
 
 program.addCommand(createMarketplaceCommand());
 program.addCommand(createDaemonCommand());

@@ -16,6 +16,7 @@ import {
   DeploymentResult,
 } from '../interfaces/deployment.interface';
 import { LogPhase } from '../types/deployment.type';
+import { sanitizeLogMessage } from '../../../common/utils/log-sanitizer';
 
 @Processor('deployments')
 export class BuildProcessor extends WorkerHost {
@@ -48,7 +49,7 @@ export class BuildProcessor extends WorkerHost {
       data: {
         deployment_id: deploymentId,
         phase: phase,
-        message,
+        message: sanitizeLogMessage(message),
         level: 'info',
       },
     });
@@ -169,13 +170,58 @@ export class BuildProcessor extends WorkerHost {
         branch,
         commitSha,
       );
-      let strategy = await this.detectBuildStrategy(repoPath);
+      const buildWorkingDir = service.git_subdirectory
+        ? path.join(repoPath, service.git_subdirectory)
+        : repoPath;
+
+      if (service.git_subdirectory) {
+        const exists = await this.fileExists(buildWorkingDir);
+        if (!exists) {
+          throw new Error(`Configured git subdirectory "${service.git_subdirectory}" does not exist in the repository.`);
+        }
+        this.logger.log(`Using working subdirectory for build: ${buildWorkingDir}`);
+      }
+
+      let strategy = await this.detectBuildStrategy(buildWorkingDir);
+      // Default Docker build context; may be overridden for monorepo builds
+      let dockerBuildContext = buildWorkingDir;
 
       // If no Dockerfile/docker-compose found, generate one from service config
       if (strategy === 'buildpacks') {
         const buildCmd = service.build_command || 'npm run build';
         const startCmd = service.start_command || 'node index.js';
         const port = service.internal_port || 3000;
+
+        // Detect package manager from lockfiles or build/start commands
+        let packageManager: 'pnpm' | 'yarn' | 'npm' = 'npm';
+        if (
+          await this.fileExists(path.join(buildWorkingDir, 'pnpm-lock.yaml'))
+        ) {
+          packageManager = 'pnpm';
+        } else if (
+          await this.fileExists(path.join(repoPath, 'pnpm-lock.yaml'))
+        ) {
+          // Monorepo: lockfile at root, subdirectory build
+          packageManager = 'pnpm';
+        } else if (
+          await this.fileExists(path.join(buildWorkingDir, 'yarn.lock'))
+        ) {
+          packageManager = 'yarn';
+        } else if (
+          await this.fileExists(path.join(repoPath, 'yarn.lock'))
+        ) {
+          packageManager = 'yarn';
+        } else if (
+          buildCmd.includes('pnpm') ||
+          startCmd.includes('pnpm')
+        ) {
+          packageManager = 'pnpm';
+        } else if (
+          buildCmd.includes('yarn') ||
+          startCmd.includes('yarn')
+        ) {
+          packageManager = 'yarn';
+        }
 
         // Decrypt service environment variables for build-time injection
         const envLines: string[] = [];
@@ -197,26 +243,123 @@ export class BuildProcessor extends WorkerHost {
           }
         }
 
-        const dockerfileLines = [
-          'FROM node:20-alpine',
-          'WORKDIR /app',
-          'COPY package*.json ./',
-          'RUN npm ci',
-          'COPY . .',
-          // Inject env vars before the build step so frameworks like Next.js can use them
-          ...envLines,
-          `RUN ${buildCmd}`,
-          `EXPOSE ${port}`,
-          `CMD ${JSON.stringify(startCmd.split(' '))}`,
-        ];
+        // Determine if this is a monorepo subdirectory build
+        const isMonorepoSubdir = !!service.git_subdirectory && buildWorkingDir !== repoPath;
+        const baseImage = packageManager === 'pnpm' ? 'node:22-alpine' : 'node:20-alpine';
 
-        await fs.writeFile(
-          path.join(repoPath, 'Dockerfile'),
-          dockerfileLines.join('\n'),
+        const hasPrisma = await this.fileExists(
+          path.join(buildWorkingDir, 'prisma', 'schema.prisma'),
         );
-        this.logger.log(
-          `Generated Dockerfile for service ${service.slug} (build: "${buildCmd}", start: "${startCmd}", envVars: ${envLines.length})`,
-        );
+
+        let dockerfileLines: string[];
+
+        if (packageManager === 'pnpm' && isMonorepoSubdir) {
+          // MONOREPO PNPM: multi-stage build for lean production images
+          // Builder needs the full workspace for workspace:* dependency resolution
+          // Production stage only copies the target subdirectory + shared packages
+          const subdir = service.git_subdirectory!;
+
+          dockerfileLines = [
+            '# ── Builder Stage ──',
+            `FROM ${baseImage} AS builder`,
+            'WORKDIR /app',
+            'RUN corepack enable && corepack prepare pnpm@9 --activate',
+            '# Copy workspace config first for better Docker layer caching',
+            'COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./',
+            'COPY . .',
+            'RUN pnpm install --frozen-lockfile || pnpm install',
+            `WORKDIR /app/${subdir}`,
+            ...envLines,
+            ...(hasPrisma ? ['RUN npx prisma generate'] : []),
+            `RUN ${buildCmd}`,
+            '',
+            '# ── Production Stage ──',
+            `FROM ${baseImage}`,
+            'WORKDIR /app',
+            'RUN corepack enable && corepack prepare pnpm@9 --activate',
+            '# Copy only workspace config + lockfile for production install',
+            'COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./',
+            `# Copy only the target app`,
+            `COPY --from=builder /app/${subdir} ./${subdir}`,
+            '# Copy shared workspace packages (if any)',
+            'COPY --from=builder /app/packages* ./packages/',
+            '# Install production dependencies only',
+            'RUN pnpm install --prod --frozen-lockfile || pnpm install --prod',
+            ...(hasPrisma ? [`COPY --from=builder /app/${subdir}/generated/prisma /app/${subdir}/generated/prisma`] : []),
+            `WORKDIR /app/${subdir}`,
+            `EXPOSE ${port}`,
+            `CMD ${JSON.stringify(startCmd.split(' '))}`,
+          ];
+
+          // Generate .dockerignore at repo root to reduce build context size
+          const dockerignore = [
+            '.git',
+            'node_modules',
+            '*.md',
+            '.env*',
+            '.vscode',
+            '.idea',
+            'dist',
+          ].join('\n');
+          await fs.writeFile(path.join(repoPath, '.dockerignore'), dockerignore);
+
+          // Write Dockerfile at repo root (the build context)
+          await fs.writeFile(
+            path.join(repoPath, 'Dockerfile'),
+            dockerfileLines.join('\n'),
+          );
+          // Override the build context to repo root for monorepo
+          dockerBuildContext = repoPath;
+
+          this.logger.log(
+            `Generated multi-stage monorepo Dockerfile for service ${service.slug} (subdir: ${subdir}, pkg: ${packageManager}, build: "${buildCmd}", start: "${startCmd}", envVars: ${envLines.length}, prisma: ${hasPrisma})`,
+          );
+        } else {
+          // Standard single-project build
+          let installLines: string[];
+          switch (packageManager) {
+            case 'pnpm':
+              installLines = [
+                'RUN corepack enable && corepack prepare pnpm@9 --activate',
+                'COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* ./',
+                'RUN pnpm install --frozen-lockfile || pnpm install',
+              ];
+              break;
+            case 'yarn':
+              installLines = [
+                'COPY package.json yarn.lock* ./',
+                'RUN yarn install --frozen-lockfile || yarn install',
+              ];
+              break;
+            default:
+              installLines = [
+                'COPY package*.json ./',
+                'RUN npm ci || npm install',
+              ];
+              break;
+          }
+
+          dockerfileLines = [
+            `FROM ${baseImage}`,
+            'WORKDIR /app',
+            ...installLines,
+            'COPY . .',
+            ...envLines,
+            ...(hasPrisma ? ['RUN npx prisma generate'] : []),
+            `RUN ${buildCmd}`,
+            `EXPOSE ${port}`,
+            `CMD ${JSON.stringify(startCmd.split(' '))}`,
+          ];
+
+          await fs.writeFile(
+            path.join(buildWorkingDir, 'Dockerfile'),
+            dockerfileLines.join('\n'),
+          );
+
+          this.logger.log(
+            `Generated Dockerfile for service ${service.slug} inside ${service.git_subdirectory || 'root'} (pkg: ${packageManager}, build: "${buildCmd}", start: "${startCmd}", envVars: ${envLines.length}, prisma: ${hasPrisma})`,
+          );
+        }
         strategy = 'dockerfile';
       }
 
@@ -238,7 +381,7 @@ export class BuildProcessor extends WorkerHost {
           data: {
             deployment_id: deploymentId,
             phase: 'build',
-            message: batch.join('\n'),
+            message: sanitizeLogMessage(batch.join('\n')),
             level: 'debug',
           },
         });
@@ -246,12 +389,12 @@ export class BuildProcessor extends WorkerHost {
 
       // Flush every 3 seconds during build
       const flushInterval = setInterval(() => {
-        flushBuildLogs().catch(() => {});
+        flushBuildLogs().catch(() => { });
       }, 3000);
 
       try {
         await this.dockerService.buildImage(
-          repoPath,
+          dockerBuildContext,
           { t: imageTag },
           (line) => {
             buildLogBatch.push(line);
@@ -354,7 +497,7 @@ export class BuildProcessor extends WorkerHost {
           where: { id: serviceId },
           data: { status: 'failed' },
         })
-        .catch(() => {});
+        .catch(() => { });
 
       throw error;
     }

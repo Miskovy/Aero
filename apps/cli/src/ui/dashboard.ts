@@ -1,6 +1,7 @@
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import isUnicodeSupported from 'is-unicode-supported';
+import readline from 'readline';
 
 import { loginAction, githubLoginAction, registerAction } from '../commands/login.js';
 import { deployAction } from '../commands/deploy.js';
@@ -8,66 +9,169 @@ import { logsAction } from '../commands/logs.js';
 import { createAction } from '../commands/create.js';
 import { servicesListAction, servicesInspectAction, servicesStartAction, servicesStopAction, servicesRestartAction, servicesDeleteAction } from '../commands/services.js';
 import { nodeListAction, nodeAddAction, nodeRemoveAction } from '../commands/nodes.js';
+import { projectsListAction, projectsInspectAction, projectsCreateAction, projectsUpdateAction, projectsDeleteAction } from '../commands/projects.js';
 import { envListAction, envSetAction } from '../commands/env.js';
 import { cliState, saveStoredToken } from '../api/api.js';
-import { renderDashboard, renderFooter } from './render.js';
+import { renderTuiFrame, hideCursor, showCursor, DashboardLayout, renderFooter } from './render.js';
 import { fetchDashboardData, buildDashboardLayout } from './dashboard-data.js';
 
 const unicode = isUnicodeSupported();
 
-async function renderRichDashboard() {
-  console.clear();
+// Cache layout data to keep submenu transitions instantaneous
+let cachedLayout: DashboardLayout | null = null;
 
-  // Show loading indicator
-  const loading = p.spinner();
-  loading.start(chalk.dim('Loading dashboard...'));
+async function getDashboardLayout(forceRefresh = false): Promise<DashboardLayout> {
+  const isLoggedIn = !!cliState.token;
+  if (!isLoggedIn) {
+    return {
+      header: 'Welcome to Aero!',
+      time: '',
+      health: [
+        { label: 'Platform', value: chalk.cyan('Ready'), dot: chalk.cyan('●') },
+        { label: 'Authentication', value: chalk.red('Required'), dot: chalk.red('●') }
+      ],
+      services: [],
+      nodes: [],
+      activity: []
+    };
+  }
+
+  if (cachedLayout && !forceRefresh) {
+    return cachedLayout;
+  }
 
   try {
     const data = await fetchDashboardData();
-    const layout = buildDashboardLayout(data);
-    loading.stop('');
-
-    // Clear the spinner output and render the dashboard
-    console.clear();
-    console.log(renderDashboard(layout));
+    cachedLayout = buildDashboardLayout(data);
+    return cachedLayout;
   } catch {
-    loading.stop('');
-    console.clear();
-
-    // Fallback minimal header if API is unreachable
-    console.log('');
-    console.log(chalk.cyan.bold('  ◆ AERO') + chalk.dim('  Self-Hosted Cloud Platform v1.0.0'));
-    console.log(chalk.dim('  Could not connect to Aero API'));
-    console.log('');
+    return {
+      header: chalk.red('▲ Connection Offline'),
+      time: '',
+      health: [
+        { label: 'Status', value: chalk.red('Aero API Unreachable'), dot: chalk.red('●') }
+      ],
+      services: [],
+      nodes: [],
+      activity: []
+    };
   }
 }
 
-function renderLoggedOutHeader() {
-  console.clear();
-  console.log('');
-  console.log(chalk.cyan.bold('  ◆ AERO') + chalk.dim('  Self-Hosted Cloud Platform v1.0.0'));
-  console.log('');
-  console.log(chalk.dim('  Please log in to access the platform.'));
-  console.log('');
+interface TuiOption {
+  label: string;
+  value: string;
+}
+
+async function runTuiSelect(
+  options: TuiOption[],
+  promptTitle = 'What would you like to do?',
+  forceRefreshLayout = false,
+  initialIndex = 0
+): Promise<string> {
+  const isRaw = process.stdin.isRaw;
+  process.stdin.setRawMode(true);
+  readline.emitKeypressEvents(process.stdin);
+  hideCursor();
+
+  let activeIndex = initialIndex;
+  let layoutData: DashboardLayout | null = cachedLayout;
+  let loading = !layoutData || forceRefreshLayout;
+  let firstRender = true;
+
+  return new Promise<string>((resolve) => {
+    const handleKeypress = (str: string, key: any) => {
+      if (key.ctrl && key.name === 'c') {
+        cleanup();
+        process.exit(0);
+      }
+
+      if (key.name === 'up') {
+        activeIndex = (activeIndex - 1 + options.length) % options.length;
+        renderFrame();
+      } else if (key.name === 'down') {
+        activeIndex = (activeIndex + 1) % options.length;
+        renderFrame();
+      } else if (key.name === 'return') {
+        cleanup();
+        resolve(options[activeIndex].value);
+      } else if (key.name === 'escape' || key.name === 'q') {
+        cleanup();
+        resolve('back');
+      }
+    };
+
+    const handleResize = () => {
+      firstRender = true;
+      renderFrame();
+    };
+
+    const cleanup = () => {
+      clearInterval(clockInterval);
+      process.stdin.removeListener('keypress', handleKeypress);
+      process.stdout.off('resize', handleResize);
+      if (!isRaw) process.stdin.setRawMode(false);
+      showCursor();
+    };
+
+    const renderFrame = () => {
+      if (firstRender) {
+        console.clear();
+        firstRender = false;
+      } else {
+        process.stdout.write('\x1B[H');
+      }
+
+      if (loading || !layoutData) {
+        const fallbackData: DashboardLayout = {
+          header: 'Loading Aero Dashboard...',
+          time: '',
+          health: [{ label: 'Status', value: chalk.dim('Fetching stats...'), dot: chalk.yellow('●') }],
+          services: [],
+          nodes: [],
+          activity: []
+        };
+        const frame = renderTuiFrame(fallbackData, options, activeIndex, promptTitle);
+        process.stdout.write(frame + '\n');
+      } else {
+        const frame = renderTuiFrame(layoutData, options, activeIndex, promptTitle);
+        process.stdout.write(frame + '\n');
+      }
+    };
+
+    // Background fetch in the correct scope
+    getDashboardLayout(forceRefreshLayout).then((data) => {
+      layoutData = data;
+      loading = false;
+      renderFrame();
+    }).catch(() => {
+      loading = false;
+      renderFrame();
+    });
+
+    const clockInterval = setInterval(() => {
+      if (layoutData) {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const tzName = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+          .formatToParts(now)
+          .find(part => part.type === 'timeZoneName')?.value || '';
+        layoutData.time = `${timeStr} ${tzName}`;
+        renderFrame();
+      }
+    }, 5000);
+
+    process.stdout.on('resize', handleResize);
+    process.stdin.on('keypress', handleKeypress);
+    renderFrame();
+  });
 }
 
 export async function startInteractiveDashboard() {
-  // Render the dashboard once on startup
-  let needsDashboardRefresh = true;
+  let forceRefresh = true; // Refresh from API on startup
 
   while (true) {
     const isLoggedIn = !!cliState.token;
-
-    // Only re-render dashboard when explicitly needed (startup, logout, or returning from create/deploy)
-    if (needsDashboardRefresh) {
-      if (isLoggedIn) {
-        await renderRichDashboard();
-      } else {
-        renderLoggedOutHeader();
-      }
-    }
-    needsDashboardRefresh = false;
-
     const options = [];
 
     if (!isLoggedIn) {
@@ -81,6 +185,7 @@ export async function startInteractiveDashboard() {
       options.push({ value: 'logs', label: unicode ? '📄 Logs & Deployments' : '> Logs & Deployments' });
       // Management
       options.push({ value: 'services', label: unicode ? '📋 Manage Services' : '> Manage Services' });
+      options.push({ value: 'projects', label: unicode ? '📁 Manage Projects' : '> Manage Projects' });
       options.push({ value: 'nodes', label: unicode ? '🖥️  Manage Nodes' : '> Manage Nodes' });
       options.push({ value: 'envvars', label: unicode ? '🔐 Environment Variables' : '> Environment Variables' });
       // Dashboard refresh
@@ -90,12 +195,11 @@ export async function startInteractiveDashboard() {
     }
     options.push({ value: 'exit', label: unicode ? '❌ Exit' : '> Exit' });
 
-    const response = await p.select({
-      message: 'What would you like to do?',
-      options,
-    });
+    const response = await runTuiSelect(options, 'What would you like to do?', forceRefresh);
+    forceRefresh = false; // Reset refresh flag
 
-    if (p.isCancel(response) || response === 'exit') {
+    if (response === 'exit' || response === 'back') {
+      console.clear();
       console.log(renderFooter());
       p.outro(chalk.cyan('Goodbye!'));
       process.exit(0);
@@ -105,34 +209,36 @@ export async function startInteractiveDashboard() {
       // Auth
       case 'login':
         await loginAction();
-        needsDashboardRefresh = true; // Refresh after login
+        forceRefresh = true;
         break;
       case 'register':
         await registerAction();
-        needsDashboardRefresh = true;
+        forceRefresh = true;
         break;
       case 'githubLogin':
         await githubLoginAction();
-        needsDashboardRefresh = true;
+        forceRefresh = true;
         break;
 
       // Primary actions
       case 'create':
         await createAction();
-        needsDashboardRefresh = true; // Refresh to show new service
+        forceRefresh = true;
         break;
       case 'deploy':
         await deployAction();
-        needsDashboardRefresh = true;
+        forceRefresh = true;
         break;
       case 'logs':
         await logsAction();
-        // Don't refresh — user wants to stay in context
         break;
 
       // Management submenus — these loop internally
       case 'services':
         await servicesSubmenu();
+        break;
+      case 'projects':
+        await projectsSubmenu();
         break;
       case 'nodes':
         await nodesSubmenu();
@@ -143,14 +249,16 @@ export async function startInteractiveDashboard() {
 
       // Refresh
       case 'refresh':
-        needsDashboardRefresh = true;
+        forceRefresh = true;
         break;
 
       // Account
       case 'logout':
         saveStoredToken(null);
+        cachedLayout = null;
+        console.clear();
         p.log.success(chalk.green('Successfully logged out.'));
-        needsDashboardRefresh = true;
+        forceRefresh = true;
         break;
     }
   }
@@ -160,9 +268,8 @@ export async function startInteractiveDashboard() {
 
 async function servicesSubmenu() {
   while (true) {
-    const action = await p.select({
-      message: 'Services Management',
-      options: [
+    const action = await runTuiSelect(
+      [
         { value: 'list', label: unicode ? '📋 List All Services' : '> List All' },
         { value: 'inspect', label: unicode ? '🔍 Inspect Service' : '> Inspect' },
         { value: 'start', label: unicode ? '▶️  Start Service' : '> Start' },
@@ -171,9 +278,10 @@ async function servicesSubmenu() {
         { value: 'delete', label: unicode ? '🗑️  Delete Service' : '> Delete' },
         { value: 'back', label: unicode ? '⬅️  Back to Menu' : '> Back' },
       ],
-    });
+      'Services Management'
+    );
 
-    if (p.isCancel(action) || action === 'back') return;
+    if (action === 'back') return;
 
     switch (action) {
       case 'list': await servicesListAction(); break;
@@ -188,17 +296,17 @@ async function servicesSubmenu() {
 
 async function nodesSubmenu() {
   while (true) {
-    const action = await p.select({
-      message: 'Node Management',
-      options: [
+    const action = await runTuiSelect(
+      [
         { value: 'list', label: unicode ? '📋 List All Nodes' : '> List All' },
         { value: 'add', label: unicode ? '➕ Add Node' : '> Add Node' },
         { value: 'remove', label: unicode ? '🗑️  Remove Node' : '> Remove Node' },
         { value: 'back', label: unicode ? '⬅️  Back to Menu' : '> Back' },
       ],
-    });
+      'Node Management'
+    );
 
-    if (p.isCancel(action) || action === 'back') return;
+    if (action === 'back') return;
 
     switch (action) {
       case 'list': await nodeListAction(); break;
@@ -210,20 +318,46 @@ async function nodesSubmenu() {
 
 async function envVarsSubmenu() {
   while (true) {
-    const action = await p.select({
-      message: 'Environment Variables',
-      options: [
+    const action = await runTuiSelect(
+      [
         { value: 'list', label: unicode ? '📋 List Variables' : '> List' },
         { value: 'set', label: unicode ? '✏️  Set Variable' : '> Set' },
         { value: 'back', label: unicode ? '⬅️  Back to Menu' : '> Back' },
       ],
-    });
+      'Environment Variables'
+    );
 
-    if (p.isCancel(action) || action === 'back') return;
+    if (action === 'back') return;
 
     switch (action) {
       case 'list': await envListAction(); break;
       case 'set': await envSetAction(); break;
+    }
+  }
+}
+
+async function projectsSubmenu() {
+  while (true) {
+    const action = await runTuiSelect(
+      [
+        { value: 'list', label: unicode ? '📋 List All Projects' : '> List All' },
+        { value: 'inspect', label: unicode ? '🔍 Inspect Project' : '> Inspect' },
+        { value: 'create', label: unicode ? '➕ Create Project' : '> Create' },
+        { value: 'update', label: unicode ? '✏️  Rename / Update Project' : '> Rename / Update' },
+        { value: 'delete', label: unicode ? '🗑️  Delete Project' : '> Delete' },
+        { value: 'back', label: unicode ? '⬅️  Back to Menu' : '> Back' },
+      ],
+      'Projects Management'
+    );
+
+    if (action === 'back') return;
+
+    switch (action) {
+      case 'list': await projectsListAction(); break;
+      case 'inspect': await projectsInspectAction(); break;
+      case 'create': await projectsCreateAction(); break;
+      case 'update': await projectsUpdateAction(); break;
+      case 'delete': await projectsDeleteAction(); break;
     }
   }
 }

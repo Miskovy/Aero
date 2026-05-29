@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-
+import getCliVersion from '../utils/version.js';
 // ─── Box Drawing Characters ──────────────────────────────────────────────────
 const BOX = {
   tl: '╔', tr: '╗', bl: '╚', br: '╝',
@@ -200,7 +200,7 @@ export function renderDashboard(data: DashboardLayout, termWidth?: number): stri
   lines.push(chalk.cyan(`${BOX.tl}${BOX.h.repeat(innerWidth)}${BOX.tr}`));
 
   const brand = chalk.bold.cyan('◆ AERO');
-  const version = chalk.dim('Self-Hosted Cloud Platform v1.0.0');
+  const version = chalk.dim(`Self-Hosted Cloud Platform v${getCliVersion()}`);
   const brandLine = `  ${brand}${' '.repeat(Math.max(1, innerWidth - stripAnsi(brand).length - stripAnsi(version).length - 4))}${version}  `;
   lines.push(chalk.cyan(BOX.v) + pad(brandLine, innerWidth) + chalk.cyan(BOX.v));
 
@@ -296,3 +296,55 @@ export function renderFooter(termWidth?: number): string {
   const innerWidth = width - 2;
   return chalk.cyan(`${BOX.bl}${BOX.h.repeat(innerWidth)}${BOX.br}`);
 }
+
+/** Hides the terminal cursor */
+export function hideCursor(): void {
+  process.stdout.write('\x1B[?25l');
+}
+
+/** Shows the terminal cursor */
+export function showCursor(): void {
+  process.stdout.write('\x1B[?25h');
+}
+
+/** Renders the complete, double-buffered TUI frame including interactive menu */
+export function renderTuiFrame(
+  data: DashboardLayout,
+  menuOptions: { label: string; value: string }[],
+  activeMenuIndex: number,
+  promptTitle = 'What would you like to do?',
+  termWidth?: number
+): string {
+  const width = Math.min(termWidth || process.stdout.columns || 90, 100);
+  const innerWidth = width - 2;
+
+  // Render the base dashboard (excluding the outer bottom footer)
+  const dashboardBody = renderDashboard(data, termWidth);
+  const lines = [dashboardBody];
+
+  // Render menu title/prompt inside the box
+  const promptText = `  ${chalk.cyan('◆')} ${chalk.bold.white(promptTitle)}`;
+  lines.push(chalk.cyan(BOX.v) + pad(promptText, innerWidth) + chalk.cyan(BOX.v));
+  lines.push(chalk.cyan(BOX.v) + ' '.repeat(innerWidth) + chalk.cyan(BOX.v));
+
+  // Render menu options inside the box
+  for (let i = 0; i < menuOptions.length; i++) {
+    const opt = menuOptions[i];
+    let optionLine = '';
+    if (i === activeMenuIndex) {
+      optionLine = `   ${chalk.cyan('❯')} ${chalk.cyan.bold(opt.label)}`;
+    } else {
+      optionLine = `     ${chalk.gray(opt.label)}`;
+    }
+    lines.push(chalk.cyan(BOX.v) + pad(optionLine, innerWidth) + chalk.cyan(BOX.v));
+  }
+
+  // Padding line at the bottom
+  lines.push(chalk.cyan(BOX.v) + ' '.repeat(innerWidth) + chalk.cyan(BOX.v));
+
+  // Bottom footer box border
+  lines.push(renderFooter(termWidth));
+
+  return lines.join('\n');
+}
+
