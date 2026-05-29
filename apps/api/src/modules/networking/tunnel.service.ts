@@ -26,6 +26,13 @@ export class TunnelService implements OnApplicationBootstrap {
   async onApplicationBootstrap() {
     this.logger.log('Booting up Aero infrastructure...');
     try {
+      const isDockerAvailable = await this.dockerService.ping().catch(() => false);
+      if (!isDockerAvailable) {
+        this.logger.warn(
+          'Local Docker daemon is unavailable. Skipping local platform tunnel initialization (Remote-Agent mode active).',
+        );
+        return;
+      }
       await this.startTunnel();
     } catch (error) {
       this.logger.error('Failed to start platform tunnel during bootstrap.');

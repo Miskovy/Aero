@@ -11,12 +11,31 @@ import { ContainerMetrics } from './interfaces/metrics.interface';
 @Injectable()
 export class MetricsService {
   private readonly logger = new Logger(MetricsService.name);
+  private isDockerAvailable: boolean | null = null;
 
   constructor(
     private readonly dockerService: DockerService,
     private readonly wsGateway: MetricsGateway,
     private readonly prisma: PrismaService,
   ) {}
+
+  private async checkDockerAvailability(): Promise<boolean> {
+    if (this.isDockerAvailable !== null) {
+      return this.isDockerAvailable;
+    }
+    try {
+      const isConnected = await this.dockerService.ping();
+      this.isDockerAvailable = isConnected;
+    } catch {
+      this.isDockerAvailable = false;
+    }
+    if (!this.isDockerAvailable) {
+      this.logger.warn(
+        'Local Docker daemon is unavailable. Skipping local metrics collection (Remote-Agent mode active).',
+      );
+    }
+    return this.isDockerAvailable;
+  }
 
   private calculateCpuPercent(stats: ContainerStats): number {
     if (!stats || !stats.cpu_stats || !stats.precpu_stats) return 0;
@@ -83,6 +102,9 @@ export class MetricsService {
 
   @Cron('*/5 * * * * *')
   async pushMetrics() {
+    if (!(await this.checkDockerAvailability())) {
+      return;
+    }
     try {
       const containers = await this.dockerService.listContainers({
         filters: { label: ['aero.managed=true'] },
@@ -146,27 +168,29 @@ export class MetricsService {
     let containersStopped = 0;
     let imagesCount = 0;
 
-    try {
-      const versionInfo = (await this.dockerService.getVersion()) as {
-        Version: string;
-      };
-      dockerVersion = versionInfo.Version;
+    if (await this.checkDockerAvailability()) {
+      try {
+        const versionInfo = (await this.dockerService.getVersion()) as {
+          Version: string;
+        };
+        dockerVersion = versionInfo.Version;
 
-      const containers = await this.dockerService.listContainers({ all: true });
-      containersRunning = containers.filter(
-        (c) => c.State === 'running',
-      ).length;
-      containersStopped = containers.filter(
-        (c) => c.State !== 'running',
-      ).length;
+        const containers = await this.dockerService.listContainers({ all: true });
+        containersRunning = containers.filter(
+          (c) => c.State === 'running',
+        ).length;
+        containersStopped = containers.filter(
+          (c) => c.State !== 'running',
+        ).length;
 
-      const images = await this.dockerService.listImages();
-      imagesCount = images.length;
-    } catch (e: unknown) {
-      const errorMessage = e instanceof Error ? e.message : String(e);
-      this.logger.error(
-        `Failed to get docker stats for system metrics: ${errorMessage}`,
-      );
+        const images = await this.dockerService.listImages();
+        imagesCount = images.length;
+      } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        this.logger.error(
+          `Failed to get docker stats for system metrics: ${errorMessage}`,
+        );
+      }
     }
 
     return {
