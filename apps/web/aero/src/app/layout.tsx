@@ -25,6 +25,11 @@ export const metadata: Metadata = {
   title: "Aero — Turn Any Machine Into Your Own Cloud",
   description:
     "Deploy anything, anywhere, with zero cloud bills. Aero is a high-performance self-hosted PaaS that transforms any machine into your private cloud.",
+  icons: {
+    icon: "/logo.svg",
+    shortcut: "/logo.svg",
+    apple: "/logo.svg",
+  },
 };
 
 export default function RootLayout({

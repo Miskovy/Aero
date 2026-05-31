@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import dynamic from 'next/dynamic'
+import AeroLogo from './AeroLogo'
 
 const Hero3DBackground = dynamic(() => import('./Hero3DBackground'), { ssr: false })
 
@@ -100,7 +101,7 @@ export default function LandingHero() {
       {/* ── Navigation ── */}
       <nav className="nav" id="nav">
         <a href="/" className="nav-logo" id="nav-logo">
-          <AeroMark />
+          <AeroLogo className="nav-logo-icon" monochrome />
           <span>AERO</span>
         </a>
         <ul className="nav-links">
@@ -187,7 +188,7 @@ export default function LandingHero() {
                 <span className="terminal-title">aero</span>
                 <div style={{ width: 36 }} />
               </div>
-              <div className="terminal-body" style={{ minHeight: '340px' }}>
+              <div className="terminal-body" style={{ minHeight: '560px' }}>
                 {TERMINAL_LINES.map((line, i) => {
                   if (i >= visibleLines) return null
                   const delay = `${i * 0.06}s`
@@ -277,12 +278,4 @@ export default function LandingHero() {
   )
 }
 
-/* ── Aero Mark (tiny airplane icon, monochrome) ── */
-function AeroMark() {
-  return (
-    <svg className="nav-logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 12L22 2L17 22L12 14L2 12Z" />
-      <path d="M22 2L12 14" />
-    </svg>
-  )
-}
+
