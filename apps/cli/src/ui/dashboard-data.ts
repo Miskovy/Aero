@@ -1,10 +1,36 @@
-import { apiRequest, cliState } from '../api/api.js';
-import { formatUptime, timeAgo, statusDot } from './render.js';
+/**
+ * dashboard-data.ts — Dashboard data fetching and layout building.
+ *
+ * Uses ConfigManager instead of raw cliState.
+ * System Status panel shows:
+ *   - Local machine specs (CPU name, RAM, cores) — from Node.js os module
+ *   - Aero CLI resource usage (process memory)
+ *   - Account info (email)
+ *   - API connectivity
+ *   - Nodes summary (online / total)
+ */
+
+import * as os from 'node:os';
+import { apiRequest } from '../api/api.js';
+import { formatUptime, formatBytes, timeAgo, statusDot } from './render.js';
+import ConfigManager from '../utils/config.js';
+import icons from '../utils/icons.js';
 import chalk from 'chalk';
 
 export interface DashboardData {
   userName: string;
   userEmail: string;
+  /** Local machine info from Node.js os module */
+  machine: {
+    cpuModel: string;
+    cpuCores: number;
+    totalMemory: number;
+    freeMemory: number;
+    platform: string;
+    hostname: string;
+  };
+  /** Aero CLI process resource usage */
+  processMemory: number;
   health: {
     status: string;
     uptime: number;
@@ -38,9 +64,21 @@ function decodeJwtPayload(token: string): { sub?: string; email?: string; name?:
 
 /** Fetch all dashboard data in parallel from the API */
 export async function fetchDashboardData(): Promise<DashboardData> {
+  // ── Collect local machine info (no API call — instant) ──
+  const cpus = os.cpus();
+
   const result: DashboardData = {
     userName: 'User',
     userEmail: '',
+    machine: {
+      cpuModel: cpus.length > 0 ? cpus[0].model.trim() : 'Unknown',
+      cpuCores: cpus.length,
+      totalMemory: os.totalmem(),
+      freeMemory: os.freemem(),
+      platform: `${os.type()} ${os.release()}`,
+      hostname: os.hostname(),
+    },
+    processMemory: process.memoryUsage().rss,
     health: null,
     services: { total: 0, running: 0, failed: 0, deploying: 0, stopped: 0 },
     nodes: [],
@@ -48,8 +86,9 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   };
 
   // Decode user info from JWT token (no API call needed)
-  if (cliState.token) {
-    const payload = decodeJwtPayload(cliState.token);
+  const token = ConfigManager.get('token');
+  if (token) {
+    const payload = decodeJwtPayload(token);
     if (payload) {
       result.userName = payload.name || payload.email || 'User';
       result.userEmail = payload.email || '';
@@ -63,7 +102,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     apiRequest<any[]>({ method: 'GET', url: '/nodes' }),
   ]);
 
-  // Health
+  // Health (lightweight connectivity check)
   if (healthResult.status === 'fulfilled') {
     result.health = healthResult.value as DashboardData['health'];
   }
@@ -75,7 +114,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     result.services.running = svcs.filter((s: any) => s.status === 'running').length;
     result.services.failed = svcs.filter((s: any) => s.status === 'failed').length;
     result.services.deploying = svcs.filter((s: any) =>
-      ['deploying', 'building', 'queued'].includes(s.status)
+      ['deploying', 'building', 'queued'].includes(s.status),
     ).length;
     result.services.stopped = svcs.filter((s: any) => s.status === 'stopped').length;
 
@@ -83,10 +122,11 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     for (const svc of svcs.slice(0, 5)) {
       if (svc.deployments && svc.deployments.length > 0) {
         const dep = svc.deployments[0];
-        const action = dep.status === 'completed' ? 'deployed' :
-                       dep.status === 'failed' ? 'build failed' :
-                       dep.status === 'queued' ? 'queued' :
-                       dep.status === 'building' ? 'building' : dep.status;
+        const action =
+          dep.status === 'completed' ? 'deployed' :
+          dep.status === 'failed' ? 'build failed' :
+          dep.status === 'queued' ? 'queued' :
+          dep.status === 'building' ? 'building' : dep.status;
         result.recentActivity.push({
           message: `${svc.name} ${action}`,
           time: timeAgo(dep.created_at),
@@ -117,17 +157,75 @@ export function buildDashboardLayout(data: DashboardData) {
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
   const tzName = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
     .formatToParts(now)
-    .find(part => part.type === 'timeZoneName')?.value || '';
+    .find((part) => part.type === 'timeZoneName')?.value || '';
 
-  const healthItems = data.health ? [
-    { label: 'Status', value: data.health.status === 'healthy' ? chalk.green('Healthy') : chalk.red('Degraded'), dot: statusDot(data.health.status) },
-    { label: 'Database', value: data.health.database === 'connected' ? chalk.green('Connected') : chalk.red('Down'), dot: statusDot(data.health.database) },
-    { label: 'Redis', value: data.health.redis === 'connected' ? chalk.green('Connected') : chalk.red('Down'), dot: statusDot(data.health.redis) },
-    { label: 'Docker', value: data.health.docker === 'connected' ? chalk.green('Connected') : chalk.red('Down'), dot: statusDot(data.health.docker) },
-    { label: 'Uptime', value: chalk.white(formatUptime(data.health.uptime)), dot: chalk.cyan('◷') },
-  ] : [
-    { label: 'Status', value: chalk.red('Unavailable'), dot: statusDot('failed') },
-  ];
+  // ── Build user-centric status panel ──
+  const nodesOnline = data.nodes.filter((n) => n.status === 'online').length;
+  const nodesTotal = data.nodes.length;
+  const usedMemory = data.machine.totalMemory - data.machine.freeMemory;
+  const memPercent = data.machine.totalMemory > 0
+    ? (usedMemory / data.machine.totalMemory) * 100
+    : 0;
+
+  const healthItems: { label: string; value: string; dot: string }[] = [];
+
+  // Local machine specs
+  healthItems.push({
+    label: 'Machine',
+    value: chalk.white(data.machine.hostname),
+    dot: chalk.cyan(icons.dot),
+  });
+
+  healthItems.push({
+    label: 'CPU',
+    value: chalk.white(data.machine.cpuModel) + chalk.dim(` (${data.machine.cpuCores} cores)`),
+    dot: chalk.cyan(icons.dot),
+  });
+
+  healthItems.push({
+    label: 'RAM',
+    value: `${chalk.white(formatBytes(usedMemory))} / ${chalk.dim(formatBytes(data.machine.totalMemory))}` +
+           chalk.dim(` (${memPercent.toFixed(0)}%)`),
+    dot: memPercent >= 90 ? chalk.red(icons.dot) : memPercent >= 70 ? chalk.yellow(icons.dot) : chalk.green(icons.dot),
+  });
+
+  healthItems.push({
+    label: 'Aero CLI',
+    value: chalk.dim(formatBytes(data.processMemory) + ' memory'),
+    dot: chalk.cyan(icons.dot),
+  });
+
+  // API connectivity
+  if (data.health) {
+    const isHealthy = data.health.status === 'healthy';
+    healthItems.push({
+      label: 'API',
+      value: isHealthy ? chalk.green('Connected') : chalk.yellow('Degraded'),
+      dot: isHealthy ? chalk.green(icons.dot) : chalk.yellow(icons.dot),
+    });
+  } else {
+    healthItems.push({
+      label: 'API',
+      value: chalk.yellow('Connecting...'),
+      dot: chalk.yellow(icons.dot),
+    });
+  }
+
+  // Nodes summary
+  if (nodesTotal > 0) {
+    const nodesColor = nodesOnline === nodesTotal ? chalk.green : nodesOnline > 0 ? chalk.yellow : chalk.red;
+    healthItems.push({
+      label: 'Nodes',
+      value: nodesColor(`${nodesOnline} online`) + chalk.dim(` / ${nodesTotal} total`),
+      dot: nodesColor(icons.dot),
+    });
+  } else {
+    healthItems.push({
+      label: 'Nodes',
+      value: chalk.dim('None connected'),
+      dot: chalk.gray(icons.dot),
+    });
+  }
 
   const serviceItems = [
     { label: 'Total', value: chalk.white(String(data.services.total)) },

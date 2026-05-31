@@ -1,19 +1,27 @@
+/**
+ * projects.ts — Project management commands.
+ *
+ * Uses professional table renderer, requireAuth guard, and icons system.
+ */
+
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
-import { apiRequest } from '../api/api.js';
+import { apiRequest, requireAuth } from '../api/api.js';
+import { renderTable } from '../utils/tables.js';
+import icons from '../utils/icons.js';
 
-/**
- * Helper: prompt user to select an organization, returns orgId
- */
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 async function selectOrg(): Promise<string | null> {
   const s = p.spinner();
   s.start('Loading organizations...');
+
   let orgs: any[];
   try {
     orgs = await apiRequest<any[]>({ method: 'GET', url: '/organizations' });
-    s.stop('Organizations loaded!');
+    s.stop('');
   } catch (err: any) {
-    s.stop(chalk.red('Failed to load organizations.'));
+    s.stop(chalk.red(`${icons.error} Failed to load organizations.`));
     p.log.error(err.message || 'Unknown error');
     return null;
   }
@@ -27,24 +35,22 @@ async function selectOrg(): Promise<string | null> {
 
   const orgId = await p.select({
     message: 'Select an Organization:',
-    options: orgs.map(o => ({ value: o.id, label: o.name || o.slug }))
+    options: orgs.map((o) => ({ value: o.id, label: o.name || o.slug })),
   });
   if (p.isCancel(orgId)) return null;
   return orgId as string;
 }
 
-/**
- * Helper: prompt user to select a project from an org, returns projectId
- */
 async function selectProject(orgId: string): Promise<string | null> {
   const s = p.spinner();
   s.start('Loading projects...');
+
   let projects: any[];
   try {
     projects = await apiRequest<any[]>({ method: 'GET', url: `/projects?orgId=${orgId}` });
-    s.stop('Projects loaded!');
+    s.stop('');
   } catch (err: any) {
-    s.stop(chalk.red('Failed to load projects.'));
+    s.stop(chalk.red(`${icons.error} Failed to load projects.`));
     p.log.error(err.message || 'Unknown error');
     return null;
   }
@@ -56,54 +62,58 @@ async function selectProject(orgId: string): Promise<string | null> {
 
   const projectId = await p.select({
     message: 'Select a Project:',
-    options: projects.map(proj => ({
+    options: projects.map((proj) => ({
       value: proj.id,
-      label: `${proj.name || proj.slug}${proj._count?.services !== undefined ? chalk.dim(` (${proj._count.services} services)`) : ''}`
-    }))
+      label: `${proj.name || proj.slug}${proj._count?.services !== undefined ? chalk.dim(` (${proj._count.services} services)`) : ''}`,
+    })),
   });
   if (p.isCancel(projectId)) return null;
   return projectId as string;
 }
 
-/**
- * List all projects in an organization
- */
+// ─── List ────────────────────────────────────────────────────────────────────
+
 export async function projectsListAction() {
+  if (!requireAuth()) return;
+
   const orgId = await selectOrg();
   if (!orgId) return;
 
   const s = p.spinner();
   s.start('Fetching projects...');
+
   try {
     const projects = await apiRequest<any[]>({ method: 'GET', url: `/projects?orgId=${orgId}` });
-    s.stop('Projects loaded!');
+    s.stop(`${icons.success} Projects loaded!`);
 
     if (!projects || projects.length === 0) {
       p.log.info('No projects found in this organization.');
       return;
     }
 
-    console.log('');
-    console.log(chalk.bold('  ID                                   NAME                 SERVICES   CREATED'));
-    console.log(chalk.dim('  ' + '─'.repeat(90)));
-    for (const proj of projects) {
-      const svcCount = proj._count?.services ?? '?';
-      const created = proj.created_at ? new Date(proj.created_at).toLocaleDateString() : 'N/A';
-      console.log(
-        `  ${(proj.id || '').padEnd(36)} ${(proj.name || proj.slug || '').padEnd(20)} ${String(svcCount).padEnd(10)} ${created}`
-      );
-    }
-    console.log('');
+    const output = renderTable(
+      [
+        { header: 'NAME', accessor: (r) => r.name || r.slug || '', maxWidth: 24 },
+        { header: 'SERVICES', accessor: (r) => String(r._count?.services ?? '?'), maxWidth: 10 },
+        { header: 'CREATED', accessor: (r) => r.created_at ? new Date(r.created_at).toLocaleDateString() : 'N/A', maxWidth: 14 },
+        { header: 'ID', accessor: (r) => chalk.dim(r.id?.substring(0, 12) || ''), maxWidth: 14 },
+      ],
+      projects,
+      { title: `${icons.project} Projects` },
+    );
+
+    console.log(output);
   } catch (err: any) {
-    s.stop(chalk.red('Failed to load projects.'));
+    s.stop(chalk.red(`${icons.error} Failed to load projects.`));
     p.log.error(err.message || 'Unknown error');
   }
 }
 
-/**
- * Inspect a specific project and show its services
- */
+// ─── Inspect ─────────────────────────────────────────────────────────────────
+
 export async function projectsInspectAction() {
+  if (!requireAuth()) return;
+
   const orgId = await selectOrg();
   if (!orgId) return;
 
@@ -112,15 +122,16 @@ export async function projectsInspectAction() {
 
   const s = p.spinner();
   s.start('Loading project details...');
+
   try {
     const proj = await apiRequest<any>({ method: 'GET', url: `/projects/${projectId}` });
-    s.stop('Project loaded.');
+    s.stop(`${icons.success} Project loaded.`);
 
     console.log('');
-    console.log(chalk.bold.blue('  Project Details'));
-    console.log(chalk.dim('  ' + '─'.repeat(40)));
+    console.log(chalk.bold(`  ${icons.inspect} Project Details`));
+    console.log(chalk.dim(`  ${icons.separator.repeat(40)}`));
     console.log(`  ${chalk.dim('ID:')}           ${proj.id}`);
-    console.log(`  ${chalk.dim('Name:')}         ${proj.name}`);
+    console.log(`  ${chalk.dim('Name:')}         ${chalk.white(proj.name)}`);
     console.log(`  ${chalk.dim('Slug:')}         ${proj.slug}`);
     console.log(`  ${chalk.dim('Description:')}  ${proj.description || chalk.dim('None')}`);
     console.log(`  ${chalk.dim('Services:')}     ${proj._count?.services ?? 0}`);
@@ -129,24 +140,25 @@ export async function projectsInspectAction() {
 
     if (proj.services && proj.services.length > 0) {
       console.log('');
-      console.log(chalk.bold('  Services'));
-      console.log(chalk.dim('  ' + '─'.repeat(40)));
+      console.log(chalk.bold(`  ${icons.service} Services`));
+      console.log(chalk.dim(`  ${icons.separator.repeat(40)}`));
       for (const svc of proj.services) {
-        const statusColor = svc.status === 'running' ? chalk.green : svc.status === 'failed' ? chalk.red : chalk.yellow;
-        console.log(`  ${chalk.dim('•')} ${svc.name} ${statusColor(`(${svc.status || 'unknown'})`)} ${chalk.dim(`[${svc.source_type}]`)}`);
+        const color = svc.status === 'running' ? chalk.green : svc.status === 'failed' ? chalk.red : chalk.yellow;
+        console.log(`  ${chalk.dim(icons.pointerSmall)} ${svc.name} ${color(`(${svc.status || 'unknown'})`)} ${chalk.dim(`[${svc.source_type}]`)}`);
       }
     }
     console.log('');
   } catch (err: any) {
-    s.stop(chalk.red('Failed to load project.'));
+    s.stop(chalk.red(`${icons.error} Failed to load project.`));
     p.log.error(err.message || 'Unknown error');
   }
 }
 
-/**
- * Create a new project in an organization
- */
+// ─── Create ──────────────────────────────────────────────────────────────────
+
 export async function projectsCreateAction() {
+  if (!requireAuth()) return;
+
   const orgId = await selectOrg();
   if (!orgId) return;
 
@@ -156,34 +168,36 @@ export async function projectsCreateAction() {
     validate: (value) => {
       if (!value || !value.trim()) return 'Project name cannot be empty.';
       return;
-    }
+    },
   });
   if (p.isCancel(name)) return;
 
   const s = p.spinner();
   s.start('Creating project...');
+
   try {
     const proj = await apiRequest<any>({
       method: 'POST',
       url: '/projects',
-      data: { orgId, name: name as string }
+      data: { orgId, name: name as string },
     });
-    s.stop(chalk.green('Project created successfully!'));
+    s.stop(chalk.green(`${icons.success} Project created successfully!`));
     console.log('');
     console.log(`  ${chalk.dim('ID:')}   ${proj.id}`);
     console.log(`  ${chalk.dim('Name:')} ${proj.name}`);
     console.log(`  ${chalk.dim('Slug:')} ${proj.slug}`);
     console.log('');
   } catch (err: any) {
-    s.stop(chalk.red('Failed to create project.'));
+    s.stop(chalk.red(`${icons.error} Failed to create project.`));
     p.log.error(err.message || 'Unknown error');
   }
 }
 
-/**
- * Rename / update a project
- */
+// ─── Update ──────────────────────────────────────────────────────────────────
+
 export async function projectsUpdateAction() {
+  if (!requireAuth()) return;
+
   const orgId = await selectOrg();
   if (!orgId) return;
 
@@ -193,9 +207,9 @@ export async function projectsUpdateAction() {
   const field = await p.select({
     message: 'What would you like to update?',
     options: [
-      { value: 'name', label: '✏️  Rename Project' },
-      { value: 'description', label: '📝 Update Description' },
-    ]
+      { value: 'name', label: `${icons.edit} Rename Project` },
+      { value: 'description', label: `${icons.edit} Update Description` },
+    ],
   });
   if (p.isCancel(field)) return;
 
@@ -205,29 +219,31 @@ export async function projectsUpdateAction() {
     validate: (value) => {
       if (field === 'name' && (!value || !value.trim())) return 'Name cannot be empty.';
       return;
-    }
+    },
   });
   if (p.isCancel(newValue)) return;
 
   const s = p.spinner();
   s.start('Updating project...');
+
   try {
     const data = field === 'name' ? { name: newValue as string } : { description: newValue as string };
     const proj = await apiRequest<any>({ method: 'PATCH', url: `/projects/${projectId}`, data });
-    s.stop(chalk.green('Project updated successfully!'));
+    s.stop(chalk.green(`${icons.success} Project updated successfully!`));
     console.log(`  ${chalk.dim('Name:')} ${proj.name}`);
     console.log(`  ${chalk.dim('Description:')} ${proj.description || chalk.dim('None')}`);
     console.log('');
   } catch (err: any) {
-    s.stop(chalk.red('Failed to update project.'));
+    s.stop(chalk.red(`${icons.error} Failed to update project.`));
     p.log.error(err.message || 'Unknown error');
   }
 }
 
-/**
- * Delete a project
- */
+// ─── Delete ──────────────────────────────────────────────────────────────────
+
 export async function projectsDeleteAction() {
+  if (!requireAuth()) return;
+
   const orgId = await selectOrg();
   if (!orgId) return;
 
@@ -236,7 +252,7 @@ export async function projectsDeleteAction() {
 
   const confirm = await p.confirm({
     message: chalk.red('Are you sure you want to delete this project? This will also delete all services inside it.'),
-    initialValue: false
+    initialValue: false,
   });
   if (p.isCancel(confirm) || !confirm) {
     p.log.info('Deletion cancelled.');
@@ -245,11 +261,12 @@ export async function projectsDeleteAction() {
 
   const s = p.spinner();
   s.start('Deleting project...');
+
   try {
     const result = await apiRequest<any>({ method: 'DELETE', url: `/projects/${projectId}` });
-    s.stop(chalk.green(result.message || 'Project deleted successfully!'));
+    s.stop(chalk.green(`${icons.success} ${result.message || 'Project deleted successfully!'}`));
   } catch (err: any) {
-    s.stop(chalk.red('Failed to delete project.'));
+    s.stop(chalk.red(`${icons.error} Failed to delete project.`));
     p.log.error(err.message || 'Unknown error');
   }
 }

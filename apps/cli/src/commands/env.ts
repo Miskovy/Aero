@@ -1,33 +1,51 @@
+/**
+ * env.ts — Environment variable management commands.
+ *
+ * Uses professional table renderer, requireAuth guard, and icons system.
+ * Reports individual import failures instead of silently swallowing them.
+ */
+
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { apiRequest } from '../api/api.js';
+import { apiRequest, requireAuth } from '../api/api.js';
+import { renderTable } from '../utils/tables.js';
+import icons from '../utils/icons.js';
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function promptForService(): Promise<string | undefined> {
   const s = p.spinner();
   s.start('Loading services...');
+
   try {
     const services = await apiRequest<any[]>({ method: 'GET', url: '/services' });
-    s.stop();
+    s.stop('');
+
     if (!services || services.length === 0) {
       p.log.info('No services available.');
       return undefined;
     }
+
     const selection = await p.select({
       message: 'Select a service for environment variables:',
-      options: services.map(srv => ({ value: srv.id, label: srv.name }))
+      options: services.map((srv) => ({ value: srv.id, label: srv.name })),
     });
     if (p.isCancel(selection)) return undefined;
     return selection as string;
   } catch (err: any) {
-    s.stop('Failed to load services.');
+    s.stop(`${icons.error} Failed to load services.`);
     p.log.error(err.message);
     return undefined;
   }
 }
 
+// ─── List ────────────────────────────────────────────────────────────────────
+
 export async function envListAction(serviceId?: string) {
+  if (!requireAuth()) return;
+
   if (!serviceId) {
     serviceId = await promptForService();
     if (!serviceId) return;
@@ -35,53 +53,60 @@ export async function envListAction(serviceId?: string) {
 
   const s = p.spinner();
   s.start('Fetching environment variables...');
+
   try {
-    // Fetch from both sources: EnvironmentVariable table and ServiceSecret table
     const [serviceDetails, secrets] = await Promise.allSettled([
       apiRequest<any>({ method: 'GET', url: `/services/${serviceId}` }),
       apiRequest<any[]>({ method: 'GET', url: `/services/${serviceId}/secrets` }),
     ]);
-    s.stop('Environment variables loaded!');
+    s.stop(`${icons.success} Environment variables loaded!`);
 
-    // Merge variables from both tables
     const allVars: { key: string; source: string }[] = [];
 
-    // From EnvironmentVariable table (stored during service creation)
     if (serviceDetails.status === 'fulfilled' && serviceDetails.value?.variables) {
       for (const v of serviceDetails.value.variables) {
         allVars.push({ key: v.key, source: 'env' });
       }
     }
 
-    // From ServiceSecret table (stored via /secrets endpoint)
     if (secrets.status === 'fulfilled' && Array.isArray(secrets.value)) {
-      for (const s of secrets.value) {
-        // Avoid duplicates
-        if (!allVars.some(v => v.key === s.key)) {
-          allVars.push({ key: s.key, source: 'secret' });
+      for (const secret of secrets.value) {
+        if (!allVars.some((v) => v.key === secret.key)) {
+          allVars.push({ key: secret.key, source: 'secret' });
         }
       }
     }
 
     if (allVars.length === 0) {
-      p.log.info(`No environment variables set for this service.`);
+      p.log.info('No environment variables set for this service.');
       return;
     }
 
-    console.log('\nKEY                              SOURCE');
-    console.log('--------------------------------------------------');
-    for (const v of allVars) {
-      const sourceLabel = v.source === 'env' ? chalk.cyan('env') : chalk.yellow('secret');
-      console.log(`${chalk.white(v.key.padEnd(32))} ${sourceLabel}`);
-    }
-    console.log();
+    const output = renderTable(
+      [
+        { header: 'KEY', accessor: 'key', maxWidth: 36 },
+        {
+          header: 'SOURCE',
+          accessor: (r) => r.source === 'env' ? chalk.cyan('env') : chalk.yellow('secret'),
+          maxWidth: 10,
+        },
+      ],
+      allVars,
+      { title: `${icons.env} Environment Variables` },
+    );
+
+    console.log(output);
   } catch (err: any) {
-    s.stop('Failed to fetch environment variables.');
+    s.stop(`${icons.error} Failed to fetch environment variables.`);
     p.log.error(err.message);
   }
 }
 
+// ─── Set ─────────────────────────────────────────────────────────────────────
+
 export async function envSetAction(serviceId?: string, key?: string, value?: string) {
+  if (!requireAuth()) return;
+
   if (!serviceId) {
     serviceId = await promptForService();
     if (!serviceId) return;
@@ -101,23 +126,25 @@ export async function envSetAction(serviceId?: string, key?: string, value?: str
 
   const s = p.spinner();
   s.start(`Setting ${key}...`);
+
   try {
-    // Try creating it first; if it exists (assuming API handles it or throws 409) we could patch it.
-    // The current API might just accept POST for create or PATCH for update. Let's try POST.
     await apiRequest({
       method: 'POST',
       url: `/services/${serviceId}/secrets`,
-      data: { key, value }
+      data: { key, value },
     });
-    s.stop(chalk.green(`Successfully set environment variable ${key}.`));
+    s.stop(chalk.green(`${icons.success} Successfully set environment variable ${chalk.bold(key)}.`));
   } catch (err: any) {
-    // If it already exists, you'd typically need to PATCH it. For MVP, we pass the error along if POST fails.
-    s.stop(chalk.red(`Failed to set ${key}.`));
+    s.stop(chalk.red(`${icons.error} Failed to set ${key}.`));
     p.log.error(err.message);
   }
 }
 
+// ─── Unset ───────────────────────────────────────────────────────────────────
+
 export async function envUnsetAction(serviceId?: string, key?: string) {
+  if (!requireAuth()) return;
+
   if (!serviceId) {
     serviceId = await promptForService();
     if (!serviceId) return;
@@ -126,21 +153,26 @@ export async function envUnsetAction(serviceId?: string, key?: string) {
   let secrets: any[] = [];
   try {
     secrets = await apiRequest<any[]>({ method: 'GET', url: `/services/${serviceId}/secrets` });
-  } catch (err: any) {
-    p.log.error('Failed to lookup secrets to delete.');
+  } catch {
+    p.log.error('Failed to fetch secrets to delete.');
     return;
   }
 
-  const secretToDelete = secrets.find(s => s.key === key);
-  if (!key || !secretToDelete) {
-     const selection = await p.select({
-       message: 'Select a variable to unset:',
-       options: secrets.map(s => ({ value: s.id, label: s.key }))
-     });
-     if (p.isCancel(selection)) return;
-     const id = selection as string;
-     await deleteSecret(serviceId, id);
-     return;
+  if (secrets.length === 0) {
+    p.log.info('No variables to remove.');
+    return;
+  }
+
+  const secretToDelete = key ? secrets.find((s) => s.key === key) : null;
+
+  if (!secretToDelete) {
+    const selection = await p.select({
+      message: 'Select a variable to unset:',
+      options: secrets.map((s) => ({ value: s.id, label: s.key })),
+    });
+    if (p.isCancel(selection)) return;
+    await deleteSecret(serviceId, selection as string);
+    return;
   }
 
   await deleteSecret(serviceId, secretToDelete.id);
@@ -149,16 +181,21 @@ export async function envUnsetAction(serviceId?: string, key?: string) {
 async function deleteSecret(serviceId: string, secretId: string) {
   const s = p.spinner();
   s.start('Deleting variable...');
+
   try {
     await apiRequest({ method: 'DELETE', url: `/services/${serviceId}/secrets/${secretId}` });
-    s.stop(chalk.green('Successfully deleted environment variable.'));
+    s.stop(chalk.green(`${icons.success} Successfully deleted environment variable.`));
   } catch (err: any) {
-    s.stop(chalk.red('Failed to delete variable.'));
+    s.stop(chalk.red(`${icons.error} Failed to delete variable.`));
     p.log.error(err.message);
   }
 }
 
+// ─── Import ──────────────────────────────────────────────────────────────────
+
 export async function envImportAction(serviceId?: string, filepath?: string) {
+  if (!requireAuth()) return;
+
   if (!serviceId) {
     serviceId = await promptForService();
     if (!serviceId) return;
@@ -172,26 +209,43 @@ export async function envImportAction(serviceId?: string, filepath?: string) {
 
   const s = p.spinner();
   s.start('Importing environment variables...');
+
   try {
     const fullPath = path.resolve(process.cwd(), filepath);
     const content = await fs.readFile(fullPath, 'utf8');
     const lines = content.split('\n');
     let imported = 0;
+    const failures: string[] = [];
 
     for (const line of lines) {
       if (!line || line.startsWith('#')) continue;
       const [key, ...rest] = line.split('=');
       if (key && rest.length > 0) {
-        const val = rest.join('=').trim().replace(/^['"]|['"]$/g, ''); // strip quotes
+        const val = rest.join('=').trim().replace(/^['"]|['"]$/g, '');
         try {
-          await apiRequest({ method: 'POST', url: `/services/${serviceId}/secrets`, data: { key: key.trim(), value: val } });
+          await apiRequest({
+            method: 'POST',
+            url: `/services/${serviceId}/secrets`,
+            data: { key: key.trim(), value: val },
+          });
           imported++;
-        } catch { } // ignore individual failures during bulk import for MVP
+        } catch (err: any) {
+          failures.push(`${key.trim()}: ${err.message}`);
+        }
       }
     }
-    s.stop(chalk.green(`Successfully imported ${imported} variables.`));
+
+    s.stop(chalk.green(`${icons.success} Imported ${imported} variable(s).`));
+
+    if (failures.length > 0) {
+      console.log('');
+      p.log.warn(chalk.yellow(`${failures.length} variable(s) failed to import:`));
+      for (const f of failures) {
+        console.log(chalk.dim(`  ${icons.error} ${f}`));
+      }
+    }
   } catch (err: any) {
-    s.stop(chalk.red('Failed to import environment variables.'));
+    s.stop(chalk.red(`${icons.error} Failed to import environment variables.`));
     p.log.error(err.message);
   }
 }
