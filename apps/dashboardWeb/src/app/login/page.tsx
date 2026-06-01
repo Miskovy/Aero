@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import GitHubIcon from '@/components/GitHubIcon';
+import AeroLogo from '@/components/AeroLogo';
 
 const Hero3DBackground = dynamic(
   () => import('@/components/Hero3DBackground'),
@@ -10,11 +11,21 @@ const Hero3DBackground = dynamic(
 );
 
 export default function LoginPage() {
-  const baseURL = process.env.API_URL || 'http://localhost:3000';
+  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://aero-y6mm.onrender.com';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      document.cookie = `aero_session=${token}; path=/; max-age=${86400}; SameSite=Lax`;
+      window.history.replaceState({}, document.title, window.location.pathname);
+      window.location.href = '/';
+    }
+  }, []);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,8 +59,9 @@ export default function LoginPage() {
   return (
     <div className="login-container">
       <div className="login-box">
-        <div style={{ marginBottom: '32px' }}>
-          <span style={{ fontSize: '34px', fontWeight: 'bold', color: 'var(--text-primary)' }}>AERO</span>
+        <div style={{ marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <AeroLogo size={34} />
+          <span style={{ fontSize: '34px', fontWeight: 'bold', color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>AERO</span>
         </div>
 
         <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -69,7 +81,7 @@ export default function LoginPage() {
             {isLoading ? 'Connecting...' : 'Login'}
           </button>
 
-          <button type="button" className="github-login-button" onClick={() => window.location.href = 'http://localhost:3000/auth/github'}>
+          <button type="button" className="github-login-button" onClick={() => window.location.href = `${baseURL}/auth/github?client=web`}>
             <GitHubIcon size={18} />
             Continue With GitHub
           </button>

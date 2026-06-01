@@ -84,7 +84,7 @@ export class AuthController {
       );
     } else {
       return res.redirect(
-        `http://localhost:5173/login?token=${jwt.access_token}`,
+        `http://localhost:3001/login?token=${jwt.access_token}`,
       );
     }
   }
