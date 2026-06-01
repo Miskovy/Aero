@@ -71,9 +71,16 @@ export class AuthController {
   ) {
     const jwt = this.jwtStrategy.generateToken(req.user);
 
-    // Read the cookie to know where to send them
-    const cookies = req.cookies as Record<string, string | undefined>;
-    const client = cookies['auth_client'];
+    // Read cookie directly from headers to bypass missing cookie-parser Express middleware
+    let client: string | undefined = undefined;
+    const cookieHeader = req.headers.cookie;
+    if (cookieHeader) {
+      const match = cookieHeader.match(/(^|;)\s*auth_client\s*=\s*([^;]+)/);
+      if (match) {
+        client = decodeURIComponent(match[2]);
+      }
+    }
+    
     res.clearCookie('auth_client'); // Clean up
 
     if (client === 'desktop') {
