@@ -1,12 +1,15 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { TokenService } from './token.service';
 import { UserModule } from '../user/user.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { GithubStrategy } from './strategies/github.strategy';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TOKEN_CONFIG } from './constants/token.constants';
+import { CleanupTokensJob } from './jobs/cleanup-tokens.job';
 
 @Module({
   imports: [
@@ -16,12 +19,21 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'aero-secret-key',
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: {
+          expiresIn: TOKEN_CONFIG.ACCESS_TOKEN_TTL,
+        },
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy, GithubStrategy],
+  providers: [
+    AuthService,
+    TokenService,
+    JwtStrategy,
+    GithubStrategy,
+    CleanupTokensJob,
+  ],
   controllers: [AuthController],
-  exports: [AuthService],
+  exports: [AuthService, TokenService],
 })
 export class AuthModule {}
