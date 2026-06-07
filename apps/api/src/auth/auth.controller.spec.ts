@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { JwtStrategy } from './strategies/jwt.strategy';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -13,8 +13,8 @@ describe('AuthController', () => {
     exchangeGithubToken: jest.fn(),
   };
 
-  const mockJwtStrategy = {
-    generateToken: jest.fn(),
+  const mockConfigService = {
+    get: jest.fn().mockReturnValue(false),
   };
 
   beforeEach(async () => {
@@ -22,7 +22,7 @@ describe('AuthController', () => {
       controllers: [AuthController],
       providers: [
         { provide: AuthService, useValue: mockAuthService },
-        { provide: JwtStrategy, useValue: mockJwtStrategy },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 

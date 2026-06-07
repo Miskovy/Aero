@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { UserService } from '../user/user.service';
-import { JwtStrategy } from './strategies/jwt.strategy';
+import { TokenService } from './token.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -13,8 +15,22 @@ describe('AuthService', () => {
     findFirst: jest.fn(),
   };
 
-  const mockJwtStrategy = {
-    generateToken: jest.fn(),
+  const mockTokenService = {
+    generateTokenPair: jest.fn(),
+    verifyAccessToken: jest.fn(),
+    verifyRefreshToken: jest.fn(),
+    refreshTokens: jest.fn(),
+    revokeTokenFamily: jest.fn(),
+    cleanupExpiredTokens: jest.fn(),
+  };
+
+  const mockJwtService = {
+    sign: jest.fn(),
+    verify: jest.fn(),
+  };
+
+  const mockConfigService = {
+    get: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -22,7 +38,9 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         { provide: UserService, useValue: mockUserService },
-        { provide: JwtStrategy, useValue: mockJwtStrategy },
+        { provide: TokenService, useValue: mockTokenService },
+        { provide: JwtService, useValue: mockJwtService },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
