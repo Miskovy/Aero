@@ -49,8 +49,8 @@ export default function LoginPage() {
 
       document.cookie = `aero_session=${data.access_token}; path=/; max-age=${86400}; SameSite=Lax`;
       window.location.href = '/';
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : String(error));
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +87,7 @@ export default function LoginPage() {
           </button>
 
           <label style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '6px', marginBottom: '24px', }}>
-            Don't have an account? <button type="button" onClick={() => window.location.href = '/signup'} style={{ color: 'var(--text-primary)', backgroundColor: 'transparent' }}>Sign Up</button>
+            Don&apos;t have an account? <button type="button" onClick={() => window.location.href = '/signup'} style={{ color: 'var(--text-primary)', backgroundColor: 'transparent' }}>Sign Up</button>
           </label>
 
           {error && (

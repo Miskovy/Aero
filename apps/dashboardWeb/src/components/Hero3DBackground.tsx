@@ -10,37 +10,40 @@ function WavyTerrain() {
   // Create a plane geometry
   // Width, Height, WidthSegments, HeightSegments
   const geometry = useMemo(() => new THREE.PlaneGeometry(30, 15, 60, 30), [])
-  const positions = geometry.attributes.position
 
   // Store the initial Z positions so we can animate them
   const initialZ = useMemo(() => {
-    const zArray = new Float32Array(positions.count)
-    for (let i = 0; i < positions.count; i++) {
-      zArray[i] = positions.getZ(i)
+    const posAttr = geometry.attributes.position
+    const zArray = new Float32Array(posAttr.count)
+    for (let i = 0; i < posAttr.count; i++) {
+      zArray[i] = posAttr.getZ(i)
     }
     return zArray
-  }, [positions])
+  }, [geometry])
 
   const timeRef = useRef(0)
 
   useFrame((state, delta) => {
     if (!meshRef.current) return
 
+    const geom = meshRef.current.geometry
+    const posAttr = geom.attributes.position
+
     timeRef.current += delta * 0.12 // Accumulate delta instead of using state.clock
     const time = timeRef.current
 
-    for (let i = 0; i < positions.count; i++) {
-      const x = positions.getX(i)
-      const y = positions.getY(i)
+    for (let i = 0; i < posAttr.count; i++) {
+      const x = posAttr.getX(i)
+      const y = posAttr.getY(i)
 
       const waveX = Math.sin(x * 0.4 + time) * 0.6
       const waveY = Math.sin(y * 0.4 + time * 0.8) * 0.6
       const waveXY = Math.sin((x + y) * 0.2 - time) * 0.5
 
-      positions.setZ(i, initialZ[i] + waveX + waveY + waveXY)
+      posAttr.setZ(i, initialZ[i] + waveX + waveY + waveXY)
     }
 
-    positions.needsUpdate = true
+    posAttr.needsUpdate = true
     meshRef.current.rotation.z = time * 0.03
   })
 

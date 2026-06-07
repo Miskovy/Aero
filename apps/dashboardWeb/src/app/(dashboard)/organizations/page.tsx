@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 interface Organization {
   id: string;
@@ -43,7 +43,7 @@ export default function OrganizationsPage() {
   };
 
   // 1. READ: Fetch all organizations
-  const fetchOrganizations = async () => {
+  const fetchOrganizations = useCallback(async () => {
     setLoading(true);
     setError(null);
     const token = getSessionToken();
@@ -64,8 +64,9 @@ export default function OrganizationsPage() {
       const data = await res.json();
       setOrgs(data);
       setIsDemoMode(false);
-    } catch (err: any) {
-      console.warn('Backend connection failed, loading local state storage instead:', err.message);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.warn('Backend connection failed, loading local state storage instead:', errMsg);
       // Fallback to local storage for testability
       const localData = localStorage.getItem('aero_local_orgs');
       if (localData) {
@@ -78,11 +79,19 @@ export default function OrganizationsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_BASE]);
 
   useEffect(() => {
-    fetchOrganizations();
-  }, []);
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) {
+        fetchOrganizations();
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [fetchOrganizations]);
 
   // Save to local storage helper (in demo mode)
   const saveToLocal = (updatedOrgs: Organization[]) => {
@@ -106,6 +115,7 @@ export default function OrganizationsPage() {
 
     if (isDemoMode) {
       const newOrg: Organization = {
+        // eslint-disable-next-line react-hooks/purity
         id: `org-${Date.now()}`,
         name: orgName,
         tier: orgTier,
@@ -133,8 +143,8 @@ export default function OrganizationsPage() {
       
       fetchOrganizations();
       closeModal();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -166,8 +176,8 @@ export default function OrganizationsPage() {
       
       fetchOrganizations();
       closeModal();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -194,8 +204,8 @@ export default function OrganizationsPage() {
       if (!res.ok) throw new Error('Failed to delete organization in backend');
       
       fetchOrganizations();
-    } catch (err: any) {
-      alert(`Delete error: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Delete error: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 

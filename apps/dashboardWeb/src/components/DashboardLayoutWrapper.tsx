@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AeroLogo from './AeroLogo';
@@ -11,52 +11,63 @@ interface DashboardLayoutWrapperProps {
 
 export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrapperProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [userName, setUserName] = useState('Console Node');
-  const [userEmail, setUserEmail] = useState('');
-  const [pageTitle, setPageTitle] = useState('Dashboard');
 
-  const pathname = usePathname();
+  // Helper to extract session cookies in client-side context
+  const getSessionCookie = (name: string) => {
+    if (typeof document === 'undefined') return undefined;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift();
+    return undefined;
+  };
 
-  // Dynamic Page Title State Mapping
-  useEffect(() => {
-    if (pathname === '/') {
-      setPageTitle('Dashboard');
-    } else if (pathname === '/organizations') {
-      setPageTitle('Organizations');
-    } else if (pathname === '/projects') {
-      setPageTitle('Projects');
-    } else if (pathname === '/nodes') {
-      setPageTitle('Nodes');
-    } else if (pathname === '/services') {
-      setPageTitle('Services');
-    } else if (pathname === '/marketplace') {
-      setPageTitle('Marketplace');
-    } else if (pathname === '/settings') {
-      setPageTitle('Settings');
-    }
-  }, [pathname]);
-
-  useEffect(() => {
-    const getCookie = (name: string) => {
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop()?.split(';').shift();
-      return undefined;
-    };
-
-    const token = getCookie('aero_session');
+  const [userName] = useState(() => {
+    const token = getSessionCookie('aero_session');
     if (token) {
       try {
         const payloadBase64 = token.split('.')[1];
         const payloadJson = atob(payloadBase64);
         const payload = JSON.parse(payloadJson);
-        if (payload.name) setUserName(payload.name);
-        if (payload.email) setUserEmail(payload.email);
+        return payload.name || 'Console Node';
       } catch (e) {
         console.error('Failed to parse active user token', e);
       }
     }
-  }, []);
+    return 'Console Node';
+  });
+
+  const [userEmail] = useState(() => {
+    const token = getSessionCookie('aero_session');
+    if (token) {
+      try {
+        const payloadBase64 = token.split('.')[1];
+        const payloadJson = atob(payloadBase64);
+        const payload = JSON.parse(payloadJson);
+        return payload.email || '';
+      } catch (e) {
+        console.error('Failed to parse active user token', e);
+      }
+    }
+    return '';
+  });
+
+  const pathname = usePathname();
+
+  // Compute pageTitle dynamically during render instead of running inside a useEffect
+  let pageTitle = 'Dashboard';
+  if (pathname === '/organizations') {
+    pageTitle = 'Organizations';
+  } else if (pathname === '/projects') {
+    pageTitle = 'Projects';
+  } else if (pathname === '/nodes') {
+    pageTitle = 'Nodes';
+  } else if (pathname === '/services') {
+    pageTitle = 'Services';
+  } else if (pathname === '/marketplace') {
+    pageTitle = 'Marketplace';
+  } else if (pathname === '/settings') {
+    pageTitle = 'Settings';
+  }
 
   const handleLogout = () => {
     // Expire the session cookie and redirect back to login
