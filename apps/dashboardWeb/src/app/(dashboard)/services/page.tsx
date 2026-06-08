@@ -65,7 +65,15 @@ export default function ServicesPage() {
   }, []);
 
   useEffect(() => {
-    fetchServices();
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) {
+        fetchServices();
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [fetchServices]);
 
   // Service Actions (Start / Stop / Restart) — sends command to connected node agent

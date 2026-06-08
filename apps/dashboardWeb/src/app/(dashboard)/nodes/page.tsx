@@ -8,14 +8,29 @@ interface Organization {
   name: string;
 }
 
+interface SystemInfo {
+  region?: string;
+  [key: string]: unknown;
+}
+
+interface ResourceUsage {
+  cpu?: number;
+  loadavg?: number[];
+  memory?: number;
+  totalmem?: number | string;
+  freemem?: number | string;
+  disk?: string;
+  [key: string]: unknown;
+}
+
 interface NodeItem {
   id: string;
   name: string;
   hostname: string;
   ip_address?: string;
   status: 'online' | 'offline' | 'draining' | 'maintenance';
-  system_info?: any;
-  resource_usage?: any;
+  system_info?: SystemInfo;
+  resource_usage?: ResourceUsage;
   last_heartbeat_at?: string;
 }
 
@@ -126,13 +141,27 @@ export default function NodesPage() {
   }, []);
 
   useEffect(() => {
-    fetchOrganizations();
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) {
+        fetchOrganizations();
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [fetchOrganizations]);
 
   useEffect(() => {
-    if (selectedOrgId) {
-      fetchNodes(selectedOrgId, false);
-    }
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active && selectedOrgId) {
+        fetchNodes(selectedOrgId, false);
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [selectedOrgId, fetchNodes]);
 
   const handleOrgChange = (orgId: string) => {

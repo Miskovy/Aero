@@ -21,10 +21,34 @@ interface CloudService {
   endpoint: string;
 }
 
+interface Organization {
+  id: string;
+  name: string;
+}
+
+interface ApiService {
+  id: string;
+  name: string;
+  type: string;
+  status: CloudService['status'];
+  slug: string;
+}
+
+interface ApiNode {
+  id: string;
+  name: string;
+  ip_address?: string;
+  resource_usage?: {
+    cpu?: number;
+    memory?: number;
+  };
+  status: ServerNode['status'];
+}
+
 export default function DashboardHome() {
   const [nodes, setNodes] = useState<ServerNode[]>([]);
   const [services, setServices] = useState<CloudService[]>([]);
-  const [orgs, setOrgs] = useState<any[]>([]);
+  const [orgs, setOrgs] = useState<Organization[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -37,6 +61,7 @@ export default function DashboardHome() {
   ]);
 
   const logRef = useRef<HTMLDivElement>(null);
+  const lastFetchedOrgIdRef = useRef<string | null>(null);
   const API_BASE = '/api';
 
   const getSessionToken = () => {
@@ -69,7 +94,7 @@ export default function DashboardHome() {
       let activeOrgId = null;
       if (orgsData.length > 0) {
         const savedOrgId = localStorage.getItem('aero_active_org_id');
-        const exists = orgsData.some((o: any) => o.id === savedOrgId);
+        const exists = orgsData.some((o: Organization) => o.id === savedOrgId);
         activeOrgId = exists ? savedOrgId : orgsData[0].id;
         setSelectedOrgId(activeOrgId);
         if (activeOrgId) {
@@ -86,7 +111,7 @@ export default function DashboardHome() {
       });
       if (servicesRes.ok) {
         const servicesData = await servicesRes.json();
-        setServices(servicesData.map((s: any) => ({
+        setServices(servicesData.map((s: ApiService) => ({
           id: s.id,
           name: s.name,
           type: s.type,
@@ -106,7 +131,7 @@ export default function DashboardHome() {
         });
         if (nodesRes.ok) {
           const nodesData = await nodesRes.json();
-          setNodes(nodesData.map((n: any) => ({
+          setNodes(nodesData.map((n: ApiNode) => ({
             id: n.id,
             name: n.name,
             ip: n.ip_address || 'N/A',
@@ -114,6 +139,7 @@ export default function DashboardHome() {
             memory: n.resource_usage?.memory || 20,
             status: n.status
           })));
+          lastFetchedOrgIdRef.current = activeOrgId;
         }
       }
     } catch (err: unknown) {
@@ -124,12 +150,21 @@ export default function DashboardHome() {
   }, []);
 
   useEffect(() => {
-    fetchDashboardData();
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) {
+        fetchDashboardData();
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [fetchDashboardData]);
 
   // Fetch nodes when org changes
   useEffect(() => {
     if (!selectedOrgId || loading) return;
+    if (selectedOrgId === lastFetchedOrgIdRef.current) return;
 
     const fetchNodesForOrg = async () => {
       const token = getSessionToken();
@@ -142,7 +177,7 @@ export default function DashboardHome() {
         });
         if (res.ok) {
           const data = await res.json();
-          setNodes(data.map((n: any) => ({
+          setNodes(data.map((n: ApiNode) => ({
             id: n.id,
             name: n.name,
             ip: n.ip_address || 'N/A',
@@ -150,6 +185,7 @@ export default function DashboardHome() {
             memory: n.resource_usage?.memory || 20,
             status: n.status
           })));
+          lastFetchedOrgIdRef.current = selectedOrgId;
         }
       } catch (err) {
         console.error('Failed to reload nodes', err);
@@ -157,7 +193,7 @@ export default function DashboardHome() {
     };
 
     fetchNodesForOrg();
-  }, [selectedOrgId]);
+  }, [selectedOrgId, loading]);
 
   const handleOrgChange = (orgId: string) => {
     setSelectedOrgId(orgId);
@@ -234,7 +270,7 @@ export default function DashboardHome() {
         });
         if (servicesRes.ok) {
           const servicesData = await servicesRes.json();
-          setServices(servicesData.map((s: any) => ({
+          setServices(servicesData.map((s: ApiService) => ({
             id: s.id,
             name: s.name,
             type: s.type,

@@ -111,13 +111,27 @@ export default function ProjectsPage() {
   }, []);
 
   useEffect(() => {
-    fetchOrganizations();
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) {
+        fetchOrganizations();
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [fetchOrganizations]);
 
   useEffect(() => {
-    if (selectedOrgId) {
-      fetchProjects(selectedOrgId);
-    }
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active && selectedOrgId) {
+        fetchProjects(selectedOrgId);
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [selectedOrgId, fetchProjects]);
 
   const handleOrgChange = (orgId: string) => {
