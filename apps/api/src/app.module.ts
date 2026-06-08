@@ -21,6 +21,8 @@ import { DomainsModule } from './modules/domains/domains.module';
 import { AgentModule } from './modules/agent/agent.module';
 import { NodesModule } from './modules/nodes/nodes.module';
 import { CloudflareModule } from './modules/cloudflare/cloudflare.module';
+import { ApiKeysModule } from './modules/api-keys/api-keys.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -82,6 +84,8 @@ import { CloudflareModule } from './modules/cloudflare/cloudflare.module';
     NodesModule,
     NetworkingModule,
     CloudflareModule,
+    ApiKeysModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

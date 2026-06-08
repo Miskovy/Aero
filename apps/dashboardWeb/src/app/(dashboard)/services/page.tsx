@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface Project {
   id: string;
@@ -26,6 +27,7 @@ export default function ServicesPage() {
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(false);
   const [copiedCmd, setCopiedCmd] = useState(false);
+  const router = useRouter();
 
   const API_BASE = '/api';
 
@@ -303,7 +305,7 @@ export default function ServicesPage() {
                       </span>
                     </div>
 
-                    <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>{service.name}</h3>
+                    <h3 onClick={() => router.push(`/services/${service.id}`)} style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px', cursor: 'pointer', transition: 'color 0.2s ease' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent-cyan)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-primary)')}>{service.name}</h3>
                     <p style={{ fontSize: '13px', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginBottom: '20px', wordBreak: 'break-all' }}>
                       {service.slug}.aerodeploy.app
                     </p>

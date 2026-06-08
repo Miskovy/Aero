@@ -137,7 +137,10 @@ export class AeroAgent {
         });
 
         this.startCrashMonitor();
+        this.startHealthChecker();
     }
+
+    private crashRestartCounts = new Map<string, number>();
 
     private startCrashMonitor() {
         const child = spawn('docker', ['events', '--filter', 'event=die', '--filter', 'label=aero.managed=true', '--format', '{{json .}}']);
@@ -154,11 +157,20 @@ export class AeroAgent {
                     if (serviceId && exitCode !== "0" && exitCode !== "143" && exitCode !== "137") {
                         console.log(chalk.red(`[CRASH_DETECTED] Service ${serviceId} (container ${containerName}) crashed with exit code ${exitCode}`));
                         if (this.socket) {
-                            this.socket.emit('service_crashed', {
-                                serviceId,
-                                containerName,
-                                exitCode
+                            this.socket.emit('service_crashed', { serviceId, containerName, exitCode });
+                        }
+
+                        // Auto-restart: honor Docker's --restart policy but also track count
+                        const count = (this.crashRestartCounts.get(serviceId) || 0) + 1;
+                        this.crashRestartCounts.set(serviceId, count);
+
+                        if (count <= 5) {
+                            console.log(chalk.yellow(`[AUTO_RESTART] Restarting ${containerName} (attempt ${count}/5)...`));
+                            execAsync(`docker start ${containerName}`).catch(() => {
+                                console.log(chalk.red(`[AUTO_RESTART] Failed to restart ${containerName}`));
                             });
+                        } else {
+                            console.log(chalk.red(`[AUTO_RESTART] Service ${serviceId} exceeded max restarts (5). Giving up.`));
                         }
                     }
                 } catch(e) {
@@ -171,6 +183,43 @@ export class AeroAgent {
             console.log(chalk.yellow('[WARN] Crash monitor disconnected. Restarting...'));
             setTimeout(() => this.startCrashMonitor(), 5000);
         });
+    }
+
+    /**
+     * Periodically run health checks on managed containers and report status.
+     */
+    private startHealthChecker() {
+        setInterval(async () => {
+            try {
+                const { stdout } = await execAsync('docker ps -q --filter "label=aero.managed=true"');
+                const ids = stdout.trim().split('\n').filter(id => id.length > 0);
+
+                for (const containerId of ids) {
+                    try {
+                        const { stdout: inspectOut } = await execAsync(`docker inspect --format="{{json .State.Health}}" ${containerId}`);
+                        const health = JSON.parse(inspectOut.trim());
+
+                        if (health && health.Status && health.Status !== 'healthy') {
+                            const { stdout: labelOut } = await execAsync(`docker inspect --format="{{index .Config.Labels \"aero.service.id\"}}" ${containerId}`);
+                            const serviceId = labelOut.trim();
+
+                            if (serviceId && this.socket) {
+                                this.socket.emit('health_check_result', {
+                                    serviceId,
+                                    containerId,
+                                    status: health.Status,
+                                    failingStreak: health.FailingStreak || 0,
+                                });
+                            }
+                        }
+                    } catch {
+                        // Container may not have health check configured — skip
+                    }
+                }
+            } catch {
+                // docker ps failed — skip this cycle
+            }
+        }, 30000); // Check every 30 seconds
     }
 
     private async handleServiceControl(action: 'stop' | 'start' | 'restart' | 'delete', serviceId: string) {
@@ -353,10 +402,30 @@ CMD ${service.start_command || 'npm start'}
             
             const labelsStr = labels.join(' ');
 
+            // Resource limits
+            let resourceArgs = '';
+            if (service.resource_limits) {
+                const limits = typeof service.resource_limits === 'string' ? JSON.parse(service.resource_limits) : service.resource_limits;
+                if (limits.memory) resourceArgs += ` --memory=${limits.memory}`;
+                if (limits.cpu) resourceArgs += ` --cpus=${limits.cpu}`;
+            }
+
+            // Health check from service config
+            let healthArgs = '';
+            if (service.health_check) {
+                const hc = typeof service.health_check === 'string' ? JSON.parse(service.health_check) : service.health_check;
+                if (hc.command) {
+                    healthArgs += ` --health-cmd="${hc.command}"`;
+                    if (hc.interval) healthArgs += ` --health-interval=${hc.interval}`;
+                    if (hc.timeout) healthArgs += ` --health-timeout=${hc.timeout}`;
+                    if (hc.retries) healthArgs += ` --health-retries=${hc.retries}`;
+                }
+            }
+
             // Variables are now decrypted by the API before being sent to the agent payload!
             const envArgs = service.variables ? service.variables.map((v: any) => `-e ${v.key}="${v.value || ''}"`).join(' ') : '';
             
-            const startCmd = `docker run -d --name ${containerName} --network ${networkName} --restart unless-stopped -p ${internalPort} ${labelsStr} ${volumesArgs} ${envArgs} ${imageTag}`;
+            const startCmd = `docker run -d --name ${containerName} --network ${networkName} --restart unless-stopped -p ${internalPort} ${labelsStr} ${volumesArgs} ${envArgs}${resourceArgs}${healthArgs} ${imageTag}`;
             
             await execAsync(startCmd);
 

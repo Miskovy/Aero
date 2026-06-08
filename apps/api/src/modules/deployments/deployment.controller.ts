@@ -142,4 +142,18 @@ export class DeploymentsController {
   ) {
     return this.deploymentsService.cancelDeployment(serviceId, deploymentId);
   }
+
+  @Post('services/:serviceId/scale')
+  async scaleService(
+    @Param('serviceId') serviceId: string,
+    @Body() body: { replicas: number },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?.id;
+    return this.deploymentsService.updateService(
+      serviceId,
+      { replicas: body.replicas },
+      userId,
+    );
+  }
 }
