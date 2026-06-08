@@ -11,7 +11,7 @@ const Hero3DBackground = dynamic(
 );
 
 export default function LoginPage() {
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://aero-y6mm.onrender.com';
+  const baseURL = process.env.NEXT_PUBLIC_API_URL || '/api';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);

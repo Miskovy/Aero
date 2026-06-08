@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import CustomSelect from '../../../components/CustomSelect';
 
 interface Organization {
   id: string;
@@ -265,9 +266,22 @@ export default function OrganizationsPage() {
 
         {/* Loading Indicator */}
         {loading ? (
-          <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--text-dim)', fontSize: '14px' }}>
-            <div style={{ marginBottom: '12px' }}>Connecting to cloud host data...</div>
-            <span className="pulse-dot" style={{ display: 'inline-block', backgroundColor: 'var(--accent-cyan)' }}></span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 0' }}>
+            <style>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+              .throbber {
+                width: 36px;
+                height: 36px;
+                border: 3px solid rgba(56, 189, 248, 0.1);
+                border-top: 3px solid var(--accent-cyan, #38bdf8);
+                border-radius: 50%;
+                animation: spin 0.8s linear infinite;
+              }
+            `}</style>
+            <div className="throbber" />
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
@@ -370,25 +384,16 @@ export default function OrganizationsPage() {
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-dim)', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase' }}>
                   Subscription Tier
                 </label>
-                <select 
-                  value={orgTier} 
-                  onChange={e => setOrgTier(e.target.value as Organization['tier'])}
-                  style={{
-                    width: '100%',
-                    background: 'var(--bg-tertiary)',
-                    border: '1px solid var(--border-glass)',
-                    borderRadius: '4px',
-                    padding: '10px 14px',
-                    fontSize: '13px',
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="Developer Tier">Developer Tier</option>
-                  <option value="Standard Tier">Standard Tier</option>
-                  <option value="Enterprise Tier">Enterprise Tier</option>
-                </select>
+                <CustomSelect
+                  value={orgTier}
+                  onChange={val => setOrgTier(val as Organization['tier'])}
+                  options={[
+                    { value: 'Developer Tier', label: 'Developer Tier' },
+                    { value: 'Standard Tier', label: 'Standard Tier' },
+                    { value: 'Enterprise Tier', label: 'Enterprise Tier' }
+                  ]}
+                  style={{ width: '100%' }}
+                />
               </div>
 
               {error && (

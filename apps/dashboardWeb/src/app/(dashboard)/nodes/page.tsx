@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import CustomSelect from '../../../components/CustomSelect';
 
 interface Organization {
   id: string;
@@ -22,7 +23,7 @@ export default function NodesPage() {
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [nodes, setNodes] = useState<NodeItem[]>([]);
-  
+
   const [loading, setLoading] = useState(true);
   const [nodesLoading, setNodesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,9 +36,14 @@ export default function NodesPage() {
   const [nodeIp, setNodeIp] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  
+
   // Registration Success details
   const [registeredToken, setRegisteredToken] = useState<string | null>(null);
+
+  // Delete node states
+  const [nodeToDelete, setNodeToDelete] = useState<NodeItem | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const API_BASE = '/api';
 
@@ -87,9 +93,11 @@ export default function NodesPage() {
   }, []);
 
   // Fetch nodes for active organization
-  const fetchNodes = useCallback(async (orgId: string) => {
-    setNodesLoading(true);
-    setNodesError(null);
+  const fetchNodes = useCallback(async (orgId: string, silent = false) => {
+    if (!silent) {
+      setNodesLoading(true);
+      setNodesError(null);
+    }
     const token = getSessionToken();
 
     try {
@@ -107,9 +115,13 @@ export default function NodesPage() {
       const data = await res.json();
       setNodes(data);
     } catch (err: unknown) {
-      setNodesError(err instanceof Error ? err.message : String(err));
+      if (!silent) {
+        setNodesError(err instanceof Error ? err.message : String(err));
+      }
     } finally {
-      setNodesLoading(false);
+      if (!silent) {
+        setNodesLoading(false);
+      }
     }
   }, []);
 
@@ -119,7 +131,7 @@ export default function NodesPage() {
 
   useEffect(() => {
     if (selectedOrgId) {
-      fetchNodes(selectedOrgId);
+      fetchNodes(selectedOrgId, false);
     }
   }, [selectedOrgId, fetchNodes]);
 
@@ -156,17 +168,46 @@ export default function NodesPage() {
 
       const createdNode = await res.json();
       setRegisteredToken(createdNode.agent_token);
-      
+
       // Reset inputs
       setNodeName('');
       setNodeHostname('');
       setNodeIp('');
-      
+
       fetchNodes(selectedOrgId);
     } catch (err: unknown) {
       setCreateError(err instanceof Error ? err.message : String(err));
     } finally {
       setCreateLoading(false);
+    }
+  };
+
+  const handleDeleteNode = async () => {
+    if (!nodeToDelete || !selectedOrgId) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    const token = getSessionToken();
+
+    try {
+      const res = await fetch(`${API_BASE}/organizations/${selectedOrgId}/nodes/${nodeToDelete.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || 'Failed to revoke node');
+      }
+
+      setNodeToDelete(null);
+      fetchNodes(selectedOrgId);
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -200,9 +241,9 @@ export default function NodesPage() {
       <p style={{ color: 'var(--text-dim)', fontSize: '13px', lineHeight: '1.5', marginBottom: '20px' }}>
         There might be a problem in our servers. {msg}
       </p>
-      <button 
+      <button
         onClick={retryFn}
-        className="nav-item active" 
+        className="nav-item active"
         style={{ width: 'auto', padding: '8px 20px', fontSize: '12px', cursor: 'pointer' }}
       >
         Retry Connection
@@ -234,9 +275,9 @@ export default function NodesPage() {
       <p style={{ color: 'var(--text-dim)', fontSize: '13px', lineHeight: '1.5', marginBottom: '20px' }}>
         No host servers are associated with this cluster. Register a new node to begin deploying workloads.
       </p>
-      <button 
+      <button
         onClick={() => setIsModalOpen(true)}
-        className="nav-item active" 
+        className="nav-item active"
         style={{ width: 'auto', padding: '8px 20px', fontSize: '12px', cursor: 'pointer' }}
       >
         CONNECT FIRST NODE
@@ -247,7 +288,7 @@ export default function NodesPage() {
   return (
     <div className="metrics-grid" style={{ gridTemplateColumns: '1fr', gap: '24px' }}>
       <div className="metric-card">
-        
+
         {/* Header Console */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
           <div>
@@ -263,31 +304,56 @@ export default function NodesPage() {
             {orgs.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, letterSpacing: '0.05em' }}>ORGANIZATION</span>
-                <select 
-                  value={selectedOrgId || ''} 
-                  onChange={(e) => handleOrgChange(e.target.value)}
-                  style={{
-                    background: 'var(--bg-tertiary)',
-                    border: '1px solid var(--border-glass)',
-                    borderRadius: '4px',
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {orgs.map(org => (
-                    <option key={org.id} value={org.id}>{org.name}</option>
-                  ))}
-                </select>
+                <CustomSelect
+                  value={selectedOrgId || ''}
+                  onChange={handleOrgChange}
+                  options={orgs.map(org => ({ value: org.id, label: org.name }))}
+                  style={{ width: '180px' }}
+                />
               </div>
             )}
 
-            <button 
+            <button
+              onClick={() => selectedOrgId && fetchNodes(selectedOrgId, false)}
+              disabled={!selectedOrgId || nodesLoading}
+              className="nav-item"
+              style={{
+                width: 'auto',
+                padding: '8px 16px',
+                fontSize: '12px',
+                border: '1px solid var(--border-glass)',
+                background: 'transparent',
+                color: 'var(--text-primary)',
+                cursor: (selectedOrgId && !nodesLoading) ? 'pointer' : 'not-allowed',
+                opacity: selectedOrgId ? 1 : 0.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <svg 
+                width="13" 
+                height="13" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2.5" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                style={{
+                  transformOrigin: 'center',
+                  animation: nodesLoading ? 'spin 1s linear infinite' : 'none'
+                }}
+              >
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+              </svg>
+              REFRESH
+            </button>
+
+            <button
               onClick={() => setIsModalOpen(true)}
               disabled={!selectedOrgId}
-              className="nav-item active" 
+              className="nav-item active"
               style={{ width: 'auto', padding: '8px 16px', fontSize: '12px', border: '1px solid var(--border-glass)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', cursor: selectedOrgId ? 'pointer' : 'not-allowed', opacity: selectedOrgId ? 1 : 0.5 }}
             >
               CONNECT NEW NODE
@@ -297,9 +363,22 @@ export default function NodesPage() {
 
         {/* Content Container */}
         {loading ? (
-          <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--text-dim)', fontSize: '13px' }}>
-            <div style={{ marginBottom: '12px' }}>Connecting to cloud database...</div>
-            <span className="pulse-dot" style={{ display: 'inline-block', backgroundColor: 'var(--accent-cyan)' }}></span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 0' }}>
+            <style>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+              .throbber {
+                width: 36px;
+                height: 36px;
+                border: 3px solid rgba(56, 189, 248, 0.1);
+                border-top: 3px solid var(--accent-cyan, #38bdf8);
+                border-radius: 50%;
+                animation: spin 0.8s linear infinite;
+              }
+            `}</style>
+            <div className="throbber" />
           </div>
         ) : error ? (
           renderError(error, fetchOrganizations)
@@ -308,9 +387,8 @@ export default function NodesPage() {
             No organization selected or associated with this user account.
           </div>
         ) : nodesLoading ? (
-          <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--text-dim)', fontSize: '13px' }}>
-            <div style={{ marginBottom: '12px' }}>Retrieving organization nodes...</div>
-            <span className="pulse-dot" style={{ display: 'inline-block', backgroundColor: 'var(--accent-cyan)' }}></span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 0' }}>
+            <div className="throbber" />
           </div>
         ) : nodesError ? (
           renderError(nodesError, () => fetchNodes(selectedOrgId))
@@ -328,15 +406,39 @@ export default function NodesPage() {
                   <th style={{ padding: '12px 16px' }}>MEMORY</th>
                   <th style={{ padding: '12px 16px' }}>DISK</th>
                   <th style={{ padding: '12px 16px' }}>STATUS</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
                 {nodes.map(node => {
-                  const region = node.system_info?.region || 'Unknown Region';
-                  const cpu = node.resource_usage?.cpu ?? 0;
-                  const memory = node.resource_usage?.memory ?? 0;
-                  const disk = node.resource_usage?.disk ?? 'N/A';
+                  const region = node.system_info?.region || 'Self-Hosted';
                   
+                  let cpuVal = '-';
+                  if (node.status !== 'offline') {
+                    if (node.resource_usage?.cpu !== undefined) {
+                      cpuVal = `${node.resource_usage.cpu}%`;
+                    } else if (node.resource_usage?.loadavg && Array.isArray(node.resource_usage.loadavg) && node.resource_usage.loadavg.length > 0) {
+                      cpuVal = `${node.resource_usage.loadavg[0].toFixed(2)} (load)`;
+                    }
+                  }
+
+                  let memoryVal = '-';
+                  if (node.status !== 'offline') {
+                    if (node.resource_usage?.memory !== undefined) {
+                      memoryVal = `${node.resource_usage.memory}%`;
+                    } else if (node.resource_usage?.totalmem && node.resource_usage?.freemem) {
+                      const total = Number(node.resource_usage.totalmem);
+                      const free = Number(node.resource_usage.freemem);
+                      if (total > 0) {
+                        const used = total - free;
+                        const pct = Math.round((used / total) * 100);
+                        memoryVal = `${pct}%`;
+                      }
+                    }
+                  }
+
+                  const disk = node.resource_usage?.disk ?? 'N/A';
+
                   return (
                     <tr key={node.id} style={{ borderBottom: '1px solid var(--border-glass)' }}>
                       <td style={{ padding: '16px', color: 'var(--text-primary)', fontWeight: 600 }}>
@@ -347,8 +449,8 @@ export default function NodesPage() {
                       </td>
                       <td style={{ padding: '16px', color: 'var(--text-dim)' }}>{region}</td>
                       <td style={{ padding: '16px', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>{node.ip_address || 'N/A'}</td>
-                      <td style={{ padding: '16px', color: 'var(--text-primary)' }}>{node.status === 'offline' ? '-' : `${cpu}%`}</td>
-                      <td style={{ padding: '16px', color: 'var(--text-primary)' }}>{node.status === 'offline' ? '-' : `${memory}%`}</td>
+                      <td style={{ padding: '16px', color: 'var(--text-primary)' }}>{cpuVal}</td>
+                      <td style={{ padding: '16px', color: 'var(--text-primary)' }}>{memoryVal}</td>
                       <td style={{ padding: '16px', color: 'var(--text-primary)' }}>{node.status === 'offline' ? '-' : disk}</td>
                       <td style={{ padding: '16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -363,6 +465,24 @@ export default function NodesPage() {
                             textTransform: 'uppercase'
                           }}>{node.status}</span>
                         </div>
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'right' }}>
+                        <button
+                          onClick={() => setNodeToDelete(node)}
+                          className="nav-item"
+                          style={{
+                            width: 'auto',
+                            padding: '6px 12px',
+                            fontSize: '11px',
+                            border: '1px solid rgba(239,68,68,0.15)',
+                            background: 'rgba(239,68,68,0.05)',
+                            color: '#f87171',
+                            cursor: 'pointer',
+                            display: 'inline-block'
+                          }}
+                        >
+                          REVOKE
+                        </button>
                       </td>
                     </tr>
                   );
@@ -412,11 +532,11 @@ export default function NodesPage() {
                       <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-dim)', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase' }}>
                         Node Alias
                       </label>
-                      <input 
-                        type="text" 
-                        value={nodeName} 
-                        onChange={e => setNodeName(e.target.value)} 
-                        placeholder="e.g. fra-node-01" 
+                      <input
+                        type="text"
+                        value={nodeName}
+                        onChange={e => setNodeName(e.target.value)}
+                        placeholder="e.g. fra-node-01"
                         required
                         disabled={createLoading}
                         style={{
@@ -435,11 +555,11 @@ export default function NodesPage() {
                       <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-dim)', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase' }}>
                         Hostname
                       </label>
-                      <input 
-                        type="text" 
-                        value={nodeHostname} 
-                        onChange={e => setNodeHostname(e.target.value)} 
-                        placeholder="e.g. host.internal" 
+                      <input
+                        type="text"
+                        value={nodeHostname}
+                        onChange={e => setNodeHostname(e.target.value)}
+                        placeholder="e.g. host.internal"
                         required
                         disabled={createLoading}
                         style={{
@@ -460,11 +580,11 @@ export default function NodesPage() {
                     <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-dim)', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase' }}>
                       IP Address (Optional)
                     </label>
-                    <input 
-                      type="text" 
-                      value={nodeIp} 
-                      onChange={e => setNodeIp(e.target.value)} 
-                      placeholder="e.g. 192.168.1.100" 
+                    <input
+                      type="text"
+                      value={nodeIp}
+                      onChange={e => setNodeIp(e.target.value)}
+                      placeholder="e.g. 192.168.1.100"
                       disabled={createLoading}
                       style={{
                         width: '100%',
@@ -486,19 +606,19 @@ export default function NodesPage() {
                   )}
 
                   <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                    <button 
-                      type="button" 
-                      onClick={closeConnectModal} 
+                    <button
+                      type="button"
+                      onClick={closeConnectModal}
                       disabled={createLoading}
-                      className="nav-item" 
+                      className="nav-item"
                       style={{ width: 'auto', padding: '8px 16px', fontSize: '12px', border: '1px solid var(--border-glass)', background: 'transparent', color: 'var(--text-dim)', cursor: 'pointer' }}
                     >
                       CANCEL
                     </button>
-                    <button 
-                      type="submit" 
+                    <button
+                      type="submit"
                       disabled={createLoading || !nodeName.trim() || !nodeHostname.trim()}
-                      className="nav-item active" 
+                      className="nav-item active"
                       style={{ width: 'auto', padding: '8px 16px', fontSize: '12px', border: '1px solid var(--border-glass)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', cursor: 'pointer', opacity: (createLoading || !nodeName.trim() || !nodeHostname.trim()) ? 0.5 : 1 }}
                     >
                       {createLoading ? 'REGISTERING...' : 'REGISTER NODE'}
@@ -529,18 +649,28 @@ export default function NodesPage() {
                     background: 'var(--bg-tertiary)',
                     border: '1px solid var(--border-glass)',
                     borderRadius: '4px',
-                    padding: '12px 14px',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '12px',
-                    color: 'var(--accent-cyan)',
+                    padding: '10px 14px',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    wordBreak: 'break-all'
+                    gap: '12px'
                   }}>
-                    <span>{registeredToken}</span>
-                    <button 
+                    <span style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '12px',
+                      color: 'var(--accent-cyan)',
+                      overflowX: 'auto',
+                      whiteSpace: 'nowrap',
+                      display: 'block',
+                      flex: 1,
+                      scrollbarWidth: 'none'
+                    }}>
+                      {registeredToken}
+                    </span>
+                    <button
                       onClick={() => {
-                        navigator.clipboard.writeText(registeredToken);
+                        if (registeredToken) {
+                          navigator.clipboard.writeText(registeredToken);
+                        }
                       }}
                       style={{
                         background: 'transparent',
@@ -548,7 +678,11 @@ export default function NodesPage() {
                         color: 'var(--text-dim)',
                         cursor: 'pointer',
                         padding: '4px',
-                        marginLeft: '8px'
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        width: 'auto'
                       }}
                       title="Copy to clipboard"
                     >
@@ -579,16 +713,81 @@ export default function NodesPage() {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button 
+                  <button
                     onClick={closeConnectModal}
-                    className="nav-item active" 
+                    className="nav-item active"
                     style={{ width: 'auto', padding: '8px 20px', fontSize: '12px', border: '1px solid var(--border-glass)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', cursor: 'pointer' }}
                   >
-                    DISMISS
+                    DONE
                   </button>
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+      {/* ── Delete Node Confirmation Modal ── */}
+      {nodeToDelete && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.65)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="metric-card" style={{
+            width: '100%',
+            maxWidth: '440px',
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-glass)',
+            padding: '30px',
+            borderRadius: '8px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            textAlign: 'center'
+          }}>
+            <svg style={{ color: '#ef4444', marginBottom: '16px' }} width="44" height="44" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
+              REVOKE NODE ACCESS?
+            </h3>
+            <p style={{ color: 'var(--text-dim)', fontSize: '13px', lineHeight: '1.5', marginBottom: '24px' }}>
+              Are you sure you want to revoke access for node <strong>{nodeToDelete.name}</strong> ({nodeToDelete.hostname})?
+              This node will be disconnected from the cluster, and any services running on it will stop exposing workloads.
+            </p>
+
+            {deleteError && (
+              <div style={{ padding: '10px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)', color: '#f87171', fontSize: '12px', marginBottom: '20px', textAlign: 'left' }}>
+                {deleteError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => { setNodeToDelete(null); setDeleteError(null); }}
+                disabled={deleteLoading}
+                className="nav-item"
+                style={{ width: 'auto', padding: '8px 16px', fontSize: '12px', border: '1px solid var(--border-glass)', background: 'transparent', color: 'var(--text-dim)', cursor: 'pointer' }}
+              >
+                CANCEL
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteNode}
+                disabled={deleteLoading}
+                className="nav-item active"
+                style={{ width: 'auto', padding: '8px 16px', fontSize: '12px', border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.1)', color: '#f87171', cursor: 'pointer' }}
+              >
+                {deleteLoading ? 'REVOKING...' : 'CONFIRM REVOKE'}
+              </button>
+            </div>
           </div>
         </div>
       )}

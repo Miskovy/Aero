@@ -9,6 +9,55 @@ import fs from 'node:fs/promises';
 
 const execAsync = promisify(exec);
 
+function cpuAverage() {
+    let totalIdle = 0, totalTick = 0;
+    const cpus = os.cpus();
+    if (!cpus || cpus.length === 0) {
+        return { idle: 0, total: 0 };
+    }
+    for (let i = 0, len = cpus.length; i < len; i++) {
+        const cpu = cpus[i];
+        for (const type in cpu.times) {
+            totalTick += cpu.times[type as keyof typeof cpu.times];
+        }
+        totalIdle += cpu.times.idle;
+    }
+    return { idle: totalIdle / cpus.length, total: totalTick / cpus.length };
+}
+
+function getCPUUsage(): Promise<number> {
+    return new Promise((resolve) => {
+        const startMeasure = cpuAverage();
+        setTimeout(() => {
+            const endMeasure = cpuAverage();
+            const idleDifference = endMeasure.idle - startMeasure.idle;
+            const totalDifference = endMeasure.total - startMeasure.total;
+            if (totalDifference === 0) {
+                resolve(0);
+                return;
+            }
+            const percentageCPU = 100 - Math.round(100 * idleDifference / totalDifference);
+            resolve(percentageCPU);
+        }, 1000);
+    });
+}
+
+async function getDiskUsage(): Promise<string> {
+    try {
+        const { stdout } = await execAsync("df / | tail -1");
+        const parts = stdout.trim().split(/\s+/);
+        if (parts.length >= 5) {
+            const usePercent = parts[4];
+            if (usePercent.endsWith('%')) {
+                return usePercent;
+            }
+        }
+        return 'N/A';
+    } catch (e) {
+        return 'N/A';
+    }
+}
+
 export class AeroAgent {
     private socket: Socket | null = null;
     private readonly apiUrl: string;
@@ -30,14 +79,23 @@ export class AeroAgent {
             reconnectionDelayMax: 5000,
         });
 
-        const heartbeatInterval = setInterval(() => {
+        const heartbeatInterval = setInterval(async () => {
             if (this.socket && this.socket.connected) {
+                const cpu = await getCPUUsage();
+                const disk = await getDiskUsage();
+                const total = os.totalmem();
+                const free = os.freemem();
+                const memory = total > 0 ? Math.round(((total - free) / total) * 100) : 0;
+
                 this.socket.emit('ping', { 
                     status: 'online', 
                     uptime: process.uptime(),
-                    freemem: os.freemem(),
-                    totalmem: os.totalmem(),
-                    loadavg: os.loadavg()
+                    freemem: free,
+                    totalmem: total,
+                    loadavg: os.loadavg(),
+                    cpu,
+                    memory,
+                    disk
                 });
             }
         }, 30000);

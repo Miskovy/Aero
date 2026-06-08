@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import CustomSelect from '../../components/CustomSelect';
 
 interface ServerNode {
   id: string;
@@ -284,9 +285,28 @@ export default function DashboardHome() {
 
   if (loading) {
     return (
-      <div style={{ padding: '100px 0', textAlign: 'center', color: 'var(--text-dim)', fontSize: '13px' }}>
-        <div style={{ marginBottom: '12px' }}>Connecting to cloud database...</div>
-        <span className="pulse-dot" style={{ display: 'inline-block', backgroundColor: 'var(--accent-cyan)' }}></span>
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        padding: '100px 0' 
+      }}>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+          .throbber {
+            width: 36px;
+            height: 36px;
+            border: 3px solid rgba(56, 189, 248, 0.1);
+            border-top: 3px solid var(--accent-cyan, #38bdf8);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+          }
+        `}</style>
+        <div className="throbber" />
       </div>
     );
   }
@@ -316,24 +336,12 @@ export default function DashboardHome() {
         {orgs.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, letterSpacing: '0.05em' }}>ORGANIZATION</span>
-            <select 
-              value={selectedOrgId || ''} 
-              onChange={(e) => handleOrgChange(e.target.value)}
-              style={{
-                background: 'var(--bg-tertiary)',
-                border: '1px solid var(--border-glass)',
-                borderRadius: '4px',
-                padding: '6px 12px',
-                fontSize: '12px',
-                color: 'var(--text-primary)',
-                outline: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              {orgs.map(org => (
-                <option key={org.id} value={org.id}>{org.name}</option>
-              ))}
-            </select>
+            <CustomSelect
+              value={selectedOrgId || ''}
+              onChange={handleOrgChange}
+              options={orgs.map(org => ({ value: org.id, label: org.name }))}
+              style={{ width: '180px' }}
+            />
           </div>
         )}
       </section>

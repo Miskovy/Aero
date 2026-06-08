@@ -52,9 +52,12 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
   });
 
   useEffect(() => {
-    const baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://aero-y6mm.onrender.com';
+    const baseURL = process.env.NEXT_PUBLIC_API_URL || '/api';
+    let isRefreshing = false;
 
     const performRefresh = async () => {
+      if (isRefreshing) return;
+      isRefreshing = true;
       try {
         const response = await fetch(baseURL + '/auth/refresh', {
           method: 'POST',
@@ -72,6 +75,8 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
         }
       } catch (err) {
         console.error('Failed proactive session refresh:', err);
+      } finally {
+        isRefreshing = false;
       }
     };
 
@@ -87,8 +92,8 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
 
         if (exp) {
           const timeLeft = exp * 1000 - Date.now();
-          if (timeLeft < 120_000) {
-            console.log(`Access token expiring in ${Math.round(timeLeft / 1000)}s. Refreshing...`);
+          if (timeLeft < 300_000) {
+            console.log(`Access token expiring/expired in ${Math.round(timeLeft / 1000)}s. Refreshing...`);
             performRefresh();
           }
         }
@@ -97,10 +102,23 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
       }
     };
 
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        checkAndRefresh();
+      }
+    };
+
+    window.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+
     checkAndRefresh();
     const interval = setInterval(checkAndRefresh, 10000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+    };
   }, []);
 
   const pathname = usePathname();
@@ -122,7 +140,7 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
   }
 
   const handleLogout = async () => {
-    const baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://aero-y6mm.onrender.com';
+    const baseURL = process.env.NEXT_PUBLIC_API_URL || '/api';
     try {
       await fetch(`${baseURL}/auth/logout`, {
         method: 'POST',

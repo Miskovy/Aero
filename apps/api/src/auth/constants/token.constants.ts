@@ -21,7 +21,7 @@ export const TOKEN_CONFIG = {
   REFRESH_TOKEN_MAX_AGE_MS: 7 * 24 * 60 * 60 * 1000,
 
   /** Cookie path — restrict to auth endpoints only */
-  REFRESH_TOKEN_COOKIE_PATH: '/auth',
+  REFRESH_TOKEN_COOKIE_PATH: '/',
 } as const;
 
 /** Discriminator values embedded in every JWT payload */
