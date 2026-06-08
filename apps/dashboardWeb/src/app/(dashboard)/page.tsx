@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 interface ServerNode {
   id: string;
@@ -8,32 +8,26 @@ interface ServerNode {
   ip: string;
   cpu: number;
   memory: number;
-  status: 'online' | 'offline' | 'degraded';
+  status: 'online' | 'offline' | 'draining' | 'maintenance';
 }
 
 interface CloudService {
   id: string;
   name: string;
-  type: 'gateway' | 'database' | 'static' | 'worker';
-  status: 'running' | 'stopped' | 'deploying';
+  type: string;
+  status: 'running' | 'stopped' | 'deploying' | 'building' | 'failed' | 'degraded';
   uptime: string;
   endpoint: string;
 }
 
 export default function DashboardHome() {
-  const [nodes, setNodes] = useState<ServerNode[]>([
-    { id: 'n1', name: 'fra-node-core-01', ip: '138.197.80.45', cpu: 14, memory: 42, status: 'online' },
-    { id: 'n2', name: 'nyc-node-edge-02', ip: '159.203.170.82', cpu: 28, memory: 58, status: 'online' },
-    { id: 'n3', name: 'ams-node-db-01', ip: '142.93.220.101', cpu: 8, memory: 74, status: 'online' },
-    { id: 'n4', name: 'sgp-node-backup', ip: '128.199.160.12', cpu: 0, memory: 0, status: 'offline' }
-  ]);
+  const [nodes, setNodes] = useState<ServerNode[]>([]);
+  const [services, setServices] = useState<CloudService[]>([]);
+  const [orgs, setOrgs] = useState<any[]>([]);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
 
-  const [services, setServices] = useState<CloudService[]>([
-    { id: 's1', name: 'aero-api-gateway', type: 'gateway', status: 'running', uptime: '14d 8h', endpoint: 'api.aero.dev' },
-    { id: 's2', name: 'aero-postgres-db', type: 'database', status: 'running', uptime: '32d 12h', endpoint: 'db.internal:5432' },
-    { id: 's3', name: 'aero-web-dashboard', type: 'static', status: 'running', uptime: '6d 21h', endpoint: 'console.aero.dev' },
-    { id: 's4', name: 'image-processing-worker', type: 'worker', status: 'stopped', uptime: '0s', endpoint: 'worker.internal' }
-  ]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [logs, setLogs] = useState([
     { time: '12:14:02', service: 'system', message: 'Heartbeat received from all active node clusters.', type: 'info' },
@@ -42,6 +36,132 @@ export default function DashboardHome() {
   ]);
 
   const logRef = useRef<HTMLDivElement>(null);
+  const API_BASE = '/api';
+
+  const getSessionToken = () => {
+    if (typeof document === 'undefined') return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; aero_session=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+    return null;
+  };
+
+  // Fetch initial organizations & active org
+  const fetchDashboardData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const token = getSessionToken();
+
+    try {
+      // Fetch orgs first
+      const orgsRes = await fetch(`${API_BASE}/organizations`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!orgsRes.ok) throw new Error('Could not retrieve user organizations');
+      
+      const orgsData = await orgsRes.json();
+      setOrgs(orgsData);
+
+      let activeOrgId = null;
+      if (orgsData.length > 0) {
+        const savedOrgId = localStorage.getItem('aero_active_org_id');
+        const exists = orgsData.some((o: any) => o.id === savedOrgId);
+        activeOrgId = exists ? savedOrgId : orgsData[0].id;
+        setSelectedOrgId(activeOrgId);
+        if (activeOrgId) {
+          localStorage.setItem('aero_active_org_id', activeOrgId);
+        }
+      }
+
+      // Fetch services (global)
+      const servicesRes = await fetch(`${API_BASE}/services`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (servicesRes.ok) {
+        const servicesData = await servicesRes.json();
+        setServices(servicesData.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          type: s.type,
+          status: s.status,
+          uptime: 'Active',
+          endpoint: `${s.slug}.aerodeploy.app`
+        })));
+      }
+
+      // Fetch nodes for active org
+      if (activeOrgId) {
+        const nodesRes = await fetch(`${API_BASE}/organizations/${activeOrgId}/nodes`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (nodesRes.ok) {
+          const nodesData = await nodesRes.json();
+          setNodes(nodesData.map((n: any) => ({
+            id: n.id,
+            name: n.name,
+            ip: n.ip_address || 'N/A',
+            cpu: n.resource_usage?.cpu || 10,
+            memory: n.resource_usage?.memory || 20,
+            status: n.status
+          })));
+        }
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  // Fetch nodes when org changes
+  useEffect(() => {
+    if (!selectedOrgId || loading) return;
+
+    const fetchNodesForOrg = async () => {
+      const token = getSessionToken();
+      try {
+        const res = await fetch(`${API_BASE}/organizations/${selectedOrgId}/nodes`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setNodes(data.map((n: any) => ({
+            id: n.id,
+            name: n.name,
+            ip: n.ip_address || 'N/A',
+            cpu: n.resource_usage?.cpu || 10,
+            memory: n.resource_usage?.memory || 20,
+            status: n.status
+          })));
+        }
+      } catch (err) {
+        console.error('Failed to reload nodes', err);
+      }
+    };
+
+    fetchNodesForOrg();
+  }, [selectedOrgId]);
+
+  const handleOrgChange = (orgId: string) => {
+    setSelectedOrgId(orgId);
+    localStorage.setItem('aero_active_org_id', orgId);
+  };
 
   // Auto-scroll logs
   useEffect(() => {
@@ -50,7 +170,7 @@ export default function DashboardHome() {
     }
   }, [logs]);
 
-  // Simulate active host telemetry fluctuations
+  // Simulate active host telemetry fluctuations for loaded nodes
   useEffect(() => {
     const timer = setInterval(() => {
       setNodes(prev => prev.map(n => {
@@ -77,49 +197,145 @@ export default function DashboardHome() {
       setLogs(prev => [
         ...prev,
         { time, service: randomService, message: randomMessage, type: 'info' }
-      ].slice(-50)); // Cap logs size
+      ].slice(-50));
     }, 4000);
 
     return () => clearInterval(timer);
   }, []);
 
-  const handleToggleService = (id: string) => {
-    setServices(prev => prev.map(s => {
-      if (s.id === id) {
-        const nextStatus = s.status === 'running' ? 'stopped' : 'running';
-        const logTime = new Date().toTimeString().split(' ')[0];
-        
-        setLogs(l => [
-          ...l,
-          {
-            time: logTime,
-            service: s.name,
-            message: nextStatus === 'running' ? 'Service manual trigger: startup initiated.' : 'Service manual trigger: graceful shutdown initiated.',
-            type: nextStatus === 'running' ? 'success' : 'warn'
-          }
-        ]);
-
-        return {
-          ...s,
-          status: nextStatus,
-          uptime: nextStatus === 'running' ? '1s' : '0s'
-        };
+  const handleToggleService = async (id: string, currentStatus: string, name: string) => {
+    const token = getSessionToken();
+    const action = currentStatus === 'running' ? 'stop' : 'start';
+    const logTime = new Date().toTimeString().split(' ')[0];
+    
+    setLogs(l => [
+      ...l,
+      {
+        time: logTime,
+        service: name,
+        message: `Service manual trigger: ${action === 'start' ? 'startup' : 'shutdown'} initiated.`,
+        type: action === 'start' ? 'success' : 'warn'
       }
-      return s;
-    }));
+    ]);
+
+    try {
+      const res = await fetch(`${API_BASE}/services/${id}/${action}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (res.ok) {
+        // Re-fetch services
+        const servicesRes = await fetch(`${API_BASE}/services`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (servicesRes.ok) {
+          const servicesData = await servicesRes.json();
+          setServices(servicesData.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            type: s.type,
+            status: s.status,
+            uptime: 'Active',
+            endpoint: `${s.slug}.aerodeploy.app`
+          })));
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to toggle service status: ${action}`, err);
+    }
   };
+
+  // Error State Render Helper
+  const renderError = (msg: string) => (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '60px 24px',
+      background: 'rgba(239, 68, 68, 0.02)',
+      border: '1px dashed rgba(239, 68, 68, 0.2)',
+      borderRadius: '8px',
+      textAlign: 'center',
+      maxWidth: '480px',
+      margin: '40px auto',
+    }}>
+      <svg style={{ color: '#f87171', marginBottom: '16px' }} width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+      </svg>
+      <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#f87171', marginBottom: '8px', letterSpacing: '-0.02em' }}>
+        OH SNAP!
+      </h3>
+      <p style={{ color: 'var(--text-dim)', fontSize: '13px', lineHeight: '1.5', marginBottom: '24px' }}>
+        There might be a problem in our servers. {msg}
+      </p>
+      <button 
+        onClick={fetchDashboardData}
+        className="nav-item active" 
+        style={{ width: 'auto', padding: '8px 20px', fontSize: '12px', cursor: 'pointer' }}
+      >
+        Retry connection
+      </button>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div style={{ padding: '100px 0', textAlign: 'center', color: 'var(--text-dim)', fontSize: '13px' }}>
+        <div style={{ marginBottom: '12px' }}>Connecting to cloud database...</div>
+        <span className="pulse-dot" style={{ display: 'inline-block', backgroundColor: 'var(--accent-cyan)' }}></span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return renderError(error);
+  }
+
+  const averageCpu = nodes.length > 0 && nodes.some(n => n.status === 'online')
+    ? Math.round(nodes.filter(n => n.status === 'online').reduce((acc, curr) => acc + curr.cpu, 0) / nodes.filter(n => n.status === 'online').length)
+    : 0;
 
   return (
     <div className="dashboard-content-grid" style={{ animation: 'fadeIn 0.4s ease' }}>
       
       {/* 🌟 Welcome / Overview Header */}
-      <section className="dashboard-welcome">
-        <h1 style={{ fontFamily: 'var(--font-title)', fontSize: '28px', fontWeight: 600, letterSpacing: '-0.5px', marginBottom: '6px' }}>
-          Platform Infrastructure
-        </h1>
-        <p style={{ fontSize: '13px', color: 'var(--text-dim)' }}>
-          Monitor cluster nodes, control active static/gateway microservices, and watch global container orchestrations.
-        </p>
+      <section className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-title)', fontSize: '28px', fontWeight: 600, letterSpacing: '-0.5px', marginBottom: '6px' }}>
+            Platform Infrastructure
+          </h1>
+          <p style={{ fontSize: '13px', color: 'var(--text-dim)' }}>
+            Monitor cluster nodes, control active static/gateway microservices, and watch global container orchestrations.
+          </p>
+        </div>
+
+        {orgs.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, letterSpacing: '0.05em' }}>ORGANIZATION</span>
+            <select 
+              value={selectedOrgId || ''} 
+              onChange={(e) => handleOrgChange(e.target.value)}
+              style={{
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-glass)',
+                borderRadius: '4px',
+                padding: '6px 12px',
+                fontSize: '12px',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              {orgs.map(org => (
+                <option key={org.id} value={org.id}>{org.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </section>
 
       {/* 📊 High-Level Metrics Summary Deck */}
@@ -127,7 +343,7 @@ export default function DashboardHome() {
         <div className="deck-card">
           <span className="card-lbl">Global Cluster Load</span>
           <div className="card-val">
-            {Math.round(nodes.filter(n => n.status === 'online').reduce((acc, curr) => acc + curr.cpu, 0) / nodes.filter(n => n.status === 'online').length)}%
+            {averageCpu}%
             <span className="trend positive">CPU Average</span>
           </div>
         </div>
@@ -152,49 +368,55 @@ export default function DashboardHome() {
       {/* 🖥️ Nodes Status Grid */}
       <section className="section-block">
         <h2 className="section-title">Hardware Clusters & Hypervisors</h2>
-        <div className="nodes-grid">
-          {nodes.map(node => (
-            <div key={node.id} className={`node-flat-card ${node.status === 'offline' ? 'offline' : ''}`}>
-              <div className="node-head">
-                <div>
-                  <h3 className="node-name">{node.name}</h3>
-                  <span className="node-ip">{node.ip}</span>
+        {nodes.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', border: '1px dashed var(--border-glass)', borderRadius: '8px', color: 'var(--text-dim)', fontSize: '13px' }}>
+            No registered server nodes connected to this organization.
+          </div>
+        ) : (
+          <div className="nodes-grid">
+            {nodes.map(node => (
+              <div key={node.id} className={`node-flat-card ${node.status === 'offline' ? 'offline' : ''}`}>
+                <div className="node-head">
+                  <div>
+                    <h3 className="node-name">{node.name}</h3>
+                    <span className="node-ip">{node.ip}</span>
+                  </div>
+                  <span className={`status-badge ${node.status}`}>
+                    {node.status}
+                  </span>
                 </div>
-                <span className={`status-badge ${node.status}`}>
-                  {node.status}
-                </span>
+
+                {node.status === 'online' ? (
+                  <div className="node-metrics">
+                    <div className="metric-row">
+                      <div className="metric-meta">
+                        <span>Processor (CPU)</span>
+                        <strong>{node.cpu}%</strong>
+                      </div>
+                      <div className="metric-bar">
+                        <div className="metric-fill" style={{ width: `${node.cpu}%` }}></div>
+                      </div>
+                    </div>
+
+                    <div className="metric-row">
+                      <div className="metric-meta">
+                        <span>Memory (RAM)</span>
+                        <strong>{node.memory}%</strong>
+                      </div>
+                      <div className="metric-bar">
+                        <div className="metric-fill secondary" style={{ width: `${node.memory}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="node-offline-block">
+                    Awaiting edge daemon connection handshakes...
+                  </div>
+                )}
               </div>
-
-              {node.status !== 'offline' ? (
-                <div className="node-metrics">
-                  <div className="metric-row">
-                    <div className="metric-meta">
-                      <span>Processor (CPU)</span>
-                      <strong>{node.cpu}%</strong>
-                    </div>
-                    <div className="metric-bar">
-                      <div className="metric-fill" style={{ width: `${node.cpu}%` }}></div>
-                    </div>
-                  </div>
-
-                  <div className="metric-row">
-                    <div className="metric-meta">
-                      <span>Memory (RAM)</span>
-                      <strong>{node.memory}%</strong>
-                    </div>
-                    <div className="metric-bar">
-                      <div className="metric-fill secondary" style={{ width: `${node.memory}%` }}></div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="node-offline-block">
-                  Awaiting edge daemon connection handshakes...
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* 📦 Containers & Logs Double Column */}
@@ -203,32 +425,39 @@ export default function DashboardHome() {
         {/* Active Services Console */}
         <div className="split-column card-container">
           <h2 className="section-title compact">Deployed Core Microservices</h2>
-          <div className="services-list">
-            {services.map(service => (
-              <div key={service.id} className="service-row">
-                <div className="service-info">
-                  <div className="service-headline">
-                    <span className="service-name-txt">{service.name}</span>
-                    <span className="service-tag">{service.type}</span>
+          {services.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '13px' }}>
+              No active services currently deployed.
+            </div>
+          ) : (
+            <div className="services-list">
+              {services.map(service => (
+                <div key={service.id} className="service-row">
+                  <div className="service-info">
+                    <div className="service-headline">
+                      <span className="service-name-txt">{service.name}</span>
+                      <span className="service-tag">{service.type}</span>
+                    </div>
+                    <span className="service-link">{service.endpoint}</span>
                   </div>
-                  <span className="service-link">{service.endpoint}</span>
-                </div>
 
-                <div className="service-controls">
-                  <div className="service-status-meta">
-                    <span className={`pulse-indicator ${service.status}`}></span>
-                    <span className="uptime-txt">{service.status === 'running' ? service.uptime : 'offline'}</span>
+                  <div className="service-controls">
+                    <div className="service-status-meta">
+                      <span className={`pulse-indicator ${service.status === 'running' ? 'online' : 'offline'}`}></span>
+                      <span className="uptime-txt">{service.status === 'running' ? service.uptime : 'offline'}</span>
+                    </div>
+                    <button 
+                      onClick={() => handleToggleService(service.id, service.status, service.name)} 
+                      disabled={service.status === 'deploying' || service.status === 'building'}
+                      className={`service-action-btn ${service.status === 'running' ? 'stop' : 'start'}`}
+                    >
+                      {service.status === 'running' ? 'Stop' : 'Start'}
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => handleToggleService(service.id)} 
-                    className={`service-action-btn ${service.status === 'running' ? 'stop' : 'start'}`}
-                  >
-                    {service.status === 'running' ? 'Stop' : 'Start'}
-                  </button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Real-time System Stream Console */}
@@ -261,3 +490,4 @@ export default function DashboardHome() {
     </div>
   );
 }
+

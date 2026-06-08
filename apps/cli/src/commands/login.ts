@@ -169,9 +169,27 @@ export async function githubLoginAction() {
   }
 }
 
-// ─── Logout ──────────────────────────────────────────────────────────────────
-
 export async function logoutAction() {
+  const refreshToken = ConfigManager.get('refreshToken');
+  const token = ConfigManager.get('token');
+
+  if (refreshToken || token) {
+    const s = p.spinner();
+    s.start('Revoking session on servers...');
+    try {
+      await apiRequest({
+        method: 'POST',
+        url: '/auth/logout',
+        headers: refreshToken ? {
+          Cookie: `aero_rt=${refreshToken}`
+        } : undefined
+      });
+      s.stop(`${icons.success} Server session revoked.`);
+    } catch {
+      s.stop(`${icons.success} Local session cleared.`);
+    }
+  }
+
   ConfigManager.clearToken();
   p.outro(chalk.green(`${icons.success} Successfully logged out.`));
 }

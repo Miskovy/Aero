@@ -16,16 +16,84 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    if (token) {
-      document.cookie = `aero_session=${token}; path=/; max-age=${86400}; SameSite=Lax`;
-      window.history.replaceState({}, document.title, window.location.pathname);
-      window.location.href = '/';
-    }
-  }, []);
+    const checkSession = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+
+      if (token) {
+        document.cookie = `aero_session=${token}; path=/; max-age=${86400}; SameSite=Lax`;
+        window.history.replaceState({}, document.title, window.location.pathname);
+        window.location.href = '/';
+        return;
+      }
+
+      // If no token in URL, try silent refresh using the HttpOnly cookie
+      try {
+        const response = await fetch(baseURL + '/auth/refresh', {
+          method: 'POST',
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.access_token) {
+            document.cookie = `aero_session=${data.access_token}; path=/; max-age=${86400}; SameSite=Lax`;
+            window.location.href = '/';
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Silent refresh failed:', err);
+      } finally {
+        setIsCheckingSession(false);
+      }
+    };
+
+    checkSession();
+  }, [baseURL]);
+
+  if (isCheckingSession) {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: '#09090b',
+        color: '#f4f4f5',
+        fontFamily: 'system-ui, sans-serif'
+      }}>
+        <style>{`
+          @keyframes pulseScale {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 0.9; }
+          }
+          .custom-spinner {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--accent-cyan, #06b6d4) 0%, transparent 70%);
+            animation: pulseScale 2s infinite ease-in-out;
+            margin-bottom: 20px;
+          }
+        `}</style>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', marginRight: '21px' }}>
+          <AeroLogo size={36} />
+          <span style={{ fontSize: '36px', fontWeight: 'bold', letterSpacing: '-0.03em' }}>AERO</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+          <div className="custom-spinner" />
+          <span style={{ fontSize: '12px', color: '#a1a1aa', letterSpacing: '0.07em', textTransform: 'uppercase', fontWeight: 500 }}>
+            Verifying secure session...
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

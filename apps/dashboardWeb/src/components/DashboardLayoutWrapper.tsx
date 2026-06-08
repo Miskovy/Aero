@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AeroLogo from './AeroLogo';
@@ -51,6 +51,58 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
     return '';
   });
 
+  useEffect(() => {
+    const baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://aero-y6mm.onrender.com';
+
+    const performRefresh = async () => {
+      try {
+        const response = await fetch(baseURL + '/auth/refresh', {
+          method: 'POST',
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.access_token) {
+            document.cookie = `aero_session=${data.access_token}; path=/; max-age=${86400}; SameSite=Lax`;
+            console.log('Proactively rotated access token.');
+          }
+        } else if (response.status === 401) {
+          document.cookie = 'aero_session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
+          window.location.href = '/login';
+        }
+      } catch (err) {
+        console.error('Failed proactive session refresh:', err);
+      }
+    };
+
+    const checkAndRefresh = () => {
+      const token = getSessionCookie('aero_session');
+      if (!token) return;
+
+      try {
+        const payloadBase64 = token.split('.')[1];
+        const payloadJson = atob(payloadBase64);
+        const payload = JSON.parse(payloadJson);
+        const exp = payload.exp;
+
+        if (exp) {
+          const timeLeft = exp * 1000 - Date.now();
+          if (timeLeft < 120_000) {
+            console.log(`Access token expiring in ${Math.round(timeLeft / 1000)}s. Refreshing...`);
+            performRefresh();
+          }
+        }
+      } catch (e) {
+        console.error('Error in proactive token check:', e);
+      }
+    };
+
+    checkAndRefresh();
+    const interval = setInterval(checkAndRefresh, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const pathname = usePathname();
 
   // Compute pageTitle dynamically during render instead of running inside a useEffect
@@ -69,7 +121,16 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
     pageTitle = 'Settings';
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://aero-y6mm.onrender.com';
+    try {
+      await fetch(`${baseURL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (e) {
+      console.error('Failed to logout on server:', e);
+    }
     // Expire the session cookie and redirect back to login
     document.cookie = 'aero_session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
     window.location.href = '/login';

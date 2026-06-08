@@ -32,15 +32,125 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Normalize error responses
+// Helper to parse cookies from Set-Cookie header
+function extractRefreshToken(headers: any): string | null {
+  const setCookieHeader = headers?.['set-cookie'] || headers?.['Set-Cookie'];
+  if (setCookieHeader) {
+    const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+    for (const cookieStr of cookies) {
+      if (cookieStr.startsWith('aero_rt=')) {
+        const match = cookieStr.match(/aero_rt=([^;]+)/);
+        if (match) {
+          return match[1];
+        }
+      }
+    }
+  }
+  return null;
+}
+
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Normalize error responses and handle token refresh
 apiClient.interceptors.response.use(
-  (response) => response.data,
-  (error: AxiosError) => {
-    // Handle 401 specifically — expired or invalid token
-    if (error.response?.status === 401) {
+  (response) => {
+    const rt = extractRefreshToken(response.headers);
+    if (rt) {
+      ConfigManager.set('refreshToken', rt);
+    }
+    return response.data;
+  },
+  async (error: AxiosError) => {
+    const originalRequest = error.config;
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
+    // Skip refreshing if this request was to the refresh endpoint itself
+    if (originalRequest.url === '/auth/refresh') {
       ConfigManager.clearToken();
       const message = 'Session expired. Please run `aero login` to authenticate.';
       return Promise.reject(new Error(message));
+    }
+
+    // Handle 401 specifically — expired or invalid token
+    if (error.response?.status === 401 && !(originalRequest as any)._retry) {
+      const refreshToken = ConfigManager.get('refreshToken');
+      if (refreshToken) {
+        (originalRequest as any)._retry = true;
+
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          })
+            .then((token) => {
+              if (originalRequest.headers) {
+                originalRequest.headers.Authorization = `Bearer ${token}`;
+              }
+              return apiClient(originalRequest);
+            })
+            .catch((err) => {
+              return Promise.reject(err);
+            });
+        }
+
+        isRefreshing = true;
+
+        try {
+          const apiUrl = ConfigManager.get('apiUrl');
+          const refreshResponse = await axios.post(
+            `${apiUrl}/auth/refresh`,
+            {},
+            {
+              headers: {
+                Cookie: `aero_rt=${refreshToken}`,
+              },
+            }
+          );
+
+          const newAccessToken = refreshResponse.data?.access_token;
+          if (!newAccessToken) {
+            throw new Error('No access token returned on refresh');
+          }
+
+          ConfigManager.set('token', newAccessToken);
+
+          const rt = extractRefreshToken(refreshResponse.headers);
+          if (rt) {
+            ConfigManager.set('refreshToken', rt);
+          }
+
+          isRefreshing = false;
+          processQueue(null, newAccessToken);
+
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          }
+          return apiClient(originalRequest);
+        } catch (refreshError) {
+          isRefreshing = false;
+          processQueue(refreshError, null);
+          ConfigManager.clearToken();
+          const message = 'Session expired. Please run `aero login` to authenticate.';
+          return Promise.reject(new Error(message));
+        }
+      } else {
+        ConfigManager.clearToken();
+        const message = 'Session expired. Please run `aero login` to authenticate.';
+        return Promise.reject(new Error(message));
+      }
     }
 
     const serverMessage = (error.response?.data as any)?.message;

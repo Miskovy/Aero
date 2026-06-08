@@ -189,16 +189,7 @@ export class AuthController {
     }
 
     // ── Browser client: set refresh cookie + redirect with access token ──
-    const profile = {
-      id: user.auth_provider_id || user.id,
-      username: user.name,
-      displayName: user.name,
-      profileUrl: '',
-      provider: 'github' as const,
-      photos: user.avatar_url ? [{ value: user.avatar_url }] : [],
-      emails: [{ value: user.email }],
-    };
-    const tokens = await this.authService.handleOAuthLogin(profile);
+    const tokens = await this.authService.generateTokenPair(user);
     this.setRefreshCookie(res, tokens.refresh_token);
 
     return res.redirect(

@@ -21,6 +21,8 @@ const DEFAULT_API_URL = 'https://aero-y6mm.onrender.com';
 export interface CliConfig {
   /** JWT auth token persisted between sessions */
   token: string | null;
+  /** JWT refresh token persisted between sessions */
+  refreshToken: string | null;
   /** Base URL of the Aero control plane API */
   apiUrl: string;
   /** Icon theme: 'modern' (geometric glyphs) | 'ascii' (7-bit safe) */
@@ -29,6 +31,7 @@ export interface CliConfig {
 
 const DEFAULTS: Readonly<CliConfig> = Object.freeze({
   token: null,
+  refreshToken: null,
   apiUrl: DEFAULT_API_URL,
   theme: 'modern',
 });
@@ -55,7 +58,8 @@ function ensureLoaded(): void {
       const parsed = JSON.parse(raw);
 
       // Only pick known keys to avoid polluting the cache
-      if (typeof parsed.token === 'string') cache.token = parsed.token;
+      if (typeof parsed.token === 'string' || parsed.token === null) cache.token = parsed.token;
+      if (typeof parsed.refreshToken === 'string' || parsed.refreshToken === null) cache.refreshToken = parsed.refreshToken;
       if (typeof parsed.apiUrl === 'string') cache.apiUrl = parsed.apiUrl;
       if (parsed.theme === 'modern' || parsed.theme === 'ascii') {
         cache.theme = parsed.theme;
@@ -94,6 +98,9 @@ export function get<K extends keyof CliConfig>(key: K): CliConfig[K] {
   if (key === 'token' && process.env.AERO_TOKEN) {
     return process.env.AERO_TOKEN as CliConfig[K];
   }
+  if (key === 'refreshToken' && process.env.AERO_REFRESH_TOKEN) {
+    return process.env.AERO_REFRESH_TOKEN as CliConfig[K];
+  }
   if (key === 'apiUrl' && process.env.AERO_API_URL) {
     return process.env.AERO_API_URL as CliConfig[K];
   }
@@ -120,6 +127,7 @@ export function getAll(): Readonly<CliConfig> {
   ensureLoaded();
   return {
     token: get('token'),
+    refreshToken: get('refreshToken'),
     apiUrl: get('apiUrl'),
     theme: get('theme'),
   };
@@ -133,6 +141,7 @@ export function isAuthenticated(): boolean {
 /** Convenience: clear the token (logout). */
 export function clearToken(): void {
   set('token', null);
+  set('refreshToken', null);
 }
 
 /** Return the config file path (for display in `aero config show`). */

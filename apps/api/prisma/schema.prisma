@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -10,6 +5,441 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id                   String               @id @default(uuid()) @db.Uuid
+  email                String               @unique @db.VarChar(255)
+  password_hash        String?              @db.VarChar(255)
+  name                 String               @db.VarChar(255)
+  avatar_url           String?              @db.VarChar(500)
+  auth_provider        String?              @default("local") @db.VarChar(50)
+  auth_provider_id     String?              @db.VarChar(255)
+  two_factor_enabled   Boolean?             @default(false)
+  two_factor_secret    String?              @db.VarChar(255)
+  last_login_at        DateTime?            @db.Timestamptz(6)
+  created_at           DateTime?            @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?            @default(now()) @db.Timestamptz(6)
+  api_keys             ApiKey[]
+  audit_logs           AuditLog[]
+  backups              Backup[]
+  deployments          Deployment[]
+  notifications        Notification[]
+  organization_members OrganizationMember[]
+  organizations        Organization[]
+  refresh_tokens       RefreshToken[]
+  team_members         TeamMember[]
+
+  @@unique([auth_provider, auth_provider_id])
+  @@map("users")
+}
+
+model Organization {
+  id          String               @id @default(uuid()) @db.Uuid
+  name        String               @db.VarChar(255)
+  slug        String               @unique @db.VarChar(255)
+  owner_id    String               @db.Uuid
+  plan        String?              @default("free") @db.VarChar(50)
+  settings    Json?                @default("{}")
+  created_at  DateTime?            @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime?            @default(now()) @db.Timestamptz(6)
+  alert_rules AlertRule[]
+  api_keys    ApiKey[]
+  audit_logs  AuditLog[]
+  git_sources GitSource[]
+  nodes       Node[]
+  members     OrganizationMember[]
+  owner       User                 @relation(fields: [owner_id], references: [id])
+  projects    Project[]
+  teams       Team[]
+
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id              String       @id @default(uuid()) @db.Uuid
+  organization_id String       @db.Uuid
+  user_id         String       @db.Uuid
+  role            OrgRole      @default(developer)
+  joined_at       DateTime?    @default(now()) @db.Timestamptz(6)
+  organization    Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  user            User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([organization_id, user_id])
+  @@index([organization_id])
+  @@index([user_id])
+  @@map("organization_members")
+}
+
+model Team {
+  id              String       @id @default(uuid()) @db.Uuid
+  organization_id String       @db.Uuid
+  name            String       @db.VarChar(255)
+  description     String?
+  created_at      DateTime?    @default(now()) @db.Timestamptz(6)
+  members         TeamMember[]
+  organization    Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id        String    @id @default(uuid()) @db.Uuid
+  team_id   String    @db.Uuid
+  user_id   String    @db.Uuid
+  role      TeamRole  @default(member)
+  joined_at DateTime? @default(now()) @db.Timestamptz(6)
+  team      Team      @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([team_id, user_id])
+  @@map("team_members")
+}
+
+model Project {
+  id              String        @id @default(uuid()) @db.Uuid
+  organization_id String        @db.Uuid
+  name            String        @db.VarChar(255)
+  slug            String        @db.VarChar(255)
+  description     String?
+  settings        Json?         @default("{}")
+  created_at      DateTime?     @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime?     @default(now()) @db.Timestamptz(6)
+  environments    Environment[]
+  organization    Organization  @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  services        Service[]
+
+  @@unique([organization_id, slug])
+  @@index([organization_id])
+  @@map("projects")
+}
+
+model GitSource {
+  id                     String       @id @default(uuid()) @db.Uuid
+  organization_id        String       @db.Uuid
+  provider               GitProvider
+  name                   String       @db.VarChar(255)
+  access_token_encrypted String
+  webhook_secret         String?      @db.VarChar(255)
+  owner_or_group         String?      @db.VarChar(255)
+  connected_at           DateTime?    @default(now()) @db.Timestamptz(6)
+  created_at             DateTime?    @default(now()) @db.Timestamptz(6)
+  iv                     String
+  auth_tag               String
+  key_version            String?
+  organization           Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  services               Service[]
+
+  @@map("git_sources")
+}
+
+model Node {
+  id                String       @id @default(uuid()) @db.Uuid
+  organization_id   String       @db.Uuid
+  name              String       @db.VarChar(255)
+  hostname          String       @db.VarChar(255)
+  ip_address        String?      @db.VarChar(45)
+  ssh_port          Int?         @default(22)
+  status            NodeStatus?  @default(offline)
+  role              NodeRole?    @default(worker)
+  system_info       Json?        @default("{}")
+  resource_capacity Json?        @default("{}")
+  resource_usage    Json?        @default("{}")
+  agent_token       String?      @unique @db.VarChar(255)
+  last_heartbeat_at DateTime?    @db.Timestamptz(6)
+  created_at        DateTime?    @default(now()) @db.Timestamptz(6)
+  organization      Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  services          Service[]
+
+  @@index([organization_id])
+  @@index([status])
+  @@map("nodes")
+}
+
+model Environment {
+  id          String                @id @default(uuid()) @db.Uuid
+  project_id  String                @db.Uuid
+  name        String                @db.VarChar(100)
+  slug        String                @db.VarChar(100)
+  description String?
+  git_branch  String?               @db.VarChar(255)
+  created_at  DateTime?             @default(now()) @db.Timestamptz(6)
+  variables   EnvironmentVariable[]
+  project     Project               @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, slug])
+  @@map("environments")
+}
+
+model Service {
+  id                   String                @id @default(uuid()) @db.Uuid
+  project_id           String                @db.Uuid
+  name                 String                @db.VarChar(255)
+  slug                 String                @db.VarChar(255)
+  type                 ServiceType           @default(application)
+  source_type          SourceType
+  docker_image         String?               @db.VarChar(500)
+  docker_compose_path  String?               @db.VarChar(500)
+  dockerfile_path      String?               @default("./Dockerfile") @db.VarChar(500)
+  build_command        String?               @db.VarChar(1000)
+  start_command        String?               @db.VarChar(1000)
+  git_source_id        String?               @db.Uuid
+  git_branch           String?               @default("main") @db.VarChar(255)
+  git_subdirectory     String?               @db.VarChar(500)
+  active_deployment_id String?               @db.Uuid
+  status               ServiceStatus?        @default(stopped)
+  resource_limits      Json?                 @default("{\"cpu\": \"1.0\", \"memory\": \"512m\"}")
+  health_check         Json?                 @default("{}")
+  restart_policy       Json?                 @default("{\"condition\": \"on-failure\", \"max_retries\": 5}")
+  replicas             Int?                  @default(1)
+  node_id              String?               @db.Uuid
+  created_at           DateTime?             @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?             @default(now()) @db.Timestamptz(6)
+  git_repository       String?               @db.VarChar(500)
+  internal_port        Int?                  @default(3000)
+  alert_rules          AlertRule[]
+  backups              Backup[]
+  deployments          Deployment[]          @relation("ServiceDeployments")
+  variables            EnvironmentVariable[]
+  domains              ServiceDomain[]
+  secrets              ServiceSecret[]
+  volumes              ServiceVolume[]
+  active_deployment    Deployment?           @relation("ActiveDeployment", fields: [active_deployment_id], references: [id])
+  git_source           GitSource?            @relation(fields: [git_source_id], references: [id])
+  node                 Node?                 @relation(fields: [node_id], references: [id])
+  project              Project               @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, slug])
+  @@index([project_id])
+  @@index([status])
+  @@map("services")
+}
+
+model Deployment {
+  id                 String             @id @default(uuid()) @db.Uuid
+  service_id         String             @db.Uuid
+  version            String?            @db.VarChar(50)
+  git_commit_sha     String?            @db.VarChar(40)
+  git_commit_message String?
+  docker_image_tag   String?            @db.VarChar(500)
+  status             DeploymentStatus?  @default(queued)
+  trigger            DeploymentTrigger? @default(manual)
+  triggered_by       String?            @db.Uuid
+  started_at         DateTime?          @db.Timestamptz(6)
+  finished_at        DateTime?          @db.Timestamptz(6)
+  build_duration_ms  Int?
+  build_logs_summary Json?
+  created_at         DateTime?          @default(now()) @db.Timestamptz(6)
+  logs               DeploymentLog[]
+  service            Service            @relation("ServiceDeployments", fields: [service_id], references: [id], onDelete: Cascade)
+  user               User?              @relation(fields: [triggered_by], references: [id])
+  active_in_services Service[]          @relation("ActiveDeployment")
+
+  @@index([service_id])
+  @@index([status])
+  @@index([created_at(sort: Desc)])
+  @@map("deployments")
+}
+
+model DeploymentLog {
+  id            String     @id @default(uuid()) @db.Uuid
+  deployment_id String     @db.Uuid
+  phase         LogPhase
+  level         LogLevel?  @default(info)
+  message       String
+  created_at    DateTime?  @default(now()) @db.Timestamptz(6)
+  deployment    Deployment @relation(fields: [deployment_id], references: [id], onDelete: Cascade)
+
+  @@index([deployment_id])
+  @@index([created_at(sort: Desc)])
+  @@map("deployment_logs")
+}
+
+model EnvironmentVariable {
+  id              String       @id @default(uuid()) @db.Uuid
+  environment_id  String?      @db.Uuid
+  service_id      String?      @db.Uuid
+  key             String       @db.VarChar(255)
+  encrypted_value String
+  iv              String?      @db.VarChar(255)
+  auth_tag        String?      @db.VarChar(255)
+  is_secret       Boolean?     @default(false)
+  description     String?      @db.VarChar(500)
+  key_version     String?      @db.VarChar(50)
+  created_at      DateTime?    @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime?    @default(now()) @db.Timestamptz(6)
+  environment     Environment? @relation(fields: [environment_id], references: [id], onDelete: Cascade)
+  service         Service?     @relation(fields: [service_id], references: [id], onDelete: Cascade)
+
+  @@index([service_id])
+  @@index([environment_id])
+  @@map("environment_variables")
+}
+
+model ServiceSecret {
+  id              String    @id @default(uuid()) @db.Uuid
+  service_id      String    @db.Uuid
+  key             String    @db.VarChar(255)
+  encrypted_value String
+  iv              String?   @db.VarChar(255)
+  auth_tag        String?   @db.VarChar(255)
+  description     String?   @db.VarChar(500)
+  key_version     String?   @db.VarChar(50)
+  created_at      DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime? @default(now()) @db.Timestamptz(6)
+  service         Service   @relation(fields: [service_id], references: [id], onDelete: Cascade)
+
+  @@unique([service_id, key])
+  @@map("service_secrets")
+}
+
+model ServiceDomain {
+  id                   String              @id @default(uuid()) @db.Uuid
+  service_id           String              @db.Uuid
+  domain               String              @unique @db.VarChar(255)
+  type                 DomainType?         @default(auto_generated)
+  ssl_enabled          Boolean?            @default(true)
+  ssl_certificate_path String?             @db.VarChar(500)
+  verification_status  VerificationStatus? @default(pending)
+  verification_token   String?             @db.VarChar(255)
+  verified_at          DateTime?           @db.Timestamptz(6)
+  created_at           DateTime?           @default(now()) @db.Timestamptz(6)
+  service              Service             @relation(fields: [service_id], references: [id], onDelete: Cascade)
+
+  @@index([service_id])
+  @@map("service_domains")
+}
+
+model ServiceVolume {
+  id         String    @id @default(uuid()) @db.Uuid
+  service_id String    @db.Uuid
+  name       String    @db.VarChar(255)
+  mount_path String    @db.VarChar(500)
+  host_path  String?   @db.VarChar(500)
+  driver     String?   @default("local") @db.VarChar(100)
+  size_bytes BigInt?   @default(0)
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  service    Service   @relation(fields: [service_id], references: [id], onDelete: Cascade)
+
+  @@map("service_volumes")
+}
+
+model Backup {
+  id           String         @id @default(uuid()) @db.Uuid
+  service_id   String         @db.Uuid
+  filename     String         @db.VarChar(500)
+  size_bytes   BigInt?        @default(0)
+  storage_path String         @db.VarChar(500)
+  status       BackupStatus?  @default(queued)
+  trigger      BackupTrigger? @default(manual)
+  triggered_by String?        @db.Uuid
+  started_at   DateTime?      @db.Timestamptz(6)
+  finished_at  DateTime?      @db.Timestamptz(6)
+  created_at   DateTime?      @default(now()) @db.Timestamptz(6)
+  service      Service        @relation(fields: [service_id], references: [id], onDelete: Cascade)
+  user         User?          @relation(fields: [triggered_by], references: [id])
+
+  @@index([service_id])
+  @@index([status])
+  @@map("backups")
+}
+
+model AlertRule {
+  id                String         @id @default(uuid()) @db.Uuid
+  organization_id   String         @db.Uuid
+  service_id        String?        @db.Uuid
+  name              String         @db.VarChar(255)
+  metric            AlertMetric
+  operator          AlertOperator
+  threshold         Float
+  duration_seconds  Int?           @default(60)
+  channel           AlertChannel
+  channel_config    Json?          @default("{}")
+  enabled           Boolean?       @default(true)
+  last_triggered_at DateTime?      @db.Timestamptz(6)
+  created_at        DateTime?      @default(now()) @db.Timestamptz(6)
+  organization      Organization   @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  service           Service?       @relation(fields: [service_id], references: [id], onDelete: Cascade)
+  notifications     Notification[]
+
+  @@index([organization_id])
+  @@index([service_id])
+  @@map("alert_rules")
+}
+
+model Notification {
+  id            String              @id @default(uuid()) @db.Uuid
+  alert_rule_id String?             @db.Uuid
+  user_id       String?             @db.Uuid
+  title         String              @db.VarChar(255)
+  message       String?
+  channel       AlertChannel
+  status        NotificationStatus? @default(pending)
+  metadata      Json?               @default("{}")
+  sent_at       DateTime?           @db.Timestamptz(6)
+  read_at       DateTime?           @db.Timestamptz(6)
+  created_at    DateTime?           @default(now()) @db.Timestamptz(6)
+  alert_rule    AlertRule?          @relation(fields: [alert_rule_id], references: [id])
+  user          User?               @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([status])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id              String       @id @default(uuid()) @db.Uuid
+  organization_id String       @db.Uuid
+  user_id         String?      @db.Uuid
+  action          String       @db.VarChar(100)
+  resource_type   String       @db.VarChar(100)
+  resource_id     String?      @db.Uuid
+  old_value       Json?
+  new_value       Json?
+  ip_address      String?      @db.VarChar(45)
+  user_agent      String?      @db.VarChar(500)
+  created_at      DateTime?    @default(now()) @db.Timestamptz(6)
+  organization    Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  user            User?        @relation(fields: [user_id], references: [id])
+
+  @@index([organization_id])
+  @@index([user_id])
+  @@index([resource_type, resource_id])
+  @@index([created_at(sort: Desc)])
+  @@map("audit_logs")
+}
+
+model ApiKey {
+  id              String        @id @default(uuid()) @db.Uuid
+  user_id         String        @db.Uuid
+  organization_id String?       @db.Uuid
+  name            String        @db.VarChar(255)
+  key_hash        String        @unique @db.VarChar(255)
+  key_prefix      String        @db.VarChar(10)
+  permissions     Json?         @default("[\"*\"]")
+  last_used_at    DateTime?     @db.Timestamptz(6)
+  expires_at      DateTime?     @db.Timestamptz(6)
+  created_at      DateTime?     @default(now()) @db.Timestamptz(6)
+  organization    Organization? @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("api_keys")
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  token_hash String   @unique @db.VarChar(128)
+  family_id  String   @db.Uuid
+  is_revoked Boolean  @default(false)
+  expires_at DateTime @db.Timestamptz(6)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([family_id])
+  @@map("refresh_tokens")
 }
 
 enum OrgRole {
@@ -165,463 +595,4 @@ enum NodeStatus {
 enum NodeRole {
   manager
   worker
-}
-
-model User {
-  id                 String    @id @default(uuid()) @db.Uuid
-  email              String    @unique @db.VarChar(255)
-  password_hash      String?   @db.VarChar(255)
-  name               String    @db.VarChar(255)
-  avatar_url         String?   @db.VarChar(500)
-  auth_provider      String?   @default("local") @db.VarChar(50)
-  auth_provider_id   String?   @db.VarChar(255)
-  two_factor_enabled Boolean?  @default(false)
-  two_factor_secret  String?   @db.VarChar(255)
-  last_login_at      DateTime? @db.Timestamptz()
-  created_at         DateTime? @default(now()) @db.Timestamptz()
-  updated_at         DateTime? @default(now()) @db.Timestamptz()
-
-  organizations        Organization[]
-  organization_members OrganizationMember[]
-  team_members         TeamMember[]
-  deployments          Deployment[]
-  backups              Backup[]
-  notifications        Notification[]
-  audit_logs           AuditLog[]
-  api_keys             ApiKey[]
-  refresh_tokens       RefreshToken[]
-
-  @@unique([auth_provider, auth_provider_id])
-  @@map("users")
-}
-
-model Organization {
-  id         String    @id @default(uuid()) @db.Uuid
-  name       String    @db.VarChar(255)
-  slug       String    @unique @db.VarChar(255)
-  owner_id   String    @db.Uuid
-  plan       String?   @default("free") @db.VarChar(50)
-  settings   Json?     @default("{}")
-  created_at DateTime? @default(now()) @db.Timestamptz()
-  updated_at DateTime? @default(now()) @db.Timestamptz()
-
-  owner       User                 @relation(fields: [owner_id], references: [id])
-  members     OrganizationMember[]
-  teams       Team[]
-  projects    Project[]
-  git_sources GitSource[]
-  nodes       Node[]
-  alert_rules AlertRule[]
-  audit_logs  AuditLog[]
-  api_keys    ApiKey[]
-
-  @@map("organizations")
-}
-
-model OrganizationMember {
-  id              String    @id @default(uuid()) @db.Uuid
-  organization_id String    @db.Uuid
-  user_id         String    @db.Uuid
-  role            OrgRole   @default(developer)
-  joined_at       DateTime? @default(now()) @db.Timestamptz()
-
-  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@unique([organization_id, user_id])
-  @@index([organization_id])
-  @@index([user_id])
-  @@map("organization_members")
-}
-
-model Team {
-  id              String    @id @default(uuid()) @db.Uuid
-  organization_id String    @db.Uuid
-  name            String    @db.VarChar(255)
-  description     String?   @db.Text
-  created_at      DateTime? @default(now()) @db.Timestamptz()
-
-  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
-  members      TeamMember[]
-
-  @@map("teams")
-}
-
-model TeamMember {
-  id        String    @id @default(uuid()) @db.Uuid
-  team_id   String    @db.Uuid
-  user_id   String    @db.Uuid
-  role      TeamRole  @default(member)
-  joined_at DateTime? @default(now()) @db.Timestamptz()
-
-  team Team @relation(fields: [team_id], references: [id], onDelete: Cascade)
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@unique([team_id, user_id])
-  @@map("team_members")
-}
-
-model Project {
-  id              String    @id @default(uuid()) @db.Uuid
-  organization_id String    @db.Uuid
-  name            String    @db.VarChar(255)
-  slug            String    @db.VarChar(255)
-  description     String?   @db.Text
-  settings        Json?     @default("{}")
-  created_at      DateTime? @default(now()) @db.Timestamptz()
-  updated_at      DateTime? @default(now()) @db.Timestamptz()
-
-  organization Organization  @relation(fields: [organization_id], references: [id], onDelete: Cascade)
-  environments Environment[]
-  services     Service[]
-
-  @@unique([organization_id, slug])
-  @@index([organization_id])
-  @@map("projects")
-}
-
-model GitSource {
-  id                     String      @id @default(uuid()) @db.Uuid
-  organization_id        String      @db.Uuid
-  provider               GitProvider
-  name                   String      @db.VarChar(255)
-  access_token_encrypted String      @db.Text
-  webhook_secret         String?     @db.VarChar(255)
-  owner_or_group         String?     @db.VarChar(255)
-  connected_at           DateTime?   @default(now()) @db.Timestamptz()
-  created_at             DateTime?   @default(now()) @db.Timestamptz()
-
-  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
-  services     Service[]
-  iv           String
-  auth_tag     String
-  key_version  String?
-
-  @@map("git_sources")
-}
-
-model Node {
-  id                String      @id @default(uuid()) @db.Uuid
-  organization_id   String      @db.Uuid
-  name              String      @db.VarChar(255)
-  hostname          String      @db.VarChar(255)
-  ip_address        String?     @db.VarChar(45)
-  ssh_port          Int?        @default(22)
-  status            NodeStatus? @default(offline)
-  role              NodeRole?   @default(worker)
-  system_info       Json?       @default("{}")
-  resource_capacity Json?       @default("{}")
-  resource_usage    Json?       @default("{}")
-  agent_token       String?     @unique @db.VarChar(255)
-  last_heartbeat_at DateTime?   @db.Timestamptz()
-  created_at        DateTime?   @default(now()) @db.Timestamptz()
-
-  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
-  services     Service[]
-
-  @@index([organization_id])
-  @@index([status])
-  @@map("nodes")
-}
-
-model Environment {
-  id          String    @id @default(uuid()) @db.Uuid
-  project_id  String    @db.Uuid
-  name        String    @db.VarChar(100)
-  slug        String    @db.VarChar(100)
-  description String?   @db.Text
-  git_branch  String?   @db.VarChar(255)
-  created_at  DateTime? @default(now()) @db.Timestamptz()
-
-  project   Project               @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  variables EnvironmentVariable[]
-
-  @@unique([project_id, slug])
-  @@map("environments")
-}
-
-model Service {
-  id                   String         @id @default(uuid()) @db.Uuid
-  project_id           String         @db.Uuid
-  name                 String         @db.VarChar(255)
-  slug                 String         @db.VarChar(255)
-  type                 ServiceType    @default(application)
-  source_type          SourceType
-  docker_image         String?        @db.VarChar(500)
-  docker_compose_path  String?        @db.VarChar(500)
-  dockerfile_path      String?        @default("./Dockerfile") @db.VarChar(500)
-  build_command        String?        @db.VarChar(1000)
-  start_command        String?        @db.VarChar(1000)
-  git_source_id        String?        @db.Uuid
-  git_repository       String?        @db.VarChar(500)
-  git_branch           String?        @default("main") @db.VarChar(255)
-  git_subdirectory     String?        @db.VarChar(500)
-  active_deployment_id String?        @db.Uuid
-  status               ServiceStatus? @default(stopped)
-  resource_limits      Json?          @default("{\"cpu\": \"1.0\", \"memory\": \"512m\"}")
-  health_check         Json?          @default("{}")
-  restart_policy       Json?          @default("{\"condition\": \"on-failure\", \"max_retries\": 5}")
-  replicas             Int?           @default(1)
-  node_id              String?        @db.Uuid
-  internal_port        Int?           @default(3000)
-  created_at           DateTime?      @default(now()) @db.Timestamptz()
-  updated_at           DateTime?      @default(now()) @db.Timestamptz()
-
-  project           Project     @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  git_source        GitSource?  @relation(fields: [git_source_id], references: [id])
-  node              Node?       @relation(fields: [node_id], references: [id])
-  active_deployment Deployment? @relation("ActiveDeployment", fields: [active_deployment_id], references: [id])
-
-  deployments Deployment[]          @relation("ServiceDeployments")
-  variables   EnvironmentVariable[]
-  secrets     ServiceSecret[]
-  domains     ServiceDomain[]
-  volumes     ServiceVolume[]
-  backups     Backup[]
-  alert_rules AlertRule[]
-
-  @@unique([project_id, slug])
-  @@index([project_id])
-  @@index([status])
-  @@map("services")
-}
-
-model Deployment {
-  id                 String             @id @default(uuid()) @db.Uuid
-  service_id         String             @db.Uuid
-  version            String?            @db.VarChar(50)
-  git_commit_sha     String?            @db.VarChar(40)
-  git_commit_message String?            @db.Text
-  docker_image_tag   String?            @db.VarChar(500)
-  status             DeploymentStatus?  @default(queued)
-  trigger            DeploymentTrigger? @default(manual)
-  triggered_by       String?            @db.Uuid
-  started_at         DateTime?          @db.Timestamptz()
-  finished_at        DateTime?          @db.Timestamptz()
-  build_duration_ms  Int?
-  build_logs_summary Json?
-  created_at         DateTime?          @default(now()) @db.Timestamptz()
-
-  service Service @relation("ServiceDeployments", fields: [service_id], references: [id], onDelete: Cascade)
-  user    User?   @relation(fields: [triggered_by], references: [id])
-
-  logs               DeploymentLog[]
-  active_in_services Service[]       @relation("ActiveDeployment")
-
-  @@index([service_id])
-  @@index([status])
-  @@index([created_at(sort: Desc)])
-  @@map("deployments")
-}
-
-model DeploymentLog {
-  id            String    @id @default(uuid()) @db.Uuid
-  deployment_id String    @db.Uuid
-  phase         LogPhase
-  level         LogLevel? @default(info)
-  message       String    @db.Text
-  created_at    DateTime? @default(now()) @db.Timestamptz()
-
-  deployment Deployment @relation(fields: [deployment_id], references: [id], onDelete: Cascade)
-
-  @@index([deployment_id])
-  @@index([created_at(sort: Desc)])
-  @@map("deployment_logs")
-}
-
-model EnvironmentVariable {
-  id              String    @id @default(uuid()) @db.Uuid
-  environment_id  String?   @db.Uuid
-  service_id      String?   @db.Uuid
-  key             String    @db.VarChar(255)
-  encrypted_value String    @db.Text
-  iv              String?   @db.VarChar(255)
-  auth_tag        String?   @db.VarChar(255)
-  is_secret       Boolean?  @default(false)
-  description     String?   @db.VarChar(500)
-  key_version     String?   @db.VarChar(50)
-  created_at      DateTime? @default(now()) @db.Timestamptz()
-  updated_at      DateTime? @default(now()) @db.Timestamptz()
-
-  environment Environment? @relation(fields: [environment_id], references: [id], onDelete: Cascade)
-  service     Service?     @relation(fields: [service_id], references: [id], onDelete: Cascade)
-
-  @@index([service_id])
-  @@index([environment_id])
-  @@map("environment_variables")
-}
-
-model ServiceSecret {
-  id              String    @id @default(uuid()) @db.Uuid
-  service_id      String    @db.Uuid
-  key             String    @db.VarChar(255)
-  encrypted_value String    @db.Text
-  iv              String?   @db.VarChar(255)
-  auth_tag        String?   @db.VarChar(255)
-  description     String?   @db.VarChar(500)
-  key_version     String?   @db.VarChar(50)
-  created_at      DateTime? @default(now()) @db.Timestamptz()
-  updated_at      DateTime? @default(now()) @db.Timestamptz()
-
-  service Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
-
-  @@unique([service_id, key])
-  @@map("service_secrets")
-}
-
-model ServiceDomain {
-  id                   String              @id @default(uuid()) @db.Uuid
-  service_id           String              @db.Uuid
-  domain               String              @unique @db.VarChar(255)
-  type                 DomainType?         @default(auto_generated)
-  ssl_enabled          Boolean?            @default(true)
-  ssl_certificate_path String?             @db.VarChar(500)
-  verification_status  VerificationStatus? @default(pending)
-  verification_token   String?             @db.VarChar(255)
-  verified_at          DateTime?           @db.Timestamptz()
-  created_at           DateTime?           @default(now()) @db.Timestamptz()
-
-  service Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
-
-  @@index([service_id])
-  @@map("service_domains")
-}
-
-model ServiceVolume {
-  id         String    @id @default(uuid()) @db.Uuid
-  service_id String    @db.Uuid
-  name       String    @db.VarChar(255)
-  mount_path String    @db.VarChar(500)
-  host_path  String?   @db.VarChar(500)
-  driver     String?   @default("local") @db.VarChar(100)
-  size_bytes BigInt?   @default(0)
-  created_at DateTime? @default(now()) @db.Timestamptz()
-
-  service Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
-
-  @@map("service_volumes")
-}
-
-model Backup {
-  id           String         @id @default(uuid()) @db.Uuid
-  service_id   String         @db.Uuid
-  filename     String         @db.VarChar(500)
-  size_bytes   BigInt?        @default(0)
-  storage_path String         @db.VarChar(500)
-  status       BackupStatus?  @default(queued)
-  trigger      BackupTrigger? @default(manual)
-  triggered_by String?        @db.Uuid
-  started_at   DateTime?      @db.Timestamptz()
-  finished_at  DateTime?      @db.Timestamptz()
-  created_at   DateTime?      @default(now()) @db.Timestamptz()
-
-  service Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
-  user    User?   @relation(fields: [triggered_by], references: [id])
-
-  @@index([service_id])
-  @@index([status])
-  @@map("backups")
-}
-
-model AlertRule {
-  id                String        @id @default(uuid()) @db.Uuid
-  organization_id   String        @db.Uuid
-  service_id        String?       @db.Uuid
-  name              String        @db.VarChar(255)
-  metric            AlertMetric
-  operator          AlertOperator
-  threshold         Float
-  duration_seconds  Int?          @default(60)
-  channel           AlertChannel
-  channel_config    Json?         @default("{}")
-  enabled           Boolean?      @default(true)
-  last_triggered_at DateTime?     @db.Timestamptz()
-  created_at        DateTime?     @default(now()) @db.Timestamptz()
-
-  organization  Organization   @relation(fields: [organization_id], references: [id], onDelete: Cascade)
-  service       Service?       @relation(fields: [service_id], references: [id], onDelete: Cascade)
-  notifications Notification[]
-
-  @@index([organization_id])
-  @@index([service_id])
-  @@map("alert_rules")
-}
-
-model Notification {
-  id            String              @id @default(uuid()) @db.Uuid
-  alert_rule_id String?             @db.Uuid
-  user_id       String?             @db.Uuid
-  title         String              @db.VarChar(255)
-  message       String?             @db.Text
-  channel       AlertChannel
-  status        NotificationStatus? @default(pending)
-  metadata      Json?               @default("{}")
-  sent_at       DateTime?           @db.Timestamptz()
-  read_at       DateTime?           @db.Timestamptz()
-  created_at    DateTime?           @default(now()) @db.Timestamptz()
-
-  alert_rule AlertRule? @relation(fields: [alert_rule_id], references: [id], onDelete: SetNull)
-  user       User?      @relation(fields: [user_id], references: [id], onDelete: SetNull)
-
-  @@index([user_id])
-  @@index([status])
-  @@map("notifications")
-}
-
-model AuditLog {
-  id              String    @id @default(uuid()) @db.Uuid
-  organization_id String    @db.Uuid
-  user_id         String?   @db.Uuid
-  action          String    @db.VarChar(100)
-  resource_type   String    @db.VarChar(100)
-  resource_id     String?   @db.Uuid
-  old_value       Json?
-  new_value       Json?
-  ip_address      String?   @db.VarChar(45)
-  user_agent      String?   @db.VarChar(500)
-  created_at      DateTime? @default(now()) @db.Timestamptz()
-
-  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
-  user         User?        @relation(fields: [user_id], references: [id], onDelete: SetNull)
-
-  @@index([organization_id])
-  @@index([user_id])
-  @@index([resource_type, resource_id])
-  @@index([created_at(sort: Desc)])
-  @@map("audit_logs")
-}
-
-model ApiKey {
-  id              String    @id @default(uuid()) @db.Uuid
-  user_id         String    @db.Uuid
-  organization_id String?   @db.Uuid
-  name            String    @db.VarChar(255)
-  key_hash        String    @unique @db.VarChar(255)
-  key_prefix      String    @db.VarChar(10)
-  permissions     Json?     @default("[\"*\"]")
-  last_used_at    DateTime? @db.Timestamptz()
-  expires_at      DateTime? @db.Timestamptz()
-  created_at      DateTime? @default(now()) @db.Timestamptz()
-
-  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [organization_id], references: [id], onDelete: Cascade)
-
-  @@index([user_id])
-  @@map("api_keys")
-}
-
-model RefreshToken {
-  id         String   @id @default(uuid()) @db.Uuid
-  user_id    String   @db.Uuid
-  token_hash String   @unique @db.VarChar(128)
-  family_id  String   @db.Uuid
-  is_revoked Boolean  @default(false)
-  expires_at DateTime @db.Timestamptz()
-  created_at DateTime @default(now()) @db.Timestamptz()
-
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@index([user_id])
-  @@index([family_id])
-  @@map("refresh_tokens")
 }

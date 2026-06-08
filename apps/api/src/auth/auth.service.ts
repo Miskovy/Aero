@@ -109,6 +109,13 @@ export class AuthService {
   }
 
   /**
+   * Directly generate token pair for a user.
+   */
+  async generateTokenPair(user: User): Promise<TokenPair> {
+    return this.tokenService.generateTokenPair(user);
+  }
+
+  /**
    * Validate / create / link a user from a GitHub OAuth profile,
    * then return a token pair.
    */
@@ -185,15 +192,16 @@ export class AuthService {
   async validateOAuthUser(profile: Profile): Promise<User> {
     try {
       const { id, username, emails, photos } = profile;
+      const providerId = id.toString();
       const primaryEmail = emails?.[0]?.value;
       const email =
-        primaryEmail || `${id}+${username}@users.noreply.github.com`;
+        primaryEmail || `${providerId}+${username}@users.noreply.github.com`;
       const avatarUrl = photos?.[0]?.value || null;
 
       const existingUser = await this.userService.findFirst({
         where: {
           OR: [
-            { auth_provider: 'github', auth_provider_id: id.toString() },
+            { auth_provider: 'github', auth_provider_id: providerId },
             { email: email },
           ],
         },
@@ -204,8 +212,8 @@ export class AuthService {
         this.logger.log(`Creating new user from GitHub OAuth: ${username}`);
         return await this.userService.createUser({
           auth_provider: 'github',
-          auth_provider_id: id,
-          name: username || `github-user-${id}`,
+          auth_provider_id: providerId,
+          name: username || `github-user-${providerId}`,
           email: email,
           avatar_url: avatarUrl,
         });
@@ -214,7 +222,7 @@ export class AuthService {
       // PATH B: Returning GitHub User
       if (
         existingUser.auth_provider === 'github' &&
-        existingUser.auth_provider_id === id
+        existingUser.auth_provider_id === providerId
       ) {
         return existingUser;
       }
@@ -222,13 +230,13 @@ export class AuthService {
       // PATH C: Account Linking (Email matched, but GitHub ID is not linked)
       if (existingUser.email === email) {
         this.logger.log(
-          `Linking GitHub account ${id} to existing user ${existingUser.id}`,
+          `Linking GitHub account ${providerId} to existing user ${existingUser.id}`,
         );
         return await this.userService.updateUser({
           where: { id: existingUser.id },
           data: {
             auth_provider: 'github',
-            auth_provider_id: id,
+            auth_provider_id: providerId,
             ...(!existingUser.avatar_url && { avatar_url: avatarUrl }),
           },
         });
