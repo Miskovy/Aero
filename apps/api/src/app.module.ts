@@ -23,6 +23,7 @@ import { NodesModule } from './modules/nodes/nodes.module';
 import { CloudflareModule } from './modules/cloudflare/cloudflare.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     CloudflareModule,
     ApiKeysModule,
     WebhooksModule,
+    EventEmitterModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -42,12 +42,10 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en">
-      <body>
-        <DashboardLayoutWrapper>
-          {children}
-        </DashboardLayoutWrapper>
-      </body>
-    </html>
+    <>
+      <DashboardLayoutWrapper>
+        {children}
+      </DashboardLayoutWrapper>
+    </>
   );
 }
