@@ -171,7 +171,7 @@ export default function SshTerminal({ nodeId, nodeName, token }: SshTerminalProp
     connecting: "Connecting…",
     connected: "Connected",
     disconnected: "Disconnected",
-    error: errorMsg || "Error",
+    error: errorMsg && errorMsg.includes("aero daemon") ? "Node Offline" : (errorMsg || "Error"),
   }[status];
 
   return (

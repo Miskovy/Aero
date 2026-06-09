@@ -94,6 +94,20 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
         return;
     }
 
+    const room = (this.agentGateway.server as any).adapter.rooms.get(`node_${nodeId}`);
+    const activeAgentsCount = room ? room.size : 0;
+    if (activeAgentsCount === 0) {
+        // Mark node offline if it was stale
+        if (node.status !== 'offline') {
+            await this.prisma.node.update({
+                where: { id: nodeId },
+                data: { status: 'offline' }
+            });
+        }
+        client.emit('terminal:error', `Node is offline. Please start the agent daemon first using:\r\n\r\naero daemon start --token ${node.agent_token}`);
+        return;
+    }
+
     client.data.nodeId = nodeId;
     client.join(`ui_${client.id}`);
 
