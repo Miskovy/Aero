@@ -104,7 +104,7 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
                 data: { status: 'offline' }
             });
         }
-        client.emit('terminal:error', `Node is offline. Please start the agent daemon first using:\r\n\r\naero daemon start --token ${node.agent_token}`);
+        client.emit('terminal:error', `Node is offline. Please start the agent daemon first using:\r\n\r\naero daemon start --token <token>`);
         return;
     }
 

@@ -19,6 +19,14 @@ export default function SshTerminal({ nodeId, nodeName, token }: SshTerminalProp
   const [status, setStatus] = useState<"connecting" | "connected" | "disconnected" | "error">("connecting");
   const [errorMsg, setErrorMsg] = useState<string>("");
 
+  const statusRef = useRef(status);
+  useEffect(() => {
+    statusRef.current = status;
+    if (termRef.current) {
+      termRef.current.options.disableStdin = (status !== "connected");
+    }
+  }, [status]);
+
   useEffect(() => {
     if (!terminalRef.current) return;
 
@@ -73,7 +81,6 @@ export default function SshTerminal({ nodeId, nodeName, token }: SshTerminalProp
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      setStatus("connected");
       // Fit first so we have accurate dimensions
       try { fitAddon.fit(); } catch {}
       socket.emit("terminal:start", { nodeId, cols: term.cols, rows: term.rows });
@@ -96,6 +103,9 @@ export default function SshTerminal({ nodeId, nodeName, token }: SshTerminalProp
     };
 
     socket.on("terminal:output", (data: string) => {
+      if (statusRef.current === "connecting") {
+        setStatus("connected");
+      }
       let i = 0;
       while (i < data.length && localEchoQueue.length > 0) {
         if (data[i] === localEchoQueue[0]) {
@@ -123,7 +133,7 @@ export default function SshTerminal({ nodeId, nodeName, token }: SshTerminalProp
     });
 
     term.onData((data) => {
-      if (socket.connected) {
+      if (statusRef.current === "connected" && socket.connected) {
         // Only locally echo single printable ASCII characters if not in password prompt
         const isPrintable = data.length === 1 && data >= " " && data <= "~";
         if (isPrintable && !isPasswordPrompt()) {
