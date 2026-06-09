@@ -21,35 +21,23 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
     return undefined;
   };
 
-  const [userName] = useState(() => {
-    const token = getSessionCookie('aero_session');
-    if (token) {
-      try {
-        const payloadBase64 = token.split('.')[1];
-        const payloadJson = atob(payloadBase64);
-        const payload = JSON.parse(payloadJson);
-        return payload.name || 'Console Node';
-      } catch (e) {
-        console.error('Failed to parse active user token', e);
-      }
-    }
-    return 'Console Node';
-  });
+  const [userName, setUserName] = useState('Console Node');
+  const [userEmail, setUserEmail] = useState('');
 
-  const [userEmail] = useState(() => {
+  useEffect(() => {
     const token = getSessionCookie('aero_session');
     if (token) {
       try {
         const payloadBase64 = token.split('.')[1];
         const payloadJson = atob(payloadBase64);
         const payload = JSON.parse(payloadJson);
-        return payload.email || '';
+        if (payload.name) setUserName(payload.name);
+        if (payload.email) setUserEmail(payload.email);
       } catch (e) {
         console.error('Failed to parse active user token', e);
       }
     }
-    return '';
-  });
+  }, []);
 
   useEffect(() => {
     const baseURL = process.env.NEXT_PUBLIC_API_URL || '/api';

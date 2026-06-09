@@ -26,6 +26,7 @@ export class AgentService {
     return this.prisma.node.update({
       where: { id: nodeId },
       data: {
+        status: 'online',
         last_heartbeat_at: new Date(),
         resource_usage: metrics || {},
       },

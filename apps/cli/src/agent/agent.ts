@@ -483,9 +483,10 @@ CMD ${service.start_command || 'npm start'}
     private handleTerminalStart(sessionId: string) {
         console.log(chalk.cyan(`[TERMINAL] Session ${sessionId} started.`));
         const shell = os.platform() === 'win32' ? 'cmd.exe' : 'bash';
+        const args = os.platform() === 'win32' ? [] : ['--noprofile', '--norc', '-i'];
         
-        const child = spawn(shell, [], {
-            env: process.env,
+        const child = spawn(shell, args, {
+            env: { ...process.env, PS1: '\\u@\\h:~$ ' },
         });
 
         this.activeTerminals.set(sessionId, child);

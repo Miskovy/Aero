@@ -42,7 +42,8 @@ export default function SshTerminal({ nodeId, token }: SshTerminalProps) {
     }, 50);
 
     // Initialize Socket.io Connection
-    const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL + "/terminal", {
+    const baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://aero-y6mm.onrender.com';
+    const socket: Socket = io(baseURL + "/terminal", {
       auth: { token },
       reconnectionAttempts: 3,
     });
@@ -72,7 +73,7 @@ export default function SshTerminal({ nodeId, token }: SshTerminalProps) {
 
     // Handle user input
     term.onData((data) => {
-      if (status === "connected") {
+      if (socket.connected) {
         socket.emit("terminal:input", { input: data });
       }
     });
@@ -94,15 +95,17 @@ export default function SshTerminal({ nodeId, token }: SshTerminalProps) {
   }, [nodeId, token]);
 
   return (
-    <div className="flex flex-col h-full rounded-xl overflow-hidden" style={{ border: '1px solid #333', boxShadow: '0 4px 24px rgba(0,0,0,0.4)', background: '#000' }}>
-      <div className="flex items-center justify-between px-6 py-3 bg-[#1e1e1e] border-b border-[#333]">
+    <div className="w-full h-full p-4">
+      <div className="flex flex-col h-full rounded-2xl overflow-hidden shadow-2xl" style={{ border: '1px solid #333', background: '#000' }}>
+        <div className="flex items-center justify-between px-5 py-3 bg-[#1e1e1e] border-b border-[#333]">
         <div className="flex items-center gap-2">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="4 17 10 11 4 5"></polyline>
-            <line x1="12" y1="19" x2="20" y2="19"></line>
-          </svg>
-          <span className="text-xs font-mono" style={{ color: '#ccc' }}>
-            <span style={{ color: '#8b5cf6' }}>root</span>@<span style={{ color: '#38bdf8' }}>{nodeId}</span>: <span style={{ color: '#a3e635' }}>~</span>
+          <div className="flex gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+          </div>
+          <span className="text-xs font-mono ml-2" style={{ color: '#888' }}>
+            Remote Shell
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -112,8 +115,9 @@ export default function SshTerminal({ nodeId, token }: SshTerminalProps) {
           {status === "error" && <span className="text-xs text-red-500 truncate max-w-[200px]" title={errorMsg}>{errorMsg}</span>}
         </div>
       </div>
-      <div className="flex-1 w-full relative bg-[#09090b] p-4 pl-6">
-        <div ref={terminalRef} className="w-full h-full" />
+        <div className="flex-1 w-full relative bg-[#09090b] p-4 pl-6 pb-6">
+          <div ref={terminalRef} className="w-full h-full" />
+        </div>
       </div>
     </div>
   );
