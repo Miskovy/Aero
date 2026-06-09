@@ -471,10 +471,12 @@ export default function NodesPage() {
                   return (
                     <tr key={node.id} style={{ borderBottom: '1px solid var(--border-glass)' }}>
                       <td style={{ padding: '16px', color: 'var(--text-primary)', fontWeight: 600 }}>
-                        {node.name}
-                        <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 400, fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-                          {node.hostname}
-                        </span>
+                        <a href={`/nodes/${node.id}`} style={{ color: 'var(--text-primary)', textDecoration: 'none' }} onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent-cyan)'} onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-primary)'}>
+                          {node.name}
+                          <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 400, fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                            {node.hostname}
+                          </span>
+                        </a>
                       </td>
                       <td style={{ padding: '16px', color: 'var(--text-dim)' }}>{region}</td>
                       <td style={{ padding: '16px', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>{node.ip_address || 'N/A'}</td>

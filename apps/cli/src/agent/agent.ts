@@ -136,6 +136,18 @@ export class AeroAgent {
             await this.handleServiceControl('delete', payload.serviceId);
         });
 
+        this.socket.on('cmd_terminal_start', (payload) => {
+            this.handleTerminalStart(payload.sessionId);
+        });
+
+        this.socket.on('cmd_terminal_input', (payload) => {
+            this.handleTerminalInput(payload.sessionId, payload.input);
+        });
+
+        this.socket.on('cmd_terminal_stop', (payload) => {
+            this.handleTerminalStop(payload.sessionId);
+        });
+
         this.startCrashMonitor();
         this.startHealthChecker();
     }
@@ -460,6 +472,54 @@ CMD ${service.start_command || 'npm start'}
         if (this.socket) {
             this.socket.disconnect();
             console.log(chalk.yellow('Agent disconnected from Control Plane.'));
+        }
+        for (const [id, child] of this.activeTerminals) {
+            child.kill();
+        }
+    }
+
+    private activeTerminals = new Map<string, ReturnType<typeof spawn>>();
+
+    private handleTerminalStart(sessionId: string) {
+        console.log(chalk.cyan(`[TERMINAL] Session ${sessionId} started.`));
+        const shell = os.platform() === 'win32' ? 'cmd.exe' : 'bash';
+        
+        const child = spawn(shell, [], {
+            env: process.env,
+        });
+
+        this.activeTerminals.set(sessionId, child);
+
+        child.stdout?.on('data', (data) => {
+            if (this.socket) {
+                this.socket.emit('terminal_output', { sessionId, output: data.toString() });
+            }
+        });
+
+        child.stderr?.on('data', (data) => {
+            if (this.socket) {
+                this.socket.emit('terminal_output', { sessionId, output: data.toString() });
+            }
+        });
+
+        child.on('close', () => {
+            console.log(chalk.cyan(`[TERMINAL] Session ${sessionId} closed.`));
+            this.activeTerminals.delete(sessionId);
+        });
+    }
+
+    private handleTerminalInput(sessionId: string, input: string) {
+        const child = this.activeTerminals.get(sessionId);
+        if (child && child.stdin) {
+            child.stdin.write(input);
+        }
+    }
+
+    private handleTerminalStop(sessionId: string) {
+        const child = this.activeTerminals.get(sessionId);
+        if (child) {
+            child.kill();
+            this.activeTerminals.delete(sessionId);
         }
     }
 }

@@ -18,6 +18,7 @@ import { AuthenticatedSocket } from './interfaces/gateway.interface';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { sanitizeLogMessage } from '../../common/utils/log-sanitizer';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @WebSocketGateway({
   cors: { origin: '*' },
@@ -32,6 +33,7 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly agentService: AgentService,
     private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
@@ -161,6 +163,16 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
           },
         });
       }
+    }
+  }
+
+  @SubscribeMessage('terminal_output')
+  async handleTerminalOutput(
+    client: AuthenticatedSocket,
+    payload: { sessionId: string; output: string },
+  ): Promise<void> {
+    if (client.data.nodeId) {
+      this.eventEmitter.emit('terminal.output', payload);
     }
   }
 

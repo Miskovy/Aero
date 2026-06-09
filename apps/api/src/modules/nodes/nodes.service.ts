@@ -176,6 +176,7 @@ export class NodesService {
 
     const node = await this.prisma.node.findFirst({
       where: { id: nodeId, organization_id: orgId },
+      include: { services: true },
     });
 
     if (!node) throw new NotFoundException('Node not found');
