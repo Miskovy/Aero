@@ -127,8 +127,8 @@ export default function NodeDetailsPage({ params }: { params: Promise<{ id: stri
                 {node.name}
               </h2>
               <span className="pulse-dot" style={{
-                backgroundColor: node.status === 'online' ? 'var(--accent-cyan)' : '#ef4444',
-                boxShadow: `0 0 8px ${node.status === 'online' ? 'var(--accent-cyan)' : '#ef4444'}`,
+                backgroundColor: node.status === 'online' ? '#22c55e' : '#ffffff',
+                boxShadow: `0 0 8px ${node.status === 'online' ? '#22c55e' : '#ffffff'}`,
                 display: 'inline-block',
                 marginLeft: '4px'
               }}></span>
@@ -233,7 +233,7 @@ export default function NodeDetailsPage({ params }: { params: Promise<{ id: stri
           {activeTab === 'terminal' && (
             <div style={{ height: '500px', width: '100%' }}>
               {sessionToken ? (
-                <SshTerminal nodeId={node.id} token={sessionToken} />
+                <SshTerminal nodeId={node.id} nodeName={node.name || node.hostname} token={sessionToken} />
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-dim)' }}>
                   Authenticating terminal session...

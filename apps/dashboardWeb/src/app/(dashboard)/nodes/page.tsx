@@ -486,11 +486,11 @@ export default function NodesPage() {
                       <td style={{ padding: '16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span className="pulse-dot" style={{
-                            backgroundColor: node.status === 'online' ? 'var(--accent-cyan)' : node.status === 'maintenance' || node.status === 'draining' ? '#fbbf24' : '#ef4444',
-                            boxShadow: `0 0 8px ${node.status === 'online' ? 'var(--accent-cyan)' : node.status === 'maintenance' || node.status === 'draining' ? '#fbbf24' : '#ef4444'}`
+                            backgroundColor: node.status === 'online' ? '#22c55e' : node.status === 'offline' ? '#ffffff' : '#fbbf24',
+                            boxShadow: `0 0 8px ${node.status === 'online' ? '#22c55e' : node.status === 'offline' ? '#ffffff' : '#fbbf24'}`
                           }}></span>
                           <span style={{
-                            color: node.status === 'online' ? 'var(--text-primary)' : 'var(--text-dim)',
+                            color: node.status === 'online' ? '#22c55e' : node.status === 'offline' ? '#ffffff' : '#fbbf24',
                             fontWeight: 500,
                             fontSize: '12px',
                             textTransform: 'uppercase'

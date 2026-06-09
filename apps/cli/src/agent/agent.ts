@@ -2,10 +2,11 @@ import { io, Socket } from 'socket.io-client';
 import chalk from 'chalk';
 import ora from 'ora';
 import { exec, spawn } from 'node:child_process';
+import * as pty from 'node-pty';
 import { promisify } from 'node:util';
-import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs/promises';
+import path from 'node:path';
 
 const execAsync = promisify(exec);
 
@@ -62,6 +63,7 @@ export class AeroAgent {
     private socket: Socket | null = null;
     private readonly apiUrl: string;
     private readonly token: string;
+    private heartbeatInterval: NodeJS.Timeout | null = null;
 
     constructor(token: string, apiUrl: string = 'https://aero-y6mm.onrender.com') {
         this.token = token;
@@ -79,31 +81,15 @@ export class AeroAgent {
             reconnectionDelayMax: 5000,
         });
 
-        const heartbeatInterval = setInterval(async () => {
-            if (this.socket && this.socket.connected) {
-                const cpu = await getCPUUsage();
-                const disk = await getDiskUsage();
-                const total = os.totalmem();
-                const free = os.freemem();
-                const memory = total > 0 ? Math.round(((total - free) / total) * 100) : 0;
-
-                this.socket.emit('ping', { 
-                    status: 'online', 
-                    uptime: process.uptime(),
-                    freemem: free,
-                    totalmem: total,
-                    loadavg: os.loadavg(),
-                    cpu,
-                    memory,
-                    disk
-                });
-            }
+        this.heartbeatInterval = setInterval(() => {
+            this.sendPing();
         }, 30000);
 
         this.socket.on('connect', () => {
             spinner.succeed(chalk.green(`Connected to Aero Control Plane successfully!`));
             console.log(chalk.blue(`[INFO] Agent is running and waiting for deployment commands.`));
             console.log(chalk.gray(`Press Ctrl+C to stop the daemon.`));
+            this.sendPing();
         });
 
         this.socket.on('connect_error', (error) => {
@@ -137,11 +123,15 @@ export class AeroAgent {
         });
 
         this.socket.on('cmd_terminal_start', (payload) => {
-            this.handleTerminalStart(payload.sessionId);
+            this.handleTerminalStart(payload.sessionId, payload.cols, payload.rows);
         });
 
         this.socket.on('cmd_terminal_input', (payload) => {
             this.handleTerminalInput(payload.sessionId, payload.input);
+        });
+
+        this.socket.on('cmd_terminal_resize', (payload) => {
+            this.handleTerminalResize(payload.sessionId, payload.cols, payload.rows);
         });
 
         this.socket.on('cmd_terminal_stop', (payload) => {
@@ -469,58 +459,111 @@ CMD ${service.start_command || 'npm start'}
     }
 
     public stop() {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
         if (this.socket) {
             this.socket.disconnect();
             console.log(chalk.yellow('Agent disconnected from Control Plane.'));
         }
-        for (const [id, child] of this.activeTerminals) {
-            child.kill();
+        for (const [id, term] of this.activeTerminals) {
+            term.kill();
         }
     }
 
-    private activeTerminals = new Map<string, ReturnType<typeof spawn>>();
+    private async sendPing() {
+        if (this.socket && this.socket.connected) {
+            const cpu = await getCPUUsage();
+            const disk = await getDiskUsage();
+            const total = os.totalmem();
+            const free = os.freemem();
+            const memory = total > 0 ? Math.round(((total - free) / total) * 100) : 0;
 
-    private handleTerminalStart(sessionId: string) {
+            const platformMap: Record<string, string> = {
+                linux: 'Linux',
+                darwin: 'macOS',
+                win32: 'Windows',
+            };
+
+            this.socket.emit('ping', { 
+                status: 'online', 
+                uptime: process.uptime(),
+                freemem: free,
+                totalmem: total,
+                loadavg: os.loadavg(),
+                cpu,
+                memory,
+                disk,
+                system_info: {
+                    platform: platformMap[os.platform()] || os.platform(),
+                    arch: os.arch(),
+                    cpus: `${os.cpus().length} Cores`,
+                    region: 'Self-Hosted'
+                }
+            });
+        }
+    }
+  
+    private activeTerminals = new Map<string, pty.IPty>();
+
+    private handleTerminalStart(sessionId: string, cols?: number, rows?: number) {
         console.log(chalk.cyan(`[TERMINAL] Session ${sessionId} started.`));
-        const shell = os.platform() === 'win32' ? 'cmd.exe' : 'bash';
-        const args = os.platform() === 'win32' ? [] : ['--noprofile', '--norc', '-i'];
-        
-        const child = spawn(shell, args, {
-            env: { ...process.env, PS1: '\\u@\\h:~$ ' },
+        const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+        const home = process.env.HOME || process.env.USERPROFILE || '/tmp';
+
+        const term = pty.spawn(shell, [], {
+            name: 'xterm-256color',
+            cols: cols || 80,
+            rows: rows || 24,
+            cwd: home,
+            env: {
+                ...process.env,
+                TERM: 'xterm-256color',
+                PS1: '\\u@\\h:~$ ',
+            } as { [key: string]: string },
         });
 
-        this.activeTerminals.set(sessionId, child);
+        this.activeTerminals.set(sessionId, term);
 
-        child.stdout?.on('data', (data) => {
-            if (this.socket) {
-                this.socket.emit('terminal_output', { sessionId, output: data.toString() });
-            }
+        term.onData((data: string) => {
+            this.socket?.emit('terminal_output', { sessionId, output: data });
         });
 
-        child.stderr?.on('data', (data) => {
-            if (this.socket) {
-                this.socket.emit('terminal_output', { sessionId, output: data.toString() });
-            }
-        });
-
-        child.on('close', () => {
-            console.log(chalk.cyan(`[TERMINAL] Session ${sessionId} closed.`));
+        term.onExit(({ exitCode }) => {
+            this.socket?.emit('terminal_output', {
+                sessionId,
+                output: `\r\n\x1b[90m[Process exited with code ${exitCode}]\x1b[0m\r\n`,
+            });
             this.activeTerminals.delete(sessionId);
+            console.log(chalk.cyan(`[TERMINAL] Session ${sessionId} closed (code: ${exitCode}).`));
         });
     }
 
     private handleTerminalInput(sessionId: string, input: string) {
-        const child = this.activeTerminals.get(sessionId);
-        if (child && child.stdin) {
-            child.stdin.write(input);
+        const term = this.activeTerminals.get(sessionId);
+        if (term) {
+            term.write(input);
+        }
+    }
+
+    private handleTerminalResize(sessionId: string, cols: number, rows: number) {
+        const term = this.activeTerminals.get(sessionId);
+        if (term && cols > 0 && rows > 0) {
+            try {
+                term.resize(cols, rows);
+            } catch {
+                // terminal may have already exited
+            }
         }
     }
 
     private handleTerminalStop(sessionId: string) {
-        const child = this.activeTerminals.get(sessionId);
-        if (child) {
-            child.kill();
+        const term = this.activeTerminals.get(sessionId);
+        if (term) {
+            term.kill();
             this.activeTerminals.delete(sessionId);
+            console.log(chalk.cyan(`[TERMINAL] Session ${sessionId} stopped.`));
         }
     }
 }

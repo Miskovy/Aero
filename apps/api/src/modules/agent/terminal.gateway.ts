@@ -73,9 +73,9 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
   @SubscribeMessage('terminal:start')
   async handleTerminalStart(
     client: Socket,
-    payload: { nodeId: string },
+    payload: { nodeId: string; cols?: number; rows?: number },
   ): Promise<void> {
-    const { nodeId } = payload;
+    const { nodeId, cols, rows } = payload;
     
     // Verify user has access to this node's organization
     const node = await this.prisma.node.findUnique({
@@ -100,6 +100,8 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
     // Tell the node agent to start a PTY session
     this.agentGateway.server.to(`node_${nodeId}`).emit('cmd_terminal_start', {
       sessionId: client.id,
+      cols: cols || 80,
+      rows: rows || 24,
     });
   }
 

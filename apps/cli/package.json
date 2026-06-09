@@ -10,7 +10,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm",
+    "build": "tsup src/index.ts --format esm --external node-pty",
     "dev": "tsup src/index.ts --format cjs --watch"
   },
   "keywords": [
@@ -33,6 +33,7 @@
     "is-unicode-supported": "^2.1.0",
     "marked": "^15.0.12",
     "marked-terminal": "^7.3.0",
+    "node-pty": "^1.1.0",
     "ora": "^9.4.0",
     "socket.io-client": "^4.8.3"
   },
