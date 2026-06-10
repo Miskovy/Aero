@@ -4,6 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { UserService } from '../user/user.service';
 import { TokenService } from './token.service';
+import { RedisService } from '../redis/redis.service';
+import { MailService } from '../mail/mail.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -33,12 +35,25 @@ describe('AuthService', () => {
     get: jest.fn(),
   };
 
+  const mockRedisService = {
+    set: jest.fn(),
+    get: jest.fn(),
+    del: jest.fn(),
+  };
+
+  const mockMailService = {
+    sendVerificationEmail: jest.fn(),
+    sendForgotPasswordPin: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: UserService, useValue: mockUserService },
         { provide: TokenService, useValue: mockTokenService },
+        { provide: RedisService, useValue: mockRedisService },
+        { provide: MailService, useValue: mockMailService },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
       ],
