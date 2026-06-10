@@ -13,9 +13,20 @@ function VerifyEmailContent() {
   const baseURL = process.env.NEXT_PUBLIC_API_URL || '/api';
   const [status, setStatus] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('email') || '';
+    }
+    return '';
+  });
   const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [isPending] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('pending') === 'true';
+    }
+    return false;
+  });
 
   const verifyEmailToken = useCallback(async (tokenString: string) => {
     setStatus('verifying');
@@ -45,7 +56,7 @@ function VerifyEmailContent() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const urlToken = params.get('token');
-    
+
     if (urlToken) {
       const timer = setTimeout(() => {
         verifyEmailToken(urlToken);
@@ -159,6 +170,31 @@ function VerifyEmailContent() {
         {/* --- CASE 3: Verification Error or Idle (No Token / Expired) --- */}
         {(status === 'error' || status === 'idle') && (
           <div>
+            {isPending && (
+              <div style={{
+                padding: '14px',
+                borderRadius: '6px',
+                fontSize: '13.5px',
+                backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                color: '#22c55e',
+                border: '1px solid rgba(34, 197, 94, 0.2)',
+                display: 'flex',
+                gap: '10px',
+                alignItems: 'flex-start',
+                marginBottom: '20px',
+                lineHeight: '1.5'
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '2px' }}>
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+                <div>
+                  <strong style={{ display: 'block', marginBottom: '2px', fontWeight: 600 }}>Registration Successful!</strong>
+                  We have sent a verification email to your address. Please click the link inside it to verify your account.
+                </div>
+              </div>
+            )}
+
             {status === 'error' ? (
               <div style={{ marginBottom: '24px' }}>
                 <div style={{

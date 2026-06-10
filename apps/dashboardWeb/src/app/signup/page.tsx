@@ -49,8 +49,7 @@ export default function SignUpPage() {
         throw new Error(data.message || 'Registration failed');
       }
 
-      document.cookie = `aero_session=${data.access_token}; path=/; max-age=${86400}; SameSite=Lax`;
-      window.location.href = '/';
+      window.location.href = `/verify-email?email=${encodeURIComponent(email)}&pending=true`;
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -100,9 +99,40 @@ export default function SignUpPage() {
             Continue With GitHub
           </button>
 
-          <label style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '6px', marginBottom: '24px', }}>
-            Already have an account? <button type="button" onClick={() => window.location.href = '/login'} style={{ color: 'var(--text-primary)', backgroundColor: 'transparent' }}>Login</button>
-          </label>
+          <div style={{ display: 'flex', alignItems: 'center', margin: '8px 0', color: 'var(--border-glass)' }}>
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'currentColor' }} />
+            <span style={{ padding: '0 8px', fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Already have an account?</span>
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'currentColor' }} />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => window.location.href = '/login'}
+            style={{
+              width: '100%',
+              padding: '12px 24px',
+              borderRadius: 'var(--border-radius-sm)',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              color: 'var(--text-primary)',
+              background: 'transparent',
+              border: '1px solid var(--border-glass)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.borderColor = 'var(--border-hover)';
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.borderColor = 'var(--border-glass)';
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            Log In
+          </button>
 
           {error && (
             <div className="error-alert-box">

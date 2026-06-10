@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import GitHubIcon from '@/components/GitHubIcon';
 import AeroLogo from '@/components/AeroLogo';
 
@@ -53,6 +54,17 @@ export default function LoginPage() {
     };
 
     checkSession();
+
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        setIsCheckingSession(false);
+      }
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+    };
   }, [baseURL]);
 
   if (isCheckingSession) {
@@ -139,12 +151,30 @@ export default function LoginPage() {
             value={email}
             onChange={e => setEmail(e.target.value)}
           />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Link
+                href="/forgot-password"
+                style={{
+                  color: 'var(--text-dim)',
+                  fontSize: '12px',
+                  textDecoration: 'none',
+                  transition: 'color 0.2s',
+                  fontWeight: 500,
+                }}
+                onMouseOver={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                onMouseOut={e => e.currentTarget.style.color = 'var(--text-dim)'}
+              >
+                Forgot Password?
+              </Link>
+            </div>
+          </div>
           <button type="submit" disabled={isLoading}>
             {isLoading ? 'Connecting...' : 'Login'}
           </button>
@@ -154,12 +184,40 @@ export default function LoginPage() {
             Continue With GitHub
           </button>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', marginTop: '6px', marginBottom: '24px', color: 'var(--text-secondary)' }}>
-            <label>
-              Don&apos;t have an account? <button type="button" onClick={() => window.location.href = '/signup'} style={{ color: 'var(--text-primary)', backgroundColor: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}>Sign Up</button>
-            </label>
-            <button type="button" onClick={() => window.location.href = '/forgot-password'} style={{ color: 'var(--text-secondary)', backgroundColor: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}>Forgot Password?</button>
+          <div style={{ display: 'flex', alignItems: 'center', margin: '8px 0', color: 'var(--border-glass)' }}>
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'currentColor' }} />
+            <span style={{ padding: '0 8px', fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>New to Aero?</span>
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'currentColor' }} />
           </div>
+
+          <button
+            type="button"
+            onClick={() => window.location.href = '/signup'}
+            style={{
+              width: '100%',
+              padding: '12px 24px',
+              borderRadius: 'var(--border-radius-sm)',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              color: 'var(--text-primary)',
+              background: 'transparent',
+              border: '1px solid var(--border-glass)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.borderColor = 'var(--border-hover)';
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.borderColor = 'var(--border-glass)';
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            Create an Account
+          </button>
 
           {error && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

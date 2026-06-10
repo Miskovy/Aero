@@ -18,6 +18,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         const isUpstash = urlStr.includes('upstash.io');
         this.client = new Redis(urlStr, {
           tls: urlStr.startsWith('rediss://') || isUpstash ? {} : undefined,
+          maxRetriesPerRequest: null,
+          enableReadyCheck: false,
         });
         return;
       } catch {
@@ -30,7 +32,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       this.configService.get<string>('REDIS_PORT', '6379'),
       10,
     );
-    this.client = new Redis({ host, port });
+    this.client = new Redis({
+      host,
+      port,
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+    });
   }
 
   onModuleDestroy() {

@@ -11,6 +11,8 @@ export class MailService implements OnModuleInit {
   private fromEmail = '"Aero Support" <support@aerodeploy.app>';
   private dashboardUrl = 'http://localhost:3001';
   private apiUrl = 'http://localhost:3500';
+  private resendApiKey: string | null = null;
+  private isResendHttp = false;
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -32,6 +34,17 @@ export class MailService implements OnModuleInit {
     const port = this.configService.get<string>('SMTP_PORT');
     const user = this.configService.get<string>('SMTP_USER');
     const pass = this.configService.get<string>('SMTP_PASS');
+    const resendKey = this.configService.get<string>('RESEND_API_KEY');
+
+    // Automatically detect Resend SMTP or RESEND_API_KEY environment variable to use HTTP REST API
+    if (resendKey || (host === 'smtp.resend.com' && pass?.startsWith('re_'))) {
+      this.resendApiKey = resendKey || pass || null;
+      this.isResendHttp = true;
+      this.logger.log(
+        'Resend HTTP API configuration detected. Outgoing emails will route via Resend HTTP REST API (bypassing Render SMTP port blocking).',
+      );
+      return;
+    }
 
     if (host && port && user && pass) {
       this.logger.log(
@@ -138,6 +151,45 @@ export class MailService implements OnModuleInit {
     text: string;
     html: string;
   }) {
+    if (this.isResendHttp && this.resendApiKey) {
+      try {
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.resendApiKey}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'aero-deploy/1.0',
+          },
+          body: JSON.stringify({
+            from: this.fromEmail,
+            to: [options.to],
+            subject: options.subject,
+            text: options.text,
+            html: options.html,
+          }),
+        });
+
+        const data = (await response.json()) as Record<string, unknown>;
+
+        if (!response.ok) {
+          const message =
+            typeof data?.message === 'string' ? data.message : undefined;
+          throw new Error(message || `HTTP ${response.status}`);
+        }
+
+        const mailId = typeof data?.id === 'string' ? data.id : 'unknown';
+        this.logger.log(
+          `Email dispatched successfully via Resend HTTP API to ${options.to} (ID: ${mailId}, Subject: "${options.subject}")`,
+        );
+      } catch (err) {
+        this.logger.error(
+          `Failed to dispatch email to ${options.to} via Resend HTTP API:`,
+          err,
+        );
+      }
+      return;
+    }
+
     if (this.transporter) {
       try {
         await this.transporter.sendMail({
