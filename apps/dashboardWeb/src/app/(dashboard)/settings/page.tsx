@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [now, setNow] = useState<number | null>(null);
 
   const API_BASE = '/api';
   const getToken = () => {
@@ -42,7 +43,19 @@ export default function SettingsPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchKeys(); }, [fetchKeys]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchKeys();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchKeys]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setNow(Date.now());
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleCreate = async () => {
     if (!newKeyName.trim()) return;
@@ -59,8 +72,11 @@ export default function SettingsPage() {
         setNewKeyName('');
         await fetchKeys();
       }
-    } catch (err: any) { alert(err.message); }
-    finally { setCreating(false); }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to create API key');
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleDelete = async (keyId: string) => {
@@ -82,7 +98,8 @@ export default function SettingsPage() {
 
   const relTime = (d?: string | null) => {
     if (!d) return 'Never';
-    const diff = Date.now() - new Date(d).getTime();
+    if (!now) return 'loading...';
+    const diff = now - new Date(d).getTime();
     if (diff < 60000) return 'just now';
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
@@ -109,7 +126,7 @@ export default function SettingsPage() {
         {/* Created Key Banner */}
         {createdKey && (
           <div style={{ background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '6px', padding: '16px', marginBottom: '20px' }}>
-            <p style={{ fontSize: '12px', color: '#22c55e', fontWeight: 600, marginBottom: '8px' }}>✓ API KEY CREATED — COPY IT NOW (it won't be shown again)</p>
+            <p style={{ fontSize: '12px', color: '#22c55e', fontWeight: 600, marginBottom: '8px' }}>✓ API KEY CREATED — COPY IT NOW (it will not be shown again)</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <code style={{ flex: 1, fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', background: 'var(--bg-tertiary)', padding: '8px 12px', borderRadius: '4px', wordBreak: 'break-all' }}>{createdKey}</code>
               <button onClick={() => handleCopy(createdKey)} style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-glass)', color: copied ? '#22c55e' : 'var(--text-primary)', borderRadius: '4px', cursor: 'pointer', width: 'auto', fontWeight: 500 }}>

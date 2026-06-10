@@ -154,16 +154,39 @@ export default function LoginPage() {
             Continue With GitHub
           </button>
 
-          <label style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '6px', marginBottom: '24px', }}>
-            Don&apos;t have an account? <button type="button" onClick={() => window.location.href = '/signup'} style={{ color: 'var(--text-primary)', backgroundColor: 'transparent' }}>Sign Up</button>
-          </label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', marginTop: '6px', marginBottom: '24px', color: 'var(--text-secondary)' }}>
+            <label>
+              Don&apos;t have an account? <button type="button" onClick={() => window.location.href = '/signup'} style={{ color: 'var(--text-primary)', backgroundColor: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}>Sign Up</button>
+            </label>
+            <button type="button" onClick={() => window.location.href = '/forgot-password'} style={{ color: 'var(--text-secondary)', backgroundColor: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}>Forgot Password?</button>
+          </div>
 
           {error && (
-            <div className="error-alert-box">
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7.49997 0.833313C3.81807 0.833313 0.833302 3.81808 0.833302 7.50001C0.833302 11.1819 3.81807 14.1667 7.49997 14.1667C11.1819 14.1667 14.1666 11.1819 14.1666 7.50001C14.1666 3.81808 11.1819 0.833313 7.49997 0.833313ZM8.12497 4.37501V8.12501H6.87497V4.37501H8.12497ZM8.12497 9.37501V10.625H6.87497V9.37501H8.12497Z" fill="currentColor" />
-              </svg>
-              <span>{error}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div className="error-alert-box">
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M7.49997 0.833313C3.81807 0.833313 0.833302 3.81808 0.833302 7.50001C0.833302 11.1819 3.81807 14.1667 7.49997 14.1667C11.1819 14.1667 14.1666 11.1819 14.1666 7.50001C14.1666 3.81808 11.1819 0.833313 7.49997 0.833313ZM8.12497 4.37501V8.12501H6.87497V4.37501H8.12497ZM8.12497 9.37501V10.625H6.87497V9.37501H8.12497Z" fill="currentColor" />
+                </svg>
+                <span>{error}</span>
+              </div>
+              {error.includes('verify your email') && (
+                <button
+                  type="button"
+                  onClick={() => window.location.href = `/verify-email?email=${encodeURIComponent(email)}`}
+                  style={{
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--accent-cyan, #06b6d4)',
+                    background: 'rgba(6, 182, 212, 0.1)',
+                    color: 'var(--accent-cyan, #06b6d4)',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: 600
+                  }}
+                >
+                  Go to Verification Page
+                </button>
+              )}
             </div>
           )}
         </form>

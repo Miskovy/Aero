@@ -22,7 +22,11 @@ export class WebhooksService {
    * Create a webhook for a service. Returns the webhook with the secret token
    * that must be configured in the external provider (GitHub, GitLab, etc.).
    */
-  async createWebhook(serviceId: string, userId: string, dto: CreateWebhookDto) {
+  async createWebhook(
+    serviceId: string,
+    userId: string,
+    dto: CreateWebhookDto,
+  ) {
     await this.validateServiceOwnership(serviceId, userId);
 
     const secretToken = randomBytes(32).toString('hex');
@@ -137,7 +141,10 @@ export class WebhooksService {
         `Webhook ${webhook.id} skipped: push to ${branch}, filter is ${webhook.branch_filter}`,
       );
       await this.updateWebhookStatus(webhook.id, 'skipped_branch_filter');
-      return { success: true, message: `Skipped: push to ${branch}, filter is ${webhook.branch_filter}` };
+      return {
+        success: true,
+        message: `Skipped: push to ${branch}, filter is ${webhook.branch_filter}`,
+      };
     }
 
     // Extract commit info

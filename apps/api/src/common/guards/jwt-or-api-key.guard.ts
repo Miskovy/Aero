@@ -48,7 +48,10 @@ export class JwtOrApiKeyGuard implements CanActivate {
     throw new UnauthorizedException('No authentication credentials provided');
   }
 
-  private async authenticateWithApiKey(request: any, rawKey: string): Promise<boolean> {
+  private async authenticateWithApiKey(
+    request: any,
+    rawKey: string,
+  ): Promise<boolean> {
     const result = await this.apiKeysService.validateApiKey(rawKey);
     if (!result) {
       throw new UnauthorizedException('Invalid or expired API key');
@@ -59,7 +62,10 @@ export class JwtOrApiKeyGuard implements CanActivate {
     return true;
   }
 
-  private async authenticateWithJwt(request: any, token: string): Promise<boolean> {
+  private async authenticateWithJwt(
+    request: any,
+    token: string,
+  ): Promise<boolean> {
     try {
       const secret = this.configService.get<string>('JWT_SECRET');
       const payload = this.jwtService.verify(token, { secret });

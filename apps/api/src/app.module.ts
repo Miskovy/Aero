@@ -25,11 +25,16 @@ import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 
+import { RedisModule } from './redis/redis.module';
+import { MailModule } from './mail/mail.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    RedisModule,
+    MailModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

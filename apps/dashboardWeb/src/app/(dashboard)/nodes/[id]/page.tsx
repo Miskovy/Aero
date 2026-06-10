@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, use } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import SshTerminal from '../../../../components/SshTerminal';
 
@@ -12,6 +12,20 @@ interface ServiceItem {
   internal_port: number;
 }
 
+interface SystemInfo {
+  platform?: string;
+  arch?: string;
+  cpus?: string | number;
+  region?: string;
+}
+
+interface ResourceUsage {
+  cpu?: number;
+  memory?: number;
+  disk?: string;
+  loadavg?: number[];
+}
+
 interface NodeDetails {
   id: string;
   name: string;
@@ -19,8 +33,8 @@ interface NodeDetails {
   ip_address?: string;
   status: string;
   role: string;
-  system_info?: any;
-  resource_usage?: any;
+  system_info?: SystemInfo;
+  resource_usage?: ResourceUsage;
   services?: ServiceItem[];
   organization_id: string;
 }
@@ -72,15 +86,18 @@ export default function NodeDetailsPage({ params }: { params: Promise<{ id: stri
 
       const data = await res.json();
       setNode(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load node details');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load node details');
     } finally {
       setLoading(false);
     }
   }, [nodeId]);
 
   useEffect(() => {
-    fetchNode();
+    const timer = setTimeout(() => {
+      fetchNode();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchNode]);
 
   if (loading) {

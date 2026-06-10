@@ -45,22 +45,19 @@ export class AuthController {
   }
 
   @Post('register')
-  @ApiOperation({ summary: 'Register a new user and receive tokens' })
+  @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({
     status: 201,
-    description:
-      'User registered. Access token in body, refresh token in HttpOnly cookie.',
+    description: 'User registered.',
   })
   @ApiResponse({ status: 409, description: 'Email already exists.' })
-  async register(
-    @Body() registerDto: RegisterDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const { access_token, refresh_token, user } =
-      await this.authService.register(registerDto);
-
-    this.setRefreshCookie(res, refresh_token);
-    return { access_token, user };
+  async register(@Body() registerDto: RegisterDto) {
+    const { user } = await this.authService.register(registerDto);
+    return {
+      user,
+      message:
+        'Verification email sent. Please verify your email address before logging in.',
+    };
   }
 
   @HttpCode(HttpStatus.OK)
@@ -80,6 +77,56 @@ export class AuthController {
 
     this.setRefreshCookie(res, refresh_token);
     return { access_token };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('verify-email')
+  @ApiOperation({ summary: 'Verify email using a token' })
+  async verifyEmail(@Body('token') token: string) {
+    if (!token) {
+      throw new BadRequestException('Token is required');
+    }
+    return this.authService.verifyEmail(token);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('resend-verification')
+  @ApiOperation({ summary: 'Resend email verification link' })
+  async resendVerification(@Body('email') email: string) {
+    if (!email) {
+      throw new BadRequestException('Email is required');
+    }
+    return this.authService.resendVerificationEmail(email);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('forgot-password')
+  @ApiOperation({ summary: 'Request a password reset PIN' })
+  async forgotPassword(@Body('email') email: string) {
+    if (!email) {
+      throw new BadRequestException('Email is required');
+    }
+    return this.authService.forgotPassword(email);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('verify-reset-pin')
+  @ApiOperation({ summary: 'Verify forgot password PIN code' })
+  async verifyResetPin(@Body('email') email: string, @Body('pin') pin: string) {
+    if (!email || !pin) {
+      throw new BadRequestException('Email and PIN are required');
+    }
+    return this.authService.verifyResetPin(email, pin);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('reset-password')
+  @ApiOperation({ summary: 'Reset password using PIN' })
+  async resetPassword(@Body() body: any) {
+    if (!body.email || !body.pin || !body.password) {
+      throw new BadRequestException('Email, PIN, and password are required');
+    }
+    return this.authService.resetPassword(body);
   }
 
   // ──────────────────────────────────────────────────────────────

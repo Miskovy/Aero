@@ -8,6 +8,19 @@ interface EnvVar { id: string; key: string; created_at: string; }
 interface DeploymentLog { id: string; phase: string; message: string; level: string; created_at: string; }
 interface Deployment { id: string; status: string; trigger: string; git_commit_sha?: string; created_at: string; finished_at?: string; logs?: DeploymentLog[]; }
 interface NodeInfo { id: string; name: string; status: string; hostname: string; last_heartbeat_at?: string; }
+interface ResourceLimits {
+  cpu?: string | number;
+  memory?: string | number;
+}
+interface HealthCheck {
+  path?: string;
+  port?: number;
+  interval?: number;
+}
+interface RestartPolicy {
+  condition?: string;
+  max_attempts?: number;
+}
 interface ServiceDetail {
   id: string; name: string; slug: string; type: string; status: string;
   source_type: string; git_repository?: string; git_branch?: string;
@@ -16,7 +29,9 @@ interface ServiceDetail {
   created_at: string; updated_at: string;
   domains: Domain[]; variables: EnvVar[]; secrets: EnvVar[];
   node?: NodeInfo; deployments: Deployment[];
-  resource_limits?: any; health_check?: any; restart_policy?: any;
+  resource_limits?: ResourceLimits;
+  health_check?: HealthCheck;
+  restart_policy?: RestartPolicy;
   project?: { id: string; name: string; };
 }
 
@@ -28,6 +43,7 @@ export default function ServiceDetailPage() {
   const [service, setService] = useState<ServiceDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'deployments' | 'domains' | 'env' | 'logs'>('overview');
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedDeploymentId, setSelectedDeploymentId] = useState<string | null>(null);
@@ -51,11 +67,26 @@ export default function ServiceDetailPage() {
       });
       if (!res.ok) throw new Error(`Status ${res.status}`);
       setService(await res.json());
-    } catch (err: any) { setError(err.message); }
-    finally { setLoading(false); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch service');
+    } finally {
+      setLoading(false);
+    }
   }, [serviceId]);
 
-  useEffect(() => { fetchService(); }, [fetchService]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchService();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchService]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setNow(Date.now());
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleAction = async (action: 'start' | 'stop' | 'restart' | 'delete') => {
     if (action === 'delete' && !confirm(`Delete service "${service?.name}"? This cannot be undone.`)) return;
@@ -68,8 +99,11 @@ export default function ServiceDetailPage() {
       if (!res.ok) throw new Error(`Failed to ${action}`);
       if (action === 'delete') { router.push('/services'); return; }
       await fetchService();
-    } catch (err: any) { alert(err.message); }
-    finally { setActionLoading(false); }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Action failed');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleDeploy = async () => {
@@ -81,8 +115,11 @@ export default function ServiceDetailPage() {
       });
       if (!res.ok) throw new Error('Failed to trigger deployment');
       await fetchService();
-    } catch (err: any) { alert(err.message); }
-    finally { setActionLoading(false); }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Deployment failed');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const fetchDeploymentLogs = async (deploymentId: string) => {
@@ -106,7 +143,8 @@ export default function ServiceDetailPage() {
 
   const relTime = (d?: string) => {
     if (!d) return '—';
-    const diff = Date.now() - new Date(d).getTime();
+    if (!now) return 'loading...';
+    const diff = now - new Date(d).getTime();
     if (diff < 60000) return 'just now';
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;

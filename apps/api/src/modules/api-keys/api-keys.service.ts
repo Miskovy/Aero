@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { randomBytes, createHash } from 'crypto';
@@ -28,7 +32,9 @@ export class ApiKeysService {
         },
       });
       if (!membership) {
-        throw new ForbiddenException('You are not a member of this organization');
+        throw new ForbiddenException(
+          'You are not a member of this organization',
+        );
       }
     }
 
@@ -102,7 +108,9 @@ export class ApiKeysService {
    * Validate an API key from a request header.
    * Returns the user ID if valid, null otherwise.
    */
-  async validateApiKey(rawKey: string): Promise<{ userId: string; organizationId: string | null } | null> {
+  async validateApiKey(
+    rawKey: string,
+  ): Promise<{ userId: string; organizationId: string | null } | null> {
     const keyHash = this.hashKey(rawKey);
 
     const apiKey = await this.prisma.apiKey.findUnique({
@@ -117,10 +125,12 @@ export class ApiKeysService {
     }
 
     // Update last_used_at (fire-and-forget)
-    this.prisma.apiKey.update({
-      where: { id: apiKey.id },
-      data: { last_used_at: new Date() },
-    }).catch(() => {}); // Non-blocking
+    this.prisma.apiKey
+      .update({
+        where: { id: apiKey.id },
+        data: { last_used_at: new Date() },
+      })
+      .catch(() => {}); // Non-blocking
 
     return {
       userId: apiKey.user_id,

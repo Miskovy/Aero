@@ -1,8 +1,18 @@
-import { IsString, IsOptional, IsArray, MaxLength, MinLength, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  MaxLength,
+  MinLength,
+  IsDateString,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateApiKeyDto {
-  @ApiProperty({ description: 'A friendly name for this API key', example: 'CI/CD Pipeline Key' })
+  @ApiProperty({
+    description: 'A friendly name for this API key',
+    example: 'CI/CD Pipeline Key',
+  })
   @IsString()
   @MinLength(1)
   @MaxLength(255)
@@ -13,12 +23,19 @@ export class CreateApiKeyDto {
   @IsString()
   organizationId?: string;
 
-  @ApiPropertyOptional({ description: 'Permissions array', example: ['*'], default: ['*'] })
+  @ApiPropertyOptional({
+    description: 'Permissions array',
+    example: ['*'],
+    default: ['*'],
+  })
   @IsOptional()
   @IsArray()
   permissions?: string[];
 
-  @ApiPropertyOptional({ description: 'Expiration date (ISO 8601). Null = never expires.', example: '2027-01-01T00:00:00Z' })
+  @ApiPropertyOptional({
+    description: 'Expiration date (ISO 8601). Null = never expires.',
+    example: '2027-01-01T00:00:00Z',
+  })
   @IsOptional()
   @IsDateString()
   expiresAt?: string;

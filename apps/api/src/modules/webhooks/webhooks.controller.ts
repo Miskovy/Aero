@@ -10,7 +10,12 @@ import {
   Req,
   RawBody,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { WebhooksService } from './webhooks.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../../common/interfaces/Authenticated.interface';
@@ -27,7 +32,10 @@ export class WebhooksController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a webhook for a service' })
-  @ApiResponse({ status: 201, description: 'Webhook created with secret token and URL.' })
+  @ApiResponse({
+    status: 201,
+    description: 'Webhook created with secret token and URL.',
+  })
   async createWebhook(
     @Param('serviceId') serviceId: string,
     @Body() dto: CreateWebhookDto,
@@ -42,7 +50,10 @@ export class WebhooksController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List webhooks for a service' })
-  @ApiResponse({ status: 200, description: 'List of webhooks with masked tokens.' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of webhooks with masked tokens.',
+  })
   async listWebhooks(
     @Param('serviceId') serviceId: string,
     @Req() req: AuthenticatedRequest,
@@ -70,8 +81,13 @@ export class WebhooksController {
   // ─── Public Endpoint (no auth required — validated by webhook token) ───
 
   @Post('webhooks/:token')
-  @ApiOperation({ summary: 'Receive webhook payload from GitHub/GitLab (public endpoint)' })
-  @ApiResponse({ status: 200, description: 'Webhook processed and deployment triggered.' })
+  @ApiOperation({
+    summary: 'Receive webhook payload from GitHub/GitLab (public endpoint)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Webhook processed and deployment triggered.',
+  })
   async handleWebhook(
     @Param('token') token: string,
     @Body() payload: any,

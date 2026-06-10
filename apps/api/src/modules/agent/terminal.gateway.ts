@@ -17,7 +17,9 @@ import { OnEvent } from '@nestjs/event-emitter';
   cors: { origin: '*' },
   namespace: '/terminal',
 })
-export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class TerminalGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server!: Server;
 
@@ -35,7 +37,9 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
     const rawToken = auth.token || headers.authorization;
 
     if (!rawToken) {
-      this.logger.warn(`Dashboard client connected without token. Disconnecting ${client.id}`);
+      this.logger.warn(
+        `Dashboard client connected without token. Disconnecting ${client.id}`,
+      );
       client.disconnect();
       return;
     }
@@ -48,12 +52,16 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
       if (!payload || !payload.sub) {
         throw new Error('Invalid token payload');
       }
-      
+
       // Store user ID in client data
       client.data.userId = payload.sub;
-      this.logger.log(`Dashboard client (User ${payload.sub}) connected to terminal gateway.`);
+      this.logger.log(
+        `Dashboard client (User ${payload.sub}) connected to terminal gateway.`,
+      );
     } catch (error) {
-      this.logger.warn(`Invalid token for dashboard connection. Disconnecting ${client.id}`);
+      this.logger.warn(
+        `Invalid token for dashboard connection. Disconnecting ${client.id}`,
+      );
       client.disconnect();
       return;
     }
@@ -61,12 +69,14 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   async handleDisconnect(client: Socket): Promise<void> {
     this.logger.log(`Dashboard client disconnected.`);
-    
+
     // Clean up: if this client was attached to a terminal, notify the agent
     if (client.data.nodeId) {
-       this.agentGateway.server.to(`node_${client.data.nodeId}`).emit('cmd_terminal_stop', {
-          sessionId: client.id
-       });
+      this.agentGateway.server
+        .to(`node_${client.data.nodeId}`)
+        .emit('cmd_terminal_stop', {
+          sessionId: client.id,
+        });
     }
   }
 
@@ -76,36 +86,43 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
     payload: { nodeId: string; cols?: number; rows?: number },
   ): Promise<void> {
     const { nodeId, cols, rows } = payload;
-    
+
     // Verify user has access to this node's organization
     const node = await this.prisma.node.findUnique({
-       where: { id: nodeId },
-       include: { organization: { include: { members: true } } }
+      where: { id: nodeId },
+      include: { organization: { include: { members: true } } },
     });
 
     if (!node) {
-        client.emit('terminal:error', 'Node not found');
-        return;
+      client.emit('terminal:error', 'Node not found');
+      return;
     }
 
-    const hasAccess = node.organization.members.some(m => m.user_id === client.data.userId);
+    const hasAccess = node.organization.members.some(
+      (m) => m.user_id === client.data.userId,
+    );
     if (!hasAccess) {
-        client.emit('terminal:error', 'Access denied');
-        return;
+      client.emit('terminal:error', 'Access denied');
+      return;
     }
 
-    const room = (this.agentGateway.server as any).adapter.rooms.get(`node_${nodeId}`);
+    const room = (this.agentGateway.server as any).adapter.rooms.get(
+      `node_${nodeId}`,
+    );
     const activeAgentsCount = room ? room.size : 0;
     if (activeAgentsCount === 0) {
-        // Mark node offline if it was stale
-        if (node.status !== 'offline') {
-            await this.prisma.node.update({
-                where: { id: nodeId },
-                data: { status: 'offline' }
-            });
-        }
-        client.emit('terminal:error', `Node is offline. Please start the agent daemon first using:\r\n\r\naero daemon start --token <token>`);
-        return;
+      // Mark node offline if it was stale
+      if (node.status !== 'offline') {
+        await this.prisma.node.update({
+          where: { id: nodeId },
+          data: { status: 'offline' },
+        });
+      }
+      client.emit(
+        'terminal:error',
+        `Node is offline. Please start the agent daemon first using:\r\n\r\naero daemon start --token <token>`,
+      );
+      return;
     }
 
     client.data.nodeId = nodeId;
@@ -140,16 +157,20 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
   ): Promise<void> {
     const nodeId = client.data.nodeId;
     if (nodeId) {
-      this.agentGateway.server.to(`node_${nodeId}`).emit('cmd_terminal_resize', {
-        sessionId: client.id,
-        cols: payload.cols,
-        rows: payload.rows,
-      });
+      this.agentGateway.server
+        .to(`node_${nodeId}`)
+        .emit('cmd_terminal_resize', {
+          sessionId: client.id,
+          cols: payload.cols,
+          rows: payload.rows,
+        });
     }
   }
 
   @OnEvent('terminal.output')
-  handleTerminalOutputEvent(payload: { sessionId: string, output: string }) {
-    this.server.to(`ui_${payload.sessionId}`).emit('terminal:output', payload.output);
+  handleTerminalOutputEvent(payload: { sessionId: string; output: string }) {
+    this.server
+      .to(`ui_${payload.sessionId}`)
+      .emit('terminal:output', payload.output);
   }
 }

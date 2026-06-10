@@ -31,8 +31,10 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
         const payloadBase64 = token.split('.')[1];
         const payloadJson = atob(payloadBase64);
         const payload = JSON.parse(payloadJson);
-        if (payload.name) setUserName(payload.name);
-        if (payload.email) setUserEmail(payload.email);
+        setTimeout(() => {
+          if (payload.name) setUserName(payload.name);
+          if (payload.email) setUserEmail(payload.email);
+        }, 0);
       } catch (e) {
         console.error('Failed to parse active user token', e);
       }
