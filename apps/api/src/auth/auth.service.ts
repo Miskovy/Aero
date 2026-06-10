@@ -16,6 +16,7 @@ import { RedisService } from '../redis/redis.service';
 import { MailService } from '../mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { User } from '../../generated/prisma/client';
 import { GitHubEmail, GitHubUser } from './interfaces/auth.interface';
 import {
@@ -68,8 +69,9 @@ export class AuthService {
 
     this.mailService
       .sendVerificationEmail(user.email, user.name, verificationToken)
-      .catch((err) => {
-        this.logger.error(`Failed to send verification email: ${err.message}`);
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Failed to send verification email: ${msg}`);
       });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -251,8 +253,9 @@ export class AuthService {
 
     this.mailService
       .sendVerificationEmail(user.email, user.name, verificationToken)
-      .catch((err) => {
-        this.logger.error(`Failed to send verification email: ${err.message}`);
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Failed to send verification email: ${msg}`);
       });
 
     return {
@@ -277,10 +280,9 @@ export class AuthService {
 
     this.mailService
       .sendForgotPasswordPin(user.email, user.name, pin)
-      .catch((err) => {
-        this.logger.error(
-          `Failed to send forgot password email: ${err.message}`,
-        );
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Failed to send forgot password email: ${msg}`);
       });
 
     return {
@@ -305,12 +307,10 @@ export class AuthService {
   /**
    * Complete password reset flow
    */
-  async resetPassword(registerDto: {
-    email: string;
-    pin: string;
-    password: string;
-  }): Promise<{ message: string }> {
-    const { email, pin, password } = registerDto;
+  async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    const { email, pin, password } = resetPasswordDto;
     const savedPin = await this.redisService.get(`pwd_reset_pin:${email}`);
     if (!savedPin || savedPin !== pin) {
       throw new BadRequestException('Invalid or expired password reset code.');

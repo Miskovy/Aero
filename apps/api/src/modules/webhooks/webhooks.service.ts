@@ -8,6 +8,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateWebhookDto } from './dto/create-webhook.dto';
 import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
 import { DeploymentsService } from '../deployments/deployment.service';
+import { WebhookPayload } from './interfaces/webhook.interface';
+import { WebhookProvider } from '../../../generated/prisma/client';
 
 @Injectable()
 export class WebhooksService {
@@ -35,7 +37,7 @@ export class WebhooksService {
       data: {
         service_id: serviceId,
         name: dto.name,
-        provider: (dto.provider as any) || 'github',
+        provider: (dto.provider as WebhookProvider) || WebhookProvider.github,
         secret_token: secretToken,
         events: dto.events || ['push'],
         branch_filter: dto.branchFilter || null,
@@ -103,7 +105,7 @@ export class WebhooksService {
    */
   async handleWebhookPayload(
     secretToken: string,
-    payload: any,
+    payload: WebhookPayload,
     headers: Record<string, string>,
   ) {
     const webhook = await this.prisma.webhook.findUnique({
@@ -132,7 +134,7 @@ export class WebhooksService {
     }
 
     // Extract branch from payload
-    const ref = payload?.ref as string | undefined;
+    const ref = payload?.ref;
     const branch = ref?.replace('refs/heads/', '') || null;
 
     // Check branch filter
@@ -149,10 +151,9 @@ export class WebhooksService {
 
     // Extract commit info
     const commitSha = payload?.after || payload?.head_commit?.id || null;
-    const commitMessage = payload?.head_commit?.message || null;
 
     this.logger.log(
-      `Webhook triggered for service ${webhook.service.name} (branch: ${branch}, commit: ${commitSha?.substring(0, 7)})`,
+      `Webhook triggered for service ${webhook.service.name} (branch: ${branch}, commit: ${commitSha?.substring(0, 7) || 'unknown'})`,
     );
 
     // Trigger deployment
@@ -171,8 +172,9 @@ export class WebhooksService {
         branch,
         commit: commitSha,
       };
-    } catch (error: any) {
-      await this.updateWebhookStatus(webhook.id, `failed: ${error.message}`);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      await this.updateWebhookStatus(webhook.id, `failed: ${errMsg}`);
       throw error;
     }
   }

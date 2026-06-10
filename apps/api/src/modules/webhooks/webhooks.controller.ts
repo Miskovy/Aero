@@ -8,7 +8,6 @@ import {
   Headers,
   UseGuards,
   Req,
-  RawBody,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,6 +19,7 @@ import { WebhooksService } from './webhooks.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../../common/interfaces/Authenticated.interface';
 import { CreateWebhookDto } from './dto/create-webhook.dto';
+import { WebhookPayload } from './interfaces/webhook.interface';
 
 @ApiTags('Webhooks')
 @Controller()
@@ -90,7 +90,7 @@ export class WebhooksController {
   })
   async handleWebhook(
     @Param('token') token: string,
-    @Body() payload: any,
+    @Body() payload: WebhookPayload,
     @Headers() headers: Record<string, string>,
   ) {
     return this.webhooksService.handleWebhookPayload(token, payload, headers);

@@ -31,7 +31,7 @@ export class TerminalGateway
     private readonly prisma: PrismaService,
   ) {}
 
-  async handleConnection(client: Socket): Promise<void> {
+  handleConnection(client: Socket): void {
     const auth = client.handshake.auth as { token?: string };
     const headers = client.handshake.headers as { authorization?: string };
     const rawToken = auth.token || headers.authorization;
@@ -48,17 +48,18 @@ export class TerminalGateway
     const secret = this.configService.get<string>('JWT_SECRET');
 
     try {
-      const payload = jwt.verify(token, secret!) as any;
+      const payload = jwt.verify(token, secret!) as { sub?: string };
       if (!payload || !payload.sub) {
         throw new Error('Invalid token payload');
       }
 
       // Store user ID in client data
-      client.data.userId = payload.sub;
+      const clientData = client.data as { userId?: string; nodeId?: string };
+      clientData.userId = payload.sub;
       this.logger.log(
         `Dashboard client (User ${payload.sub}) connected to terminal gateway.`,
       );
-    } catch (error) {
+    } catch {
       this.logger.warn(
         `Invalid token for dashboard connection. Disconnecting ${client.id}`,
       );
@@ -67,13 +68,14 @@ export class TerminalGateway
     }
   }
 
-  async handleDisconnect(client: Socket): Promise<void> {
+  handleDisconnect(client: Socket): void {
     this.logger.log(`Dashboard client disconnected.`);
 
+    const clientData = client.data as { userId?: string; nodeId?: string };
     // Clean up: if this client was attached to a terminal, notify the agent
-    if (client.data.nodeId) {
+    if (clientData.nodeId) {
       this.agentGateway.server
-        .to(`node_${client.data.nodeId}`)
+        .to(`node_${clientData.nodeId}`)
         .emit('cmd_terminal_stop', {
           sessionId: client.id,
         });
@@ -98,17 +100,18 @@ export class TerminalGateway
       return;
     }
 
+    const clientData = client.data as { userId?: string; nodeId?: string };
     const hasAccess = node.organization.members.some(
-      (m) => m.user_id === client.data.userId,
+      (m) => m.user_id === clientData.userId,
     );
     if (!hasAccess) {
       client.emit('terminal:error', 'Access denied');
       return;
     }
 
-    const room = (this.agentGateway.server as any).adapter.rooms.get(
-      `node_${nodeId}`,
-    );
+    const room = this.agentGateway.server
+      .of('/agent')
+      .adapter.rooms.get(`node_${nodeId}`);
     const activeAgentsCount = room ? room.size : 0;
     if (activeAgentsCount === 0) {
       // Mark node offline if it was stale
@@ -125,8 +128,8 @@ export class TerminalGateway
       return;
     }
 
-    client.data.nodeId = nodeId;
-    client.join(`ui_${client.id}`);
+    clientData.nodeId = nodeId;
+    await client.join(`ui_${client.id}`);
 
     // Tell the node agent to start a PTY session
     this.agentGateway.server.to(`node_${nodeId}`).emit('cmd_terminal_start', {
@@ -137,11 +140,9 @@ export class TerminalGateway
   }
 
   @SubscribeMessage('terminal:input')
-  async handleTerminalInput(
-    client: Socket,
-    payload: { input: string },
-  ): Promise<void> {
-    const nodeId = client.data.nodeId;
+  handleTerminalInput(client: Socket, payload: { input: string }): void {
+    const clientData = client.data as { userId?: string; nodeId?: string };
+    const nodeId = clientData.nodeId;
     if (nodeId) {
       this.agentGateway.server.to(`node_${nodeId}`).emit('cmd_terminal_input', {
         sessionId: client.id,
@@ -151,11 +152,12 @@ export class TerminalGateway
   }
 
   @SubscribeMessage('terminal:resize')
-  async handleTerminalResize(
+  handleTerminalResize(
     client: Socket,
     payload: { cols: number; rows: number },
-  ): Promise<void> {
-    const nodeId = client.data.nodeId;
+  ): void {
+    const clientData = client.data as { userId?: string; nodeId?: string };
+    const nodeId = clientData.nodeId;
     if (nodeId) {
       this.agentGateway.server
         .to(`node_${nodeId}`)

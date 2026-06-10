@@ -167,10 +167,10 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('terminal_output')
-  async handleTerminalOutput(
+  handleTerminalOutput(
     client: AuthenticatedSocket,
     payload: { sessionId: string; output: string },
-  ): Promise<void> {
+  ): void {
     if (client.data.nodeId) {
       this.eventEmitter.emit('terminal.output', payload);
     }

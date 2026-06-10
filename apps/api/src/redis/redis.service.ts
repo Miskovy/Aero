@@ -20,7 +20,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
           tls: urlStr.startsWith('rediss://') || isUpstash ? {} : undefined,
         });
         return;
-      } catch (err) {
+      } catch {
         // Fall back to standard settings if connection fails
       }
     }

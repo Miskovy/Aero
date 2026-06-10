@@ -25,6 +25,7 @@ import { User } from '../../generated/prisma/client';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { RefreshTokenRequest } from './interfaces/auth.interface';
 import { TOKEN_CONFIG } from './constants/token.constants';
@@ -122,10 +123,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('reset-password')
   @ApiOperation({ summary: 'Reset password using PIN' })
-  async resetPassword(@Body() body: any) {
-    if (!body.email || !body.pin || !body.password) {
-      throw new BadRequestException('Email, PIN, and password are required');
-    }
+  async resetPassword(@Body() body: ResetPasswordDto) {
     return this.authService.resetPassword(body);
   }
 

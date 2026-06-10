@@ -4,7 +4,6 @@ import {
   IsArray,
   MaxLength,
   MinLength,
-  IsEnum,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 

@@ -7,6 +7,8 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ApiKeysService } from '../../modules/api-keys/api-keys.service';
+import { AuthenticatedRequest } from '../interfaces/Authenticated.interface';
+import { JwtPayload } from '../interfaces/guard.interface';
 
 /**
  * Combined guard that accepts either:
@@ -24,8 +26,8 @@ export class JwtOrApiKeyGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const authHeader = request.headers['authorization'] as string | undefined;
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const authHeader = request.headers['authorization'];
     const apiKeyHeader = request.headers['x-api-key'] as string | undefined;
 
     // 1. Try X-API-Key header first
@@ -49,7 +51,7 @@ export class JwtOrApiKeyGuard implements CanActivate {
   }
 
   private async authenticateWithApiKey(
-    request: any,
+    request: AuthenticatedRequest,
     rawKey: string,
   ): Promise<boolean> {
     const result = await this.apiKeysService.validateApiKey(rawKey);
@@ -62,14 +64,20 @@ export class JwtOrApiKeyGuard implements CanActivate {
     return true;
   }
 
-  private async authenticateWithJwt(
-    request: any,
+  private authenticateWithJwt(
+    request: AuthenticatedRequest,
     token: string,
-  ): Promise<boolean> {
+  ): boolean {
     try {
       const secret = this.configService.get<string>('JWT_SECRET');
-      const payload = this.jwtService.verify(token, { secret });
-      request.user = { id: payload.sub || payload.id };
+      const payload: JwtPayload = this.jwtService.verify(token, {
+        secret,
+      });
+      const userId = payload.sub || payload.id;
+      if (!userId) {
+        throw new UnauthorizedException('Invalid token payload');
+      }
+      request.user = { id: userId };
       return true;
     } catch {
       throw new UnauthorizedException('Invalid or expired JWT token');

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '../../../generated/prisma/client';
+import { NodeHeartbeatMetrics } from './interfaces/agent.interface';
 
 @Injectable()
 export class AgentService {
@@ -22,15 +23,17 @@ export class AgentService {
     });
   }
 
-  async updateHeartbeat(nodeId: string, metrics: any) {
+  async updateHeartbeat(nodeId: string, metrics: NodeHeartbeatMetrics) {
     const { system_info, ...resource_usage } = metrics || {};
     return this.prisma.node.update({
       where: { id: nodeId },
       data: {
         status: 'online',
         last_heartbeat_at: new Date(),
-        resource_usage: resource_usage || {},
-        ...(system_info ? { system_info } : {}),
+        resource_usage: resource_usage as Prisma.InputJsonValue,
+        ...(system_info
+          ? { system_info: system_info as Prisma.InputJsonValue }
+          : {}),
       },
     });
   }
