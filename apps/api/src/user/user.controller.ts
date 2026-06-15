@@ -29,7 +29,7 @@ import { AuthenticatedRequest } from '../common/interfaces/Authenticated.interfa
 @ApiTags('Users')
 @Controller('users')
 export class UserController {
-  constructor(private readonly userService: UserService) { }
+  constructor(private readonly userService: UserService) {}
 
   /**
    * Strips sensitive fields from a User object before returning to the client.

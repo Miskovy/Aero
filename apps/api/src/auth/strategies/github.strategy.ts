@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, Profile } from 'passport-github2';
+import { Request } from 'express';
 import { AuthService } from '../auth.service';
 import { User } from '../../../generated/prisma/client';
 
@@ -18,17 +19,36 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
       clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
       callbackURL: `${process.env.API_URL || 'http://localhost:3500'}/auth/github/callback`,
       scope: ['user:email'],
+      passReqToCallback: true,
     });
   }
 
   async validate(
+    req: Request,
     _accessToken: string,
     _refreshToken: string,
     profile: Profile,
     done: (error: Error | null, user?: User) => void,
   ) {
     try {
-      const user = await this.authService.validateOAuthUser(profile);
+      let currentUserId: string | undefined = undefined;
+      const cookies = req.cookies as Record<string, string> | undefined;
+      const token = cookies?.['aero_session'];
+      if (token) {
+        try {
+          const validationResult = this.authService.validateAccessToken(token);
+          if (validationResult.is_valid && validationResult.payload?.sub) {
+            currentUserId = validationResult.payload.sub;
+          }
+        } catch {
+          // Ignore invalid session cookies
+        }
+      }
+
+      const user = await this.authService.validateOAuthUser(
+        profile,
+        currentUserId,
+      );
       done(null, user);
     } catch (error) {
       done(error as Error);

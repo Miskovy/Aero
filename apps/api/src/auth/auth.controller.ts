@@ -18,7 +18,6 @@ import {
   ApiResponse,
   ApiCookieAuth,
 } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { User } from '../../generated/prisma/client';
@@ -27,6 +26,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
+import { GithubOauthGuard } from './guards/github-oauth.guard';
 import { RefreshTokenRequest } from './interfaces/auth.interface';
 import { TOKEN_CONFIG } from './constants/token.constants';
 import { extractClientFromCookie } from './helpers/cookie.helper';
@@ -199,7 +199,7 @@ export class AuthController {
   }
 
   @Get('github')
-  @UseGuards(AuthGuard('github'))
+  @UseGuards(GithubOauthGuard)
   @ApiOperation({ summary: 'Initiate GitHub OAuth login' })
   githubAuth(@Query('client') client: string, @Res() res: Response) {
     // Store the client type in a short-lived cookie for the callback
@@ -211,7 +211,7 @@ export class AuthController {
   }
 
   @Get('github/callback')
-  @UseGuards(AuthGuard('github'))
+  @UseGuards(GithubOauthGuard)
   @ApiOperation({ summary: 'GitHub OAuth callback' })
   async githubAuthCallback(
     @Req() req: RefreshTokenRequest & { user: User },

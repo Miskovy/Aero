@@ -335,11 +335,13 @@ export class AuthService {
 
   /**
    * Resolve a GitHub OAuth profile to a User record:
-   *   A) Brand new user → create
-   *   B) Returning GitHub user → return existing
-   *   C) Email match but no GitHub link → link accounts
+   *   - If currentUserId is passed, link that logged-in user to this GitHub account
+   *   - Otherwise, standard login or auto-link by matched email address
    */
-  async validateOAuthUser(profile: Profile): Promise<User> {
+  async validateOAuthUser(
+    profile: Profile,
+    currentUserId?: string,
+  ): Promise<User> {
     try {
       const { id, username, emails, photos } = profile;
       const providerId = id.toString();
@@ -348,59 +350,81 @@ export class AuthService {
         primaryEmail || `${providerId}+${username}@users.noreply.github.com`;
       const avatarUrl = photos?.[0]?.value || null;
 
-      const existingUser = await this.userService.findFirst({
-        where: {
-          OR: [
-            { auth_provider: 'github', auth_provider_id: providerId },
-            { email: email },
-          ],
-        },
+      // Find if anyone is already linked to this GitHub ID
+      const existingLinkedUser = await this.userService.findFirst({
+        where: { auth_provider: 'github', auth_provider_id: providerId },
       });
 
-      // PATH A: Brand New User
-      if (!existingUser) {
-        this.logger.log(`Creating new user from GitHub OAuth: ${username}`);
-        return await this.userService.createUser({
-          auth_provider: 'github',
-          auth_provider_id: providerId,
-          name: username || `github-user-${providerId}`,
-          email: email,
-          avatar_url: avatarUrl,
-          is_email_verified: true,
-        });
-      }
+      // ── CASE A: We are actively linking a logged-in user session ──
+      if (currentUserId) {
+        if (existingLinkedUser) {
+          if (existingLinkedUser.id === currentUserId) {
+            // Already linked to the current user.
+            return existingLinkedUser;
+          } else {
+            // Already linked to a different user!
+            throw new ConflictException(
+              'This GitHub account is already connected to another Aero profile.',
+            );
+          }
+        }
 
-      // PATH B: Returning GitHub User
-      if (
-        existingUser.auth_provider === 'github' &&
-        existingUser.auth_provider_id === providerId
-      ) {
-        return existingUser;
-      }
+        const currentUser = await this.userService.user({ id: currentUserId });
+        if (!currentUser) {
+          throw new UnauthorizedException('User not found.');
+        }
 
-      // PATH C: Account Linking (Email matched, but GitHub ID is not linked)
-      if (existingUser.email === email) {
         this.logger.log(
-          `Linking GitHub account ${providerId} to existing user ${existingUser.id}`,
+          `Linking GitHub account ${providerId} to existing logged-in user ${currentUserId}`,
         );
         return await this.userService.updateUser({
-          where: { id: existingUser.id },
+          where: { id: currentUserId },
           data: {
             auth_provider: 'github',
             auth_provider_id: providerId,
             is_email_verified: true,
-            ...(!existingUser.avatar_url && { avatar_url: avatarUrl }),
+            ...(!currentUser.avatar_url && { avatar_url: avatarUrl }),
           },
         });
       }
 
-      throw new InternalServerErrorException(
-        'Unexpected user state during OAuth validation',
-      );
+      // ── CASE B: Regular Login / New Registration (No active session) ──
+      if (existingLinkedUser) {
+        return existingLinkedUser;
+      }
+
+      // Check if a user with the same email exists to link accounts
+      const userWithEmail = await this.userService.user({ email });
+      if (userWithEmail) {
+        this.logger.log(
+          `Linking GitHub account ${providerId} to existing user with email ${email}`,
+        );
+        return await this.userService.updateUser({
+          where: { id: userWithEmail.id },
+          data: {
+            auth_provider: 'github',
+            auth_provider_id: providerId,
+            is_email_verified: true,
+            ...(!userWithEmail.avatar_url && { avatar_url: avatarUrl }),
+          },
+        });
+      }
+
+      // Register new user
+      this.logger.log(`Creating new user from GitHub OAuth: ${username}`);
+      return await this.userService.createUser({
+        auth_provider: 'github',
+        auth_provider_id: providerId,
+        name: username || `github-user-${providerId}`,
+        email: email,
+        avatar_url: avatarUrl,
+        is_email_verified: true,
+      });
     } catch (error: unknown) {
       if (
         error instanceof InternalServerErrorException ||
-        error instanceof UnauthorizedException
+        error instanceof UnauthorizedException ||
+        error instanceof ConflictException
       ) {
         throw error;
       }
