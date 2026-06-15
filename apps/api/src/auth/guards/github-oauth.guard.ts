@@ -1,10 +1,12 @@
-import { Injectable, ExecutionContext } from '@nestjs/common';
+import { Injectable, ExecutionContext, Logger } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
 import { User } from '../../../generated/prisma/client';
 
 @Injectable()
 export class GithubOauthGuard extends AuthGuard('github') {
+  private readonly logger = new Logger(GithubOauthGuard.name);
+
   override handleRequest<TUser = User>(
     err: Error | null | undefined,
     user: TUser | false,
@@ -14,9 +16,30 @@ export class GithubOauthGuard extends AuthGuard('github') {
     const response = context.switchToHttp().getResponse<Response>();
     const request = context.switchToHttp().getRequest<Request>();
 
+    this.logger.debug(
+      `GithubOauthGuard debug: err=${err instanceof Error ? err.message : String(err)}, ` +
+        `user=${user ? JSON.stringify(user) : 'false'}, ` +
+        `info=${_info ? JSON.stringify(_info) : 'undefined'}`,
+    );
+
     if (err || !user) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'GitHub authentication failed';
+      let errorMessage = 'GitHub authentication failed';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (err) {
+        errorMessage = String(err);
+      } else if (_info instanceof Error) {
+        errorMessage = _info.message;
+      } else if (_info && typeof _info === 'object' && 'message' in _info) {
+        errorMessage = String((_info as Record<string, unknown>).message);
+      }
+
+      this.logger.error(
+        `GitHub OAuth failure: err=${err instanceof Error ? err.stack : String(err)}, ` +
+          `info=${_info ? JSON.stringify(_info) : 'undefined'}, ` +
+          `resolvedError=${errorMessage}`,
+      );
+
       const cookies = request.cookies as Record<string, string> | undefined;
       const hasSession = !!cookies?.['aero_session'];
       const redirectPath = hasSession ? '/profile' : '/login';
