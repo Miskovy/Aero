@@ -28,30 +28,21 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
     _accessToken: string,
     _refreshToken: string,
     profile: Profile,
-    done: (error: Error | null, user?: User) => void,
-  ) {
-    try {
-      let currentUserId: string | undefined = undefined;
-      const cookies = req.cookies as Record<string, string> | undefined;
-      const token = cookies?.['aero_session'];
-      if (token) {
-        try {
-          const validationResult = this.authService.validateAccessToken(token);
-          if (validationResult.is_valid && validationResult.payload?.sub) {
-            currentUserId = validationResult.payload.sub;
-          }
-        } catch {
-          // Ignore invalid session cookies
+  ): Promise<User> {
+    let currentUserId: string | undefined = undefined;
+    const cookies = req.cookies as Record<string, string> | undefined;
+    const token = cookies?.['aero_session'];
+    if (token) {
+      try {
+        const validationResult = this.authService.validateAccessToken(token);
+        if (validationResult.is_valid && validationResult.payload?.sub) {
+          currentUserId = validationResult.payload.sub;
         }
+      } catch {
+        // Ignore invalid session cookies
       }
-
-      const user = await this.authService.validateOAuthUser(
-        profile,
-        currentUserId,
-      );
-      done(null, user);
-    } catch (error) {
-      done(error as Error);
     }
+
+    return this.authService.validateOAuthUser(profile, currentUserId);
   }
 }
