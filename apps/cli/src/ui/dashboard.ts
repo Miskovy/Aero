@@ -22,6 +22,11 @@ import { servicesListAction, servicesInspectAction, servicesStartAction, service
 import { nodeListAction, nodeAddAction, nodeRemoveAction } from '../commands/nodes.js';
 import { projectsListAction, projectsInspectAction, projectsCreateAction, projectsUpdateAction, projectsDeleteAction } from '../commands/projects.js';
 import { envListAction, envSetAction } from '../commands/env.js';
+import {
+  webhooksListAction,
+  webhooksCreateAction,
+  webhooksDeleteAction,
+} from '../commands/webhooks.js';
 import { chatAction } from '../commands/chat.js';
 import ConfigManager from '../utils/config.js';
 import icons from '../utils/icons.js';
@@ -441,6 +446,7 @@ async function settingsSubmenu() {
       [
         { value: 'show', label: `${icons.inspect} View Current Configuration` },
         { value: 'theme', label: `${icons.settings} Change Theme (current: ${config.theme})` },
+        { value: 'webhooks', label: `${icons.service} Manage Webhooks` },
         { value: 'reset', label: `${icons.warning} Reset to Defaults` },
         { value: 'back', label: `${icons.back} Back to Menu` },
       ],
@@ -478,6 +484,10 @@ async function settingsSubmenu() {
         }, 'Change Theme');
         break;
 
+      case 'webhooks':
+        await webhooksSubmenu();
+        break;
+
       case 'reset':
         await safeAction(async () => {
           const confirm = await p.confirm({
@@ -488,6 +498,34 @@ async function settingsSubmenu() {
           ConfigManager.reset();
           p.log.success(chalk.green('Configuration reset to defaults.'));
         }, 'Reset Config');
+        break;
+    }
+  }
+}
+
+async function webhooksSubmenu() {
+  while (true) {
+    const action = await runTuiSelect(
+      [
+        { value: 'list', label: `${icons.service} List Webhooks` },
+        { value: 'create', label: `${icons.create} Create Webhook` },
+        { value: 'delete', label: `${icons.delete} Delete Webhook` },
+        { value: 'back', label: `${icons.back} Back to Settings` },
+      ],
+      'Webhooks Management',
+    );
+
+    if (action === 'back') return;
+
+    switch (action) {
+      case 'list':
+        await safeAction(() => webhooksListAction(), 'List Webhooks');
+        break;
+      case 'create':
+        await safeAction(() => webhooksCreateAction(), 'Create Webhook');
+        break;
+      case 'delete':
+        await safeAction(() => webhooksDeleteAction(), 'Delete Webhook');
         break;
     }
   }
