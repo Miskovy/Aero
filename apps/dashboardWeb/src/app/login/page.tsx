@@ -23,6 +23,12 @@ export default function LoginPage() {
     const checkSession = async () => {
       const params = new URLSearchParams(window.location.search);
       const token = params.get('token');
+      const errorParam = params.get('error');
+
+      if (errorParam) {
+        setError(errorParam);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
 
       if (token) {
         document.cookie = `aero_session=${token}; path=/; max-age=${86400}; SameSite=Lax`;

@@ -305,6 +305,57 @@ body {
   color: var(--accent-cyan);
 }
 
+/* ── Sidebar Collapsible Dropdown Group ── */
+.nav-dropdown-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-dropdown-children {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border-glass);
+  margin-left: 25px;
+  margin-top: 2px;
+}
+
+.nav-item.nav-child {
+  padding: 7px 14px;
+  font-size: 12px;
+  gap: 10px;
+}
+
+.nav-item.nav-child .nav-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.sidebar.collapsed .nav-dropdown-children {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+/* ── Clickable Profile Row ── */
+.profile-clickable {
+  cursor: pointer;
+  border-radius: var(--border-radius-sm);
+  padding: 8px 10px !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.profile-clickable:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-color: var(--border-glass);
+}
+
+.profile-clickable:hover .profile-avatar {
+  border-color: var(--accent-cyan);
+}
+
 /* 👤 Sidebar Profile Section at the Bottom */
 .profile-container-bottom {
   margin-top: auto;

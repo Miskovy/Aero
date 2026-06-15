@@ -27,12 +27,12 @@ export default function OrganizationsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
-  
+
   // Inputs state
   const [orgName, setOrgName] = useState('');
   const [orgTier, setOrgTier] = useState<Organization['tier']>('Developer Tier');
 
-  const API_BASE = '/api';
+  const API_BASE = 'https://aero-y6mm.onrender.com';
 
   // Extract Cookie helper
   const getSessionToken = () => {
@@ -64,7 +64,6 @@ export default function OrganizationsPage() {
 
       const data = await res.json();
       setOrgs(data);
-      setIsDemoMode(false);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.warn('Backend connection failed, loading local state storage instead:', errMsg);
@@ -76,7 +75,6 @@ export default function OrganizationsPage() {
         setOrgs(DEFAULT_ORGS);
         localStorage.setItem('aero_local_orgs', JSON.stringify(DEFAULT_ORGS));
       }
-      setIsDemoMode(true);
     } finally {
       setLoading(false);
     }
@@ -141,7 +139,7 @@ export default function OrganizationsPage() {
       });
 
       if (!res.ok) throw new Error('Failed to create organization in backend');
-      
+
       fetchOrganizations();
       closeModal();
     } catch (err: unknown) {
@@ -155,7 +153,7 @@ export default function OrganizationsPage() {
     if (!selectedOrgId || !orgName.trim()) return;
 
     const token = getSessionToken();
-    
+
     if (isDemoMode) {
       const updated = orgs.map(o => o.id === selectedOrgId ? { ...o, name: orgName, tier: orgTier } : o);
       saveToLocal(updated);
@@ -174,7 +172,7 @@ export default function OrganizationsPage() {
       });
 
       if (!res.ok) throw new Error('Failed to update organization in backend');
-      
+
       fetchOrganizations();
       closeModal();
     } catch (err: unknown) {
@@ -203,7 +201,7 @@ export default function OrganizationsPage() {
       });
 
       if (!res.ok) throw new Error('Failed to delete organization in backend');
-      
+
       fetchOrganizations();
     } catch (err: unknown) {
       alert(`Delete error: ${err instanceof Error ? err.message : String(err)}`);
@@ -237,7 +235,7 @@ export default function OrganizationsPage() {
   return (
     <div className="metrics-grid" style={{ gridTemplateColumns: '1fr', gap: '24px', position: 'relative' }}>
       <div className="metric-card">
-        
+
         {/* Header Console */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div>
@@ -255,9 +253,9 @@ export default function OrganizationsPage() {
               Manage shared tenant spaces, collaborative memberships, and role permissions.
             </p>
           </div>
-          <button 
-            onClick={openCreateModal} 
-            className="nav-item active" 
+          <button
+            onClick={openCreateModal}
+            className="nav-item active"
             style={{ width: 'auto', padding: '8px 16px', fontSize: '12px', border: '1px solid var(--border-glass)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', cursor: 'pointer' }}
           >
             CREATE ORGANIZATION
@@ -294,9 +292,9 @@ export default function OrganizationsPage() {
                     </span>
                     <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{org.status}</span>
                   </div>
-                  
+
                   <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>{org.name}</h3>
-                  
+
                   <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-dim)', marginBottom: '24px' }}>
                     <div>👥 {org.membersCount} {org.membersCount === 1 ? 'Member' : 'Members'}</div>
                     <div>⚡ {org.projectsCount} {org.projectsCount === 1 ? 'Stack' : 'Stacks'}</div>
@@ -304,16 +302,16 @@ export default function OrganizationsPage() {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', borderTop: '1px solid var(--border-glass)', paddingTop: '16px' }}>
-                  <button 
-                    onClick={() => openEditModal(org)} 
-                    className="nav-item" 
+                  <button
+                    onClick={() => openEditModal(org)}
+                    className="nav-item"
                     style={{ flex: 1, justifyContent: 'center', padding: '8px', fontSize: '12px', border: '1px solid var(--border-glass)', background: 'transparent', color: 'var(--text-dim)', cursor: 'pointer' }}
                   >
                     RENAME
                   </button>
-                  <button 
-                    onClick={() => handleDeleteOrg(org.id)} 
-                    className="nav-item" 
+                  <button
+                    onClick={() => handleDeleteOrg(org.id)}
+                    className="nav-item"
                     style={{ flex: 1, justifyContent: 'center', padding: '8px', fontSize: '12px', border: '1px solid rgba(239, 68, 68, 0.15)', background: 'rgba(239, 68, 68, 0.05)', color: '#f87171', cursor: 'pointer' }}
                   >
                     DELETE
@@ -361,11 +359,11 @@ export default function OrganizationsPage() {
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-dim)', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase' }}>
                   Organization Name
                 </label>
-                <input 
-                  type="text" 
-                  value={orgName} 
-                  onChange={e => setOrgName(e.target.value)} 
-                  placeholder="e.g. Acme Corporation" 
+                <input
+                  type="text"
+                  value={orgName}
+                  onChange={e => setOrgName(e.target.value)}
+                  placeholder="e.g. Acme Corporation"
                   required
                   style={{
                     width: '100%',
@@ -403,17 +401,17 @@ export default function OrganizationsPage() {
               )}
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button 
-                  type="button" 
-                  onClick={closeModal} 
-                  className="nav-item" 
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="nav-item"
                   style={{ width: 'auto', padding: '8px 16px', fontSize: '12px', border: '1px solid var(--border-glass)', background: 'transparent', color: 'var(--text-dim)', cursor: 'pointer' }}
                 >
                   CANCEL
                 </button>
-                <button 
-                  type="submit" 
-                  className="nav-item active" 
+                <button
+                  type="submit"
+                  className="nav-item active"
                   style={{ width: 'auto', padding: '8px 16px', fontSize: '12px', border: '1px solid var(--border-glass)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', cursor: 'pointer' }}
                 >
                   {modalMode === 'create' ? 'PROCEED' : 'SAVE CHANGES'}

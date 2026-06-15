@@ -22,6 +22,12 @@ export class GithubOauthGuard extends AuthGuard('github') {
         `info=${_info ? JSON.stringify(_info) : 'undefined'}`,
     );
 
+    const isCallback = request.url.includes('/callback');
+
+    if (!isCallback) {
+      return super.handleRequest(err, user, _info, context);
+    }
+
     if (err || !user) {
       let errorMessage = 'GitHub authentication failed';
       if (err instanceof Error) {

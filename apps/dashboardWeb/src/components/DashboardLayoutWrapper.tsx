@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import AeroLogo from './AeroLogo';
 
 interface DashboardLayoutWrapperProps {
@@ -11,6 +11,8 @@ interface DashboardLayoutWrapperProps {
 
 export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrapperProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const router = useRouter();
 
   // Helper to extract session cookies in client-side context
   const getSessionCookie = (name: string) => {
@@ -23,6 +25,7 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
 
   const [userName, setUserName] = useState('Console Node');
   const [userEmail, setUserEmail] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const token = getSessionCookie('aero_session');
@@ -31,13 +34,34 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
         const payloadBase64 = token.split('.')[1];
         const payloadJson = atob(payloadBase64);
         const payload = JSON.parse(payloadJson);
-        setTimeout(() => {
+        Promise.resolve().then(() => {
           if (payload.name) setUserName(payload.name);
           if (payload.email) setUserEmail(payload.email);
-        }, 0);
+        });
       } catch (e) {
         console.error('Failed to parse active user token', e);
       }
+
+      // Fetch live user info from the database (including avatar_url)
+      const fetchLiveUser = async () => {
+        try {
+          const res = await fetch('/api/users/me', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.name) setUserName(data.name);
+            if (data.email) setUserEmail(data.email);
+            if (data.avatar_url) setAvatarUrl(data.avatar_url);
+          }
+        } catch (err) {
+          console.error('Failed to fetch live user details:', err);
+        }
+      };
+      
+      Promise.resolve().then(() => {
+        fetchLiveUser();
+      });
     }
   }, []);
 
@@ -113,6 +137,17 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
 
   const pathname = usePathname();
 
+  // Auto-expand settings dropdown when navigating to a settings child route
+  useEffect(() => {
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active && pathname.startsWith('/settings')) {
+        setSettingsOpen(true);
+      }
+    });
+    return () => { active = false; };
+  }, [pathname]);
+
   // Compute pageTitle dynamically during render instead of running inside a useEffect
   let pageTitle = 'Dashboard';
   if (pathname === '/organizations') {
@@ -126,7 +161,11 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
   } else if (pathname === '/marketplace') {
     pageTitle = 'Marketplace';
   } else if (pathname === '/settings') {
-    pageTitle = 'Settings';
+    pageTitle = 'Settings · API Keys';
+  } else if (pathname === '/settings/webhooks') {
+    pageTitle = 'Settings · Webhooks';
+  } else if (pathname === '/profile') {
+    pageTitle = 'Profile';
   }
 
   const handleLogout = async () => {
@@ -216,22 +255,98 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
             <p className="nav-label">MARKETPLACE</p>
           </Link>
 
-          <Link href="/settings" className={`nav-item ${pathname === '/settings' ? 'active' : ''}`}>
-            <svg className="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-            <p className="nav-label">SETTINGS</p>
-          </Link>
+          {/* Settings Dropdown */}
+          <div className="nav-dropdown-group">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(prev => !prev)}
+              className={`nav-item ${pathname.startsWith('/settings') ? 'active' : ''}`}
+              style={{ width: '100%', cursor: 'pointer', background: 'transparent', border: 'none' }}
+            >
+              <svg className="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              <span className="nav-label" style={{ flex: 1, textAlign: 'left' }}>SETTINGS</span>
+              <svg
+                className="nav-label"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  transition: 'transform 0.25s ease',
+                  transform: settingsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  flexShrink: 0,
+                  maxWidth: 'none'
+                }}
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+
+            {/* Dropdown children */}
+            <div
+              className="nav-dropdown-children"
+              style={{
+                maxHeight: settingsOpen && !isCollapsed ? '120px' : '0px',
+                overflow: 'hidden',
+                transition: 'max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease',
+                opacity: settingsOpen && !isCollapsed ? 1 : 0,
+              }}
+            >
+              <Link
+                href="/settings"
+                className={`nav-item nav-child ${pathname === '/settings' ? 'active' : ''}`}
+              >
+                <svg className="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+                </svg>
+                <span className="nav-label">API Keys</span>
+              </Link>
+              <Link
+                href="/settings/webhooks"
+                className={`nav-item nav-child ${pathname === '/settings/webhooks' ? 'active' : ''}`}
+              >
+                <svg className="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 16.98h1.67c2.06 0 3.33-2.22 2.31-4.01L14.31 1.02c-1.03-1.79-3.6-1.79-4.62 0L2.02 12.97c-1.02 1.79.25 4.01 2.31 4.01H6" />
+                  <path d="M12 12v4" />
+                  <circle cx="12" cy="20" r="2" />
+                </svg>
+                <span className="nav-label">Webhooks</span>
+              </Link>
+            </div>
+          </div>
         </nav>
 
         {/* 👤 Profile Icon Section at the End */}
         <div className="profile-container-bottom">
-          <div className="profile-details-row">
+          <div
+            className="profile-details-row profile-clickable"
+            onClick={() => router.push('/profile')}
+            role="button"
+            tabIndex={0}
+            title="View Profile"
+            onKeyDown={(e) => { if (e.key === 'Enter') router.push('/profile'); }}
+          >
             {/* Avatar Circle with Name Initial */}
-            <div className="profile-avatar">
-              {userName.trim().charAt(0).toUpperCase()}
-            </div>
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt={userName}
+                className="profile-avatar"
+                style={{ objectFit: 'cover' }}
+              />
+            ) : (
+              <div className="profile-avatar">
+                {userName.trim().charAt(0).toUpperCase()}
+              </div>
+            )}
             <div className="profile-meta">
               <span className="profile-name">{userName}</span>
               <span className="profile-role">{userEmail || 'Developer Node'}</span>
