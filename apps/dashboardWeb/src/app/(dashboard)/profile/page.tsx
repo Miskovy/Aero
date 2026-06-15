@@ -679,7 +679,7 @@ export default function ProfilePage() {
             <span style={{ fontSize: '12px' }}>
               A 6-digit recovery code has been sent to your email.{' '}
               <a 
-                href={`/forgot-password?email=${encodeURIComponent(profile?.email || '')}`}
+                href={`/forgot-password?email=${encodeURIComponent(profile?.email || '')}&step=2`}
                 style={{ color: 'var(--accent-cyan)', textDecoration: 'underline', fontWeight: 600 }}
               >
                 Click here to complete password recovery
