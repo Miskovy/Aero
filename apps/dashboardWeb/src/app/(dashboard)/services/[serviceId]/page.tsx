@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import WebhooksManager from '@/components/WebhooksManager';
 
 interface Domain { id: string; domain: string; type: string; verification_status: string; }
 interface EnvVar { id: string; key: string; created_at: string; }
@@ -44,7 +45,7 @@ export default function ServiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'deployments' | 'domains' | 'env' | 'logs'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'deployments' | 'domains' | 'env' | 'webhooks' | 'logs'>('overview');
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedDeploymentId, setSelectedDeploymentId] = useState<string | null>(null);
   const [deploymentLogs, setDeploymentLogs] = useState<DeploymentLog[]>([]);
@@ -170,6 +171,7 @@ export default function ServiceDetailPage() {
     { key: 'deployments', label: `Deployments (${service.deployments.length})` },
     { key: 'domains', label: `Domains (${service.domains.length})` },
     { key: 'env', label: `Variables (${service.variables.length})` },
+    { key: 'webhooks', label: 'Webhooks' },
     { key: 'logs', label: 'Logs' },
   ] as const;
 
@@ -333,6 +335,12 @@ export default function ServiceDetailPage() {
               </div>
             ))}
           </>)}
+        </div>
+      )}
+
+      {activeTab === 'webhooks' && (
+        <div className="metric-card" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-glass)', padding: '24px' }}>
+          <WebhooksManager serviceId={serviceId} />
         </div>
       )}
 
