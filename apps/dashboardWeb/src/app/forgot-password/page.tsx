@@ -25,16 +25,20 @@ export default function ForgotPasswordPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const emailParam = params.get('email');
-      const stepParam = params.get('step');
       if (emailParam) {
         Promise.resolve().then(() => {
           setEmail(emailParam);
         });
       }
-      if (stepParam === '2') {
+
+      const ready = sessionStorage.getItem('pwd_reset_ready');
+      const storedEmail = sessionStorage.getItem('pwd_reset_email');
+      if (ready === 'true' && storedEmail === emailParam) {
         Promise.resolve().then(() => {
           setStep(2);
           setSuccessMessage('A 6-digit security PIN has been sent to your email.');
+          sessionStorage.removeItem('pwd_reset_ready');
+          sessionStorage.removeItem('pwd_reset_email');
         });
       }
     }

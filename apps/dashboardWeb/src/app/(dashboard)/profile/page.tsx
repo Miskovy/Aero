@@ -192,6 +192,10 @@ export default function ProfilePage() {
         throw new Error(data.message || 'Failed to request password reset.');
       }
 
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('pwd_reset_email', profile.email);
+        sessionStorage.setItem('pwd_reset_ready', 'true');
+      }
       setForgotPasswordSuccess(true);
     } catch (err) {
       setPasswordError(err instanceof Error ? err.message : 'An error occurred.');
@@ -679,7 +683,7 @@ export default function ProfilePage() {
             <span style={{ fontSize: '12px' }}>
               A 6-digit recovery code has been sent to your email.{' '}
               <a 
-                href={`/forgot-password?email=${encodeURIComponent(profile?.email || '')}&step=2`}
+                href={`/forgot-password?email=${encodeURIComponent(profile?.email || '')}`}
                 style={{ color: 'var(--accent-cyan)', textDecoration: 'underline', fontWeight: 600 }}
               >
                 Click here to complete password recovery
