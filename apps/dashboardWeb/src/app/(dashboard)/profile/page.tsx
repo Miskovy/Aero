@@ -753,6 +753,7 @@ export default function ProfilePage() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    width: 'auto',
                   }}
                 >
                   {showCurrentPassword ? (
@@ -808,6 +809,7 @@ export default function ProfilePage() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    width: 'auto',
                   }}
                 >
                   {showNewPassword ? (
@@ -861,6 +863,7 @@ export default function ProfilePage() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    width: 'auto',
                   }}
                 >
                   {showConfirmPassword ? (

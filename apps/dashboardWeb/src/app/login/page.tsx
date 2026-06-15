@@ -183,6 +183,7 @@ export default function LoginPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  width: 'auto',
                 }}
               >
                 {showPassword ? (
