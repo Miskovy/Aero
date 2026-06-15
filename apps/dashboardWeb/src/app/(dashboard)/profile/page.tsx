@@ -11,6 +11,7 @@ interface UserProfile {
   auth_provider?: string | null;
   created_at?: string;
   is_email_verified?: boolean;
+  has_password?: boolean;
 }
 
 export default function ProfilePage() {
@@ -22,6 +23,16 @@ export default function ProfilePage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [oauthError, setOauthError] = useState<string | null>(null);
+
+  // Password fields state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
 
   const API_BASE = '/api';
 
@@ -99,10 +110,90 @@ export default function ProfilePage() {
       setEditing(false);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
-    } catch (err: unknown) {
-      setSaveError(err instanceof Error ? err.message : String(err));
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setSaveLoading(false);
+    }
+  };
+
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || !confirmPassword) {
+      setPasswordError('Please fill in all required fields.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+    if (profile?.has_password && !currentPassword) {
+      setPasswordError('Current password is required.');
+      return;
+    }
+
+    setPasswordLoading(true);
+    setPasswordError(null);
+    setPasswordSuccess(false);
+    const token = getToken();
+
+    try {
+      const res = await fetch(`${API_BASE}/users/me/password`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          current_password: currentPassword || undefined,
+          new_password: newPassword,
+          confirm_password: confirmPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to update password.');
+      }
+
+      setPasswordSuccess(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      // Refresh profile to update has_password state
+      fetchProfile();
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'An error occurred.');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleForgotPasswordTrigger = async () => {
+    if (!profile?.email) return;
+    setForgotPasswordLoading(true);
+    setPasswordError(null);
+    setForgotPasswordSuccess(false);
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: profile.email }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to request password reset.');
+      }
+
+      setForgotPasswordSuccess(true);
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'An error occurred.');
+    } finally {
+      setForgotPasswordLoading(false);
     }
   };
 
@@ -520,6 +611,198 @@ export default function ProfilePage() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* Change Password Card */}
+      <div className="metric-card" style={{
+        marginTop: '24px',
+        background: 'var(--bg-primary)',
+        border: '1px solid var(--border-glass)',
+        padding: '24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px'
+      }}>
+        <div>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+            {profile?.has_password ? 'Change Password' : 'Set Account Password'}
+          </h3>
+          <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
+            {profile?.has_password 
+              ? 'Keep your account secure by updating your password periodically.'
+              : 'Add a password to your account so you can log in with either your email address or your GitHub account.'
+            }
+          </p>
+        </div>
+
+        {passwordSuccess && (
+          <div style={{
+            padding: '12px',
+            borderRadius: '6px',
+            fontSize: '13px',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            color: '#22c55e',
+            border: '1px solid rgba(34, 197, 94, 0.2)',
+            display: 'flex',
+            gap: '8px',
+            alignItems: 'center'
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <span>Password updated successfully.</span>
+          </div>
+        )}
+
+        {forgotPasswordSuccess && (
+          <div style={{
+            padding: '12px',
+            borderRadius: '6px',
+            fontSize: '13px',
+            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+            color: 'var(--accent-cyan)',
+            border: '1px solid rgba(56, 189, 248, 0.2)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px'
+          }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                <polyline points="22,6 12,13 2,6" />
+              </svg>
+              <strong>Reset PIN Dispatched</strong>
+            </div>
+            <span style={{ fontSize: '12px' }}>
+              A 6-digit recovery code has been sent to your email.{' '}
+              <a 
+                href={`/forgot-password?email=${encodeURIComponent(profile?.email || '')}`}
+                style={{ color: 'var(--accent-cyan)', textDecoration: 'underline', fontWeight: 600 }}
+              >
+                Click here to complete password recovery
+              </a>.
+            </span>
+          </div>
+        )}
+
+        {passwordError && (
+          <div className="error-alert-box">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7.49997 0.833313C3.81807 0.833313 0.833302 3.81808 0.833302 7.50001C0.833302 11.1819 3.81807 14.1667 7.49997 14.1667C11.1819 14.1667 14.1666 11.1819 14.1666 7.50001C14.1666 3.81808 11.1819 0.833313 7.49997 0.833313ZM8.12497 4.37501V8.12501H6.87497V4.37501H8.12497ZM8.12497 9.37501V10.625H6.87497V9.37501H8.12497Z" fill="currentColor" />
+            </svg>
+            <span>{passwordError}</span>
+          </div>
+        )}
+
+        <form onSubmit={handlePasswordUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {profile?.has_password && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                  Current Password
+                </label>
+                <button
+                  type="button"
+                  onClick={handleForgotPasswordTrigger}
+                  disabled={forgotPasswordLoading}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--accent-cyan)',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    padding: 0,
+                    textDecoration: 'underline'
+                  }}
+                >
+                  {forgotPasswordLoading ? 'Sending PIN...' : 'Forgot your password?'}
+                </button>
+              </div>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={e => setCurrentPassword(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-glass)',
+                  borderRadius: '6px',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px'
+                }}
+              />
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                New Password
+              </label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                required
+                minLength={8}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-glass)',
+                  borderRadius: '6px',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                required
+                minLength={8}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-glass)',
+                  borderRadius: '6px',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px'
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+            <button
+              type="submit"
+              disabled={passwordLoading}
+              style={{
+                padding: '8px 20px',
+                fontSize: '12px',
+                background: 'rgba(56, 189, 248, 0.1)',
+                border: '1px solid rgba(56, 189, 248, 0.2)',
+                color: 'var(--accent-cyan)',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 600,
+                width: 'auto',
+                opacity: passwordLoading ? 0.5 : 1
+              }}
+            >
+              {passwordLoading ? 'SAVING...' : profile?.has_password ? 'UPDATE PASSWORD' : 'SET PASSWORD'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

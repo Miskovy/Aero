@@ -21,6 +21,18 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const emailParam = params.get('email');
+      if (emailParam) {
+        Promise.resolve().then(() => {
+          setEmail(emailParam);
+        });
+      }
+    }
+  }, []);
+
   // STEP 1: Request PIN Code
   const handleRequestPin = async (e: React.FormEvent) => {
     e.preventDefault();

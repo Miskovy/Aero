@@ -23,6 +23,7 @@ import { UserService } from './user.service';
 import { User as UserModel } from '../../generated/prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../common/interfaces/Authenticated.interface';
 
@@ -37,7 +38,10 @@ export class UserController {
   private sanitizeUser(user: UserModel) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password_hash, two_factor_secret, ...safe } = user;
-    return safe;
+    return {
+      ...safe,
+      has_password: !!password_hash,
+    };
   }
 
   @Post()
@@ -79,6 +83,22 @@ export class UserController {
       data: { name: userData.name },
     });
     return this.sanitizeUser(updatedUser);
+  }
+
+  @Patch('me/password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update the currently authenticated user password' })
+  @ApiResponse({ status: 200, description: 'Password updated successfully.' })
+  @ApiResponse({ status: 400, description: 'Invalid passwords or mismatch.' })
+  async updatePassword(
+    @Req() req: AuthenticatedRequest,
+    @Body() passwordData: UpdatePasswordDto,
+  ) {
+    const userId = req.user?.id;
+    if (!userId) throw new NotFoundException('User not authenticated');
+    await this.userService.updatePassword(userId, passwordData);
+    return { message: 'Password updated successfully' };
   }
 
   @Get()

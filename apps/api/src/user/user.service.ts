@@ -1,6 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, User } from '../../generated/prisma/client';
+import { UpdatePasswordDto } from './dto/update-password.dto';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class UserService {
@@ -59,6 +65,40 @@ export class UserService {
   }): Promise<User | null> {
     return await this.prisma.user.findFirst({
       where: params.where,
+    });
+  }
+
+  async updatePassword(userId: string, data: UpdatePasswordDto): Promise<void> {
+    const user = await this.user({ id: userId });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (data.new_password !== data.confirm_password) {
+      throw new BadRequestException(
+        'New password and confirmation password do not match',
+      );
+    }
+
+    if (user.password_hash) {
+      if (!data.current_password) {
+        throw new BadRequestException('Current password is required');
+      }
+      const isMatch = await bcrypt.compare(
+        data.current_password,
+        user.password_hash,
+      );
+      if (!isMatch) {
+        throw new BadRequestException('Incorrect current password');
+      }
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(data.new_password, salt);
+
+    await this.updateUser({
+      where: { id: userId },
+      data: { password_hash: hashedPassword },
     });
   }
 }
