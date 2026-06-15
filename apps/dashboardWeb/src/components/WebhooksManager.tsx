@@ -31,7 +31,7 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
   const [name, setName] = useState('');
   const [provider, setProvider] = useState('github');
   const [branchFilter, setBranchFilter] = useState('');
-  
+
   // Successful creation display (to show secret token once)
   const [newlyCreated, setNewlyCreated] = useState<{
     name: string;
@@ -102,7 +102,7 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
       }
 
       const data = await res.json();
-      
+
       // Construct absolute webhook URL
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
       const webhookUrl = `${origin}${data.webhook_url}`;
@@ -161,7 +161,7 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
       try {
         const parsed = JSON.parse(events);
         if (Array.isArray(parsed)) return parsed.join(', ');
-      } catch {}
+      } catch { }
       return events;
     }
     return 'push';
@@ -169,7 +169,7 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      
+
       {/* Header and Toggle Button */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -180,21 +180,21 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
             Automatically trigger deployments when code changes are pushed to your git repository.
           </p>
         </div>
-        <button 
+        <button
           onClick={() => {
             setIsAdding(!isAdding);
             setNewlyCreated(null);
-          }} 
-          style={{ 
-            padding: '8px 16px', 
-            fontSize: '11px', 
-            background: isAdding ? 'rgba(239, 68, 68, 0.05)' : 'rgba(56,189,248,0.1)', 
-            border: isAdding ? '1px solid rgba(239, 68, 68, 0.15)' : '1px solid rgba(56,189,248,0.2)', 
-            color: isAdding ? '#f87171' : 'var(--accent-cyan)', 
-            borderRadius: '6px', 
-            cursor: 'pointer', 
-            fontWeight: 600, 
-            width: 'auto' 
+          }}
+          style={{
+            padding: '8px 16px',
+            fontSize: '11px',
+            background: isAdding ? 'rgba(239, 68, 68, 0.05)' : 'rgba(56,189,248,0.1)',
+            border: isAdding ? '1px solid rgba(239, 68, 68, 0.15)' : '1px solid rgba(56,189,248,0.2)',
+            color: isAdding ? '#f87171' : 'var(--accent-cyan)',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: 600,
+            width: 'auto'
           }}
         >
           {isAdding ? 'CANCEL' : '+ NEW WEBHOOK'}
@@ -248,13 +248,13 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
             <div>
               <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-dim)', display: 'block', marginBottom: '4px', textTransform: 'uppercase' }}>Payload URL</span>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input 
-                  type="text" 
-                  readOnly 
-                  value={newlyCreated.webhookUrl} 
+                <input
+                  type="text"
+                  readOnly
+                  value={newlyCreated.webhookUrl}
                   style={{ flex: 1, padding: '8px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-glass)', borderRadius: '6px', fontSize: '12px', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}
                 />
-                <button 
+                <button
                   onClick={() => copyToClipboard(newlyCreated.webhookUrl, 'url')}
                   style={{ padding: '8px 12px', fontSize: '11px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-glass)', color: 'var(--text-primary)', borderRadius: '6px', cursor: 'pointer', width: 'auto' }}
                 >
@@ -267,13 +267,13 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
             <div>
               <span style={{ fontSize: '11px', fontWeight: 600, color: '#f59e0b', display: 'block', marginBottom: '4px', textTransform: 'uppercase' }}>Secret Token (Shown Once!)</span>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input 
-                  type="text" 
-                  readOnly 
-                  value={newlyCreated.secretToken} 
+                <input
+                  type="text"
+                  readOnly
+                  value={newlyCreated.secretToken}
                   style={{ flex: 1, padding: '8px 12px', background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#f59e0b', fontFamily: 'var(--font-mono)' }}
                 />
-                <button 
+                <button
                   onClick={() => copyToClipboard(newlyCreated.secretToken, 'secret')}
                   style={{ padding: '8px 12px', fontSize: '11px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', color: '#f59e0b', borderRadius: '6px', cursor: 'pointer', width: 'auto' }}
                 >
@@ -298,14 +298,14 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
           animation: 'fadeIn 0.3s ease'
         }}>
           <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Create Webhook</h3>
-          
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
               <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-dim)', display: 'block', marginBottom: '6px', textTransform: 'uppercase' }}>Friendly Name</label>
-              <input 
-                type="text" 
-                placeholder="e.g. GitHub Push Hook" 
-                value={name} 
+              <input
+                type="text"
+                placeholder="e.g. GitHub Push Hook"
+                value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
                 style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-glass)', borderRadius: '6px', fontSize: '13px', color: 'var(--text-primary)' }}
@@ -314,15 +314,12 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
 
             <div>
               <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-dim)', display: 'block', marginBottom: '6px', textTransform: 'uppercase' }}>Provider</label>
-              <select 
-                value={provider} 
+              <select
+                value={provider}
                 onChange={(e) => setProvider(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-glass)', borderRadius: '6px', fontSize: '13px', color: 'var(--text-primary)' }}
               >
                 <option value="github">GitHub</option>
-                <option value="gitlab">GitLab</option>
-                <option value="bitbucket">BitBucket</option>
-                <option value="custom">Custom</option>
               </select>
             </div>
           </div>
@@ -330,10 +327,10 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
               <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-dim)', display: 'block', marginBottom: '6px', textTransform: 'uppercase' }}>Branch Filter (Optional)</label>
-              <input 
-                type="text" 
-                placeholder="e.g. main (blank for all branches)" 
-                value={branchFilter} 
+              <input
+                type="text"
+                placeholder="e.g. main (blank for all branches)"
+                value={branchFilter}
                 onChange={(e) => setBranchFilter(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-glass)', borderRadius: '6px', fontSize: '13px', color: 'var(--text-primary)' }}
               />
@@ -341,29 +338,29 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
 
             <div>
               <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-dim)', display: 'block', marginBottom: '6px', textTransform: 'uppercase' }}>Events</label>
-              <input 
-                type="text" 
-                readOnly 
-                value="Push Events" 
+              <input
+                type="text"
+                readOnly
+                value="Push Events"
                 style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-glass)', borderRadius: '6px', fontSize: '13px', color: 'var(--text-dim)', cursor: 'not-allowed' }}
               />
             </div>
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={actionLoading}
-            style={{ 
+            style={{
               alignSelf: 'flex-start',
-              padding: '10px 24px', 
-              fontSize: '12px', 
-              background: 'var(--accent-cyan)', 
-              border: 'none', 
-              color: '#000000', 
-              borderRadius: '6px', 
-              cursor: 'pointer', 
-              fontWeight: 600, 
-              width: 'auto' 
+              padding: '10px 24px',
+              fontSize: '12px',
+              background: 'var(--accent-cyan)',
+              border: 'none',
+              color: '#000000',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              width: 'auto'
             }}
           >
             {actionLoading ? 'CREATING...' : 'CREATE WEBHOOK'}
@@ -405,12 +402,12 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
             const absoluteUrl = `${origin}${wh.webhook_url}`;
 
             return (
-              <div 
-                key={wh.id} 
-                style={{ 
-                  padding: '16px', 
-                  background: 'var(--bg-primary)', 
-                  border: '1px solid var(--border-glass)', 
+              <div
+                key={wh.id}
+                style={{
+                  padding: '16px',
+                  background: 'var(--bg-primary)',
+                  border: '1px solid var(--border-glass)',
                   borderRadius: '8px',
                   display: 'flex',
                   flexDirection: 'column',
@@ -422,19 +419,19 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                       <strong style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{wh.name}</strong>
-                      <span style={{ 
-                        fontSize: '9px', 
-                        padding: '2px 6px', 
-                        borderRadius: '4px', 
-                        background: 'var(--bg-tertiary)', 
-                        color: 'var(--accent-cyan)', 
-                        fontWeight: 600, 
-                        textTransform: 'uppercase' 
+                      <span style={{
+                        fontSize: '9px',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        background: 'var(--bg-tertiary)',
+                        color: 'var(--accent-cyan)',
+                        fontWeight: 600,
+                        textTransform: 'uppercase'
                       }}>
                         {wh.provider}
                       </span>
                     </div>
-                    
+
                     <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: 'var(--text-dim)' }}>
                       <span>Events: <strong style={{ color: 'var(--text-primary)' }}>{formatEvents(wh.events)}</strong></span>
                       <span>Branch: <strong style={{ color: 'var(--text-primary)' }}>{wh.branch_filter || 'all branches'}</strong></span>
@@ -452,15 +449,15 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
                         </span>
                       )}
                     </div>
-                    
-                    <button 
+
+                    <button
                       onClick={() => handleDeleteWebhook(wh.id, wh.name)}
-                      style={{ 
-                        background: 'none', 
-                        border: 'none', 
-                        color: '#f87171', 
-                        cursor: 'pointer', 
-                        padding: '6px', 
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#f87171',
+                        cursor: 'pointer',
+                        padding: '6px',
                         borderRadius: '4px',
                         display: 'flex',
                         alignItems: 'center',
@@ -480,30 +477,30 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
                 </div>
 
                 {/* Bottom Row: Webhook Payload URL copy section */}
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  background: 'var(--bg-tertiary)', 
-                  border: '1px solid var(--border-glass)', 
-                  borderRadius: '6px', 
-                  padding: '6px 10px' 
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border-glass)',
+                  borderRadius: '6px',
+                  padding: '6px 10px'
                 }}>
                   <span style={{ fontSize: '11px', color: 'var(--text-dim)', flexShrink: 0, fontFamily: 'var(--font-mono)' }}>URL</span>
                   <span style={{ fontSize: '11px', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                     {absoluteUrl}
                   </span>
-                  <button 
+                  <button
                     onClick={() => copyToClipboard(absoluteUrl, 'url')}
-                    style={{ 
-                      padding: '3px 8px', 
-                      fontSize: '10px', 
-                      background: 'rgba(255,255,255,0.03)', 
-                      border: '1px solid var(--border-glass)', 
-                      color: 'var(--text-primary)', 
-                      borderRadius: '4px', 
-                      cursor: 'pointer', 
-                      width: 'auto' 
+                    style={{
+                      padding: '3px 8px',
+                      fontSize: '10px',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid var(--border-glass)',
+                      color: 'var(--text-primary)',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      width: 'auto'
                     }}
                   >
                     COPY

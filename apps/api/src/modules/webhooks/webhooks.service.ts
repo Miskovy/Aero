@@ -47,7 +47,7 @@ export class WebhooksService {
     return {
       ...webhook,
       // Provide the webhook URL that should be configured in GitHub/GitLab
-      webhook_url: `/api/webhooks/${secretToken}`,
+      webhook_url: `/api/webhooks/${webhook.id}`,
     };
   }
 
@@ -78,8 +78,8 @@ export class WebhooksService {
     // Mask the secret tokens
     return webhooks.map((wh) => ({
       ...wh,
-      secret_token: wh.secret_token.substring(0, 8) + '...',
-      webhook_url: `/api/webhooks/${wh.secret_token}`,
+      secret_token: '••••••••••••••••••••••••••••••••',
+      webhook_url: `/api/webhooks/${wh.id}`,
     }));
   }
 
@@ -104,12 +104,13 @@ export class WebhooksService {
    * This is the URL that GitHub/GitLab will POST to.
    */
   async handleWebhookPayload(
-    secretToken: string,
+    id: string,
     payload: WebhookPayload,
     headers: Record<string, string>,
+    queryToken?: string,
   ) {
     const webhook = await this.prisma.webhook.findUnique({
-      where: { secret_token: secretToken },
+      where: { id: id },
       include: {
         service: true,
       },
@@ -119,9 +120,13 @@ export class WebhooksService {
       throw new NotFoundException('Webhook not found or inactive');
     }
 
-    // Verify GitHub signature if present
-    const githubSignature = headers['x-hub-signature-256'];
-    if (webhook.provider === 'github' && githubSignature) {
+    // Verify signature/secret token based on provider
+    if (webhook.provider === 'github') {
+      const githubSignature =
+        headers['x-hub-signature-256'] || headers['X-Hub-Signature-256'];
+      if (!githubSignature) {
+        throw new ForbiddenException('Missing GitHub signature header');
+      }
       const isValid = this.verifyGitHubSignature(
         JSON.stringify(payload),
         githubSignature,
@@ -130,6 +135,25 @@ export class WebhooksService {
       if (!isValid) {
         this.logger.warn(`Invalid GitHub signature for webhook ${webhook.id}`);
         throw new ForbiddenException('Invalid webhook signature');
+      }
+    } else if (webhook.provider === 'gitlab') {
+      const gitlabToken =
+        headers['x-gitlab-token'] || headers['X-Gitlab-Token'];
+      if (!gitlabToken || gitlabToken !== webhook.secret_token) {
+        this.logger.warn(`Invalid GitLab token for webhook ${webhook.id}`);
+        throw new ForbiddenException('Invalid webhook secret token');
+      }
+    } else {
+      // For custom/bitbucket: accept token in header or query param
+      const passedToken =
+        headers['x-webhook-secret'] ||
+        headers['X-Webhook-Secret'] ||
+        queryToken;
+      if (!passedToken || passedToken !== webhook.secret_token) {
+        this.logger.warn(
+          `Invalid or missing secret token for webhook ${webhook.id}`,
+        );
+        throw new ForbiddenException('Invalid webhook secret token');
       }
     }
 

@@ -8,6 +8,8 @@ import {
   Headers,
   UseGuards,
   Req,
+  Query,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -80,7 +82,7 @@ export class WebhooksController {
 
   // ─── Public Endpoint (no auth required — validated by webhook token) ───
 
-  @Post('webhooks/:token')
+  @Post('webhooks/:id')
   @ApiOperation({
     summary: 'Receive webhook payload from GitHub/GitLab (public endpoint)',
   })
@@ -89,10 +91,16 @@ export class WebhooksController {
     description: 'Webhook processed and deployment triggered.',
   })
   async handleWebhook(
-    @Param('token') token: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() payload: WebhookPayload,
     @Headers() headers: Record<string, string>,
+    @Query('token') queryToken?: string,
   ) {
-    return this.webhooksService.handleWebhookPayload(token, payload, headers);
+    return this.webhooksService.handleWebhookPayload(
+      id,
+      payload,
+      headers,
+      queryToken,
+    );
   }
 }
