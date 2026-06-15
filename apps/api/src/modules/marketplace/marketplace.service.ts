@@ -15,6 +15,28 @@ import {
   RegistryData,
 } from './interfaces/marketplace.interface';
 
+function normalizeGithubUrl(url: string): string {
+  if (!url) return url;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === 'github.com') {
+      const parts = parsed.pathname.split('/').filter(Boolean);
+      if (parts.length >= 4 && (parts[2] === 'blob' || parts[2] === 'raw')) {
+        const owner = parts[0];
+        const repo = parts[1];
+        const branch = parts[3];
+        const rest = parts.slice(4).join('/');
+        const search = parsed.search;
+        const hash = parsed.hash;
+        return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${rest}${search}${hash}`;
+      }
+    }
+  } catch {
+    // Return original URL if parsing fails
+  }
+  return url;
+}
+
 @Injectable()
 export class MarketplaceService {
   private readonly logger = new Logger(MarketplaceService.name);
@@ -35,12 +57,13 @@ export class MarketplaceService {
     }
 
     const registryUrl = process.env.AERO_MARKETPLACE_REGISTRY_URL || '';
+    const normalizedUrl = normalizeGithubUrl(registryUrl);
 
     try {
-      const response = await fetch(registryUrl);
+      const response = await fetch(normalizedUrl);
       if (!response.ok) {
         throw new Error(
-          `Failed to fetch registry from ${registryUrl}: ${response.statusText}`,
+          `Failed to fetch registry from ${normalizedUrl}: ${response.statusText}`,
         );
       }
 
@@ -89,13 +112,14 @@ export class MarketplaceService {
     const template = await this.getTemplate(templateId);
 
     let composeContent = '';
+    const composeUrl = normalizeGithubUrl(template.compose_url);
     try {
-      const response = await fetch(template.compose_url);
+      const response = await fetch(composeUrl);
       if (!response.ok) throw new Error('Bad response');
       composeContent = await response.text();
     } catch {
       throw new BadRequestException(
-        `Failed to download template configuration from ${template.compose_url}`,
+        `Failed to download template configuration from ${composeUrl}`,
       );
     }
 
