@@ -28,6 +28,11 @@ import {
 import { envListAction, envSetAction, envUnsetAction, envImportAction } from './commands/env.js';
 import { nodeListAction, nodeAddAction, nodeRemoveAction } from './commands/nodes.js';
 import {
+  webhooksListAction,
+  webhooksCreateAction,
+  webhooksDeleteAction,
+} from './commands/webhooks.js';
+import {
   projectsListAction,
   projectsInspectAction,
   projectsCreateAction,
@@ -75,6 +80,13 @@ envCmd.command('set [serviceId] [key] [value]').description('Set an environment 
 envCmd.command('unset [serviceId] [key]').description('Unset an environment variable').action(envUnsetAction);
 envCmd.command('import [serviceId] [filepath]').description('Import a .env file').action(envImportAction);
 program.addCommand(envCmd);
+
+// ── Webhooks ──
+const webhooksCmd = new Command('webhooks').description('Manage service webhooks');
+webhooksCmd.command('list [serviceId]').description('List all webhooks for a service').action(webhooksListAction);
+webhooksCmd.command('create [serviceId]').description('Create a new webhook for a service').action(webhooksCreateAction);
+webhooksCmd.command('delete [serviceId] [webhookId]').description('Delete a webhook').action(webhooksDeleteAction);
+program.addCommand(webhooksCmd);
 
 // ── Nodes ──
 const nodeCmd = new Command('node').description('Manage connected servers (nodes)');
