@@ -7,6 +7,9 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
+  Req,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -14,22 +17,68 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { User as UserModel } from '../../generated/prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../common/interfaces/Authenticated.interface';
 
 @ApiTags('Users')
 @Controller('users')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
+
+  /**
+   * Strips sensitive fields from a User object before returning to the client.
+   */
+  private sanitizeUser(user: UserModel) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password_hash, two_factor_secret, ...safe } = user;
+    return safe;
+  }
 
   @Post()
   @ApiOperation({ summary: 'Create a new user directly' })
   @ApiResponse({ status: 201, description: 'The created user.' })
   async createUser(@Body() userData: CreateUserDto): Promise<UserModel> {
     return this.userService.createUser(userData);
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the currently authenticated user profile' })
+  @ApiResponse({ status: 200, description: 'The authenticated user profile.' })
+  @ApiResponse({ status: 404, description: 'User not found.' })
+  async getMe(@Req() req: AuthenticatedRequest) {
+    const userId = req.user?.id;
+    if (!userId) throw new NotFoundException('User not authenticated');
+    const user = await this.userService.user({ id: userId });
+    if (!user) throw new NotFoundException('User not found');
+    return this.sanitizeUser(user);
+  }
+
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update the currently authenticated user profile' })
+  @ApiResponse({ status: 200, description: 'The updated user profile.' })
+  @ApiResponse({ status: 404, description: 'User not found.' })
+  async updateMe(
+    @Req() req: AuthenticatedRequest,
+    @Body() userData: UpdateUserDto,
+  ) {
+    const userId = req.user?.id;
+    if (!userId) throw new NotFoundException('User not authenticated');
+    // Only allow updating name (not email/password via this endpoint)
+    const updatedUser = await this.userService.updateUser({
+      where: { id: userId },
+      data: { name: userData.name },
+    });
+    return this.sanitizeUser(updatedUser);
   }
 
   @Get()
