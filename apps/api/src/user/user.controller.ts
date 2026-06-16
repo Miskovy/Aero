@@ -117,9 +117,7 @@ export class UserController {
     });
   }
 
-  @Get(
-    ':id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
-  )
+  @Get(':id')
   @ApiOperation({ summary: 'Get a user by ID' })
   @ApiParam({ name: 'id', description: 'The user ID' })
   @ApiResponse({ status: 200, description: 'The found user.' })
@@ -130,9 +128,7 @@ export class UserController {
     return this.userService.user({ id });
   }
 
-  @Patch(
-    ':id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
-  )
+  @Patch(':id')
   @ApiOperation({ summary: 'Update a user by ID' })
   @ApiParam({ name: 'id', description: 'The user ID' })
   @ApiResponse({ status: 200, description: 'The updated user.' })
@@ -146,9 +142,7 @@ export class UserController {
     });
   }
 
-  @Delete(
-    ':id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
-  )
+  @Delete(':id')
   @ApiOperation({ summary: 'Delete a user by ID' })
   @ApiParam({ name: 'id', description: 'The user ID' })
   @ApiResponse({ status: 200, description: 'The deleted user.' })
