@@ -10,6 +10,7 @@ import {
   UseGuards,
   Req,
   NotFoundException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -116,21 +117,27 @@ export class UserController {
     });
   }
 
-  @Get(':id')
+  @Get(
+    ':id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+  )
   @ApiOperation({ summary: 'Get a user by ID' })
   @ApiParam({ name: 'id', description: 'The user ID' })
   @ApiResponse({ status: 200, description: 'The found user.' })
   @ApiResponse({ status: 404, description: 'User not found.' })
-  async getUserById(@Param('id') id: string): Promise<UserModel | null> {
+  async getUserById(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<UserModel | null> {
     return this.userService.user({ id });
   }
 
-  @Patch(':id')
+  @Patch(
+    ':id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+  )
   @ApiOperation({ summary: 'Update a user by ID' })
   @ApiParam({ name: 'id', description: 'The user ID' })
   @ApiResponse({ status: 200, description: 'The updated user.' })
   async updateUser(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() userData: UpdateUserDto,
   ): Promise<UserModel> {
     return this.userService.updateUser({
@@ -139,11 +146,13 @@ export class UserController {
     });
   }
 
-  @Delete(':id')
+  @Delete(
+    ':id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+  )
   @ApiOperation({ summary: 'Delete a user by ID' })
   @ApiParam({ name: 'id', description: 'The user ID' })
   @ApiResponse({ status: 200, description: 'The deleted user.' })
-  async deleteUser(@Param('id') id: string): Promise<UserModel> {
+  async deleteUser(@Param('id', ParseUUIDPipe) id: string): Promise<UserModel> {
     return this.userService.deleteUser({ id });
   }
 }
