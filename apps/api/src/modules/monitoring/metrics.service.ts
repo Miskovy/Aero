@@ -100,27 +100,36 @@ export class MetricsService {
     }
   }
 
+  private isPushingMetrics = false;
+
   @Cron('*/5 * * * * *')
   async pushMetrics() {
+    if (this.isPushingMetrics) return;
     if (!(await this.checkDockerAvailability())) {
       return;
     }
+
+    this.isPushingMetrics = true;
     try {
       const containers = await this.dockerService.listContainers({
         filters: { label: ['aero.managed=true'] },
       });
 
-      for (const container of containers) {
-        const serviceId = container.Labels['aero.service.id'];
-        if (!serviceId) continue;
+      await Promise.allSettled(
+        containers.map(async (container) => {
+          const serviceId = container.Labels['aero.service.id'];
+          if (!serviceId) return;
 
-        const metrics = await this.getContainerMetrics(container.Id);
-        this.wsGateway.emit('metrics:update', { serviceId, ...metrics });
-      }
+          const metrics = await this.getContainerMetrics(container.Id);
+          this.wsGateway.emit('metrics:update', { serviceId, ...metrics });
+        }),
+      );
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to push metrics: ${errorMessage}`);
+    } finally {
+      this.isPushingMetrics = false;
     }
   }
 

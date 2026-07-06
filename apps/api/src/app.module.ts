@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { VaultModule } from './modules/vault/vault.module';
@@ -12,6 +14,7 @@ import { GitModule } from './modules/git/git.module';
 import { NetworkingModule } from './modules/networking/networking.module';
 import { DockerModule } from './modules/docker/docker.module';
 import { DeploymentsModule } from './modules/deployments/deployment.module';
+import { ServicesModule } from './modules/services/services.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { ProjectsModule } from './projects/projects.module';
 import { SecretsModule } from './modules/secrets/secrets.module';
@@ -33,6 +36,12 @@ import { MailModule } from './mail/mail.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     RedisModule,
     MailModule,
     BullModule.forRootAsync({
@@ -82,6 +91,7 @@ import { MailModule } from './mail/mail.module';
     DomainsModule,
     DockerModule,
     DeploymentsModule,
+    ServicesModule,
     OrganizationsModule,
     ProjectsModule,
     SecretsModule,
@@ -95,6 +105,12 @@ import { MailModule } from './mail/mail.module';
     EventEmitterModule.forRoot(),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ForbiddenException,
   Logger,
   OnApplicationBootstrap,
 } from '@nestjs/common';
@@ -10,11 +9,6 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Deployment } from '../../../generated/prisma/client';
-import { CreateServiceDto } from './dto/create-service.dto';
-import { UpdateServiceDto } from './dto/update-service.dto';
-import { VaultService } from '../vault/vault.service';
-import { CloudflareService } from '../cloudflare/cloudflare.service';
-import { DockerService } from '../docker/docker.service';
 
 @Injectable()
 export class DeploymentsService implements OnApplicationBootstrap {
@@ -22,17 +16,9 @@ export class DeploymentsService implements OnApplicationBootstrap {
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue('deployments') private readonly deploymentsQueue: Queue,
-    private readonly vaultService: VaultService,
-    private readonly cloudflareService: CloudflareService,
-    private readonly dockerService: DockerService,
   ) {}
 
   async onApplicationBootstrap() {
-    // Sync tunnel ingress on startup so existing running services are routed
-    this.syncTunnelIngress().catch((err) => {
-      this.logger.warn('Failed to sync tunnel ingress on startup', err);
-    });
-
     // Auto-fix any queued/building deployments that are actually successfully running now
     try {
       const runningServices = await this.prisma.service.findMany({
@@ -55,484 +41,6 @@ export class DeploymentsService implements OnApplicationBootstrap {
         err,
       );
     }
-  }
-
-  /**
-   * Sync all running Aero services into the Cloudflare tunnel ingress config.
-   */
-  async syncTunnelIngress() {
-    const runningServices = await this.prisma.service.findMany({
-      where: { status: 'running' },
-      include: { domains: true },
-    });
-
-    const ingressEntries: {
-      slug: string;
-      domain: string;
-      containerId: string;
-      port: number;
-    }[] = [];
-
-    for (const svc of runningServices) {
-      const containers = await this.dockerService.listContainers({
-        all: false,
-        filters: { label: [`aero.service.id=${svc.id}`] },
-      });
-      if (containers.length === 0) continue;
-
-      const activeDomain = svc.domains.find(
-        (d) => d.type === 'auto_generated',
-      )?.domain;
-      if (!activeDomain) continue;
-
-      ingressEntries.push({
-        slug: svc.slug,
-        domain: activeDomain,
-        containerId: containers[0].Id,
-        port: svc.internal_port || 3000,
-      });
-    }
-
-    if (ingressEntries.length > 0) {
-      await this.cloudflareService.updateTunnelIngress(ingressEntries);
-    } else {
-      this.logger.log('No running services to configure in tunnel ingress');
-    }
-  }
-
-  /**
-   * Validates that the given user has membership access to the service's organization.
-   * Returns the full service with project/org/member chain for further use.
-   */
-  private async validateServiceAccess(serviceId: string, userId?: string) {
-    const service = await this.prisma.service.findUnique({
-      where: { id: serviceId },
-      include: {
-        project: {
-          include: {
-            organization: {
-              include: { members: true },
-            },
-          },
-        },
-      },
-    });
-
-    if (!service) throw new NotFoundException('Service not found');
-
-    if (userId) {
-      const isMember = service.project.organization.members.some(
-        (m) => m.user_id === userId,
-      );
-      if (!isMember) throw new ForbiddenException('Access denied');
-    }
-
-    return service;
-  }
-
-  async listAllServices(userId?: string) {
-    if (!userId) {
-      return this.prisma.service.findMany({ take: 50 });
-    }
-
-    // We get services that belong to projects in organizations the user is a member of
-    return this.prisma.service.findMany({
-      where: {
-        project: {
-          organization: {
-            members: {
-              some: {
-                user_id: userId,
-              },
-            },
-          },
-        },
-      },
-      include: {
-        project: true,
-      },
-      take: 50,
-    });
-  }
-
-  // GET /services/:serviceId
-  async getServiceDetails(serviceId: string, userId?: string) {
-    await this.validateServiceAccess(serviceId, userId);
-
-    return this.prisma.service.findUnique({
-      where: { id: serviceId },
-      include: {
-        project: true,
-        domains: true,
-        variables: {
-          select: {
-            id: true,
-            key: true,
-            created_at: true,
-            updated_at: true,
-          },
-        },
-        secrets: {
-          select: {
-            id: true,
-            key: true,
-            created_at: true,
-            updated_at: true,
-          },
-        },
-        node: {
-          select: {
-            id: true,
-            name: true,
-            status: true,
-            hostname: true,
-            last_heartbeat_at: true,
-          },
-        },
-        deployments: {
-          orderBy: { created_at: 'desc' },
-          take: 5,
-        },
-      },
-    });
-  }
-
-  // PATCH /services/:serviceId
-  async updateService(
-    serviceId: string,
-    data: UpdateServiceDto,
-    userId?: string,
-  ) {
-    await this.validateServiceAccess(serviceId, userId);
-
-    return this.prisma.service.update({
-      where: { id: serviceId },
-      data: {
-        ...(data.name !== undefined && { name: data.name }),
-        ...(data.nodeId !== undefined && { node_id: data.nodeId }),
-        ...(data.git_branch !== undefined && { git_branch: data.git_branch }),
-        ...(data.build_command !== undefined && {
-          build_command: data.build_command,
-        }),
-        ...(data.start_command !== undefined && {
-          start_command: data.start_command,
-        }),
-        ...(data.internal_port !== undefined && {
-          internal_port: data.internal_port,
-        }),
-        ...(data.replicas !== undefined && { replicas: data.replicas }),
-        ...(data.resource_limits !== undefined && {
-          resource_limits: data.resource_limits,
-        }),
-        ...(data.health_check !== undefined && {
-          health_check: data.health_check,
-        }),
-        ...(data.restart_policy !== undefined && {
-          restart_policy: data.restart_policy,
-        }),
-      },
-      include: {
-        project: true,
-        domains: true,
-      },
-    });
-  }
-
-  // DELETE /services/:serviceId
-  async deleteService(serviceId: string, userId?: string) {
-    await this.validateServiceAccess(serviceId, userId);
-
-    // Cascade deletes are configured in the schema for most relations,
-    // but we delete in a transaction to ensure clean teardown.
-    await this.prisma.$transaction([
-      this.prisma.deploymentLog.deleteMany({
-        where: { deployment: { service_id: serviceId } },
-      }),
-      this.prisma.deployment.deleteMany({
-        where: { service_id: serviceId },
-      }),
-      this.prisma.serviceDomain.deleteMany({
-        where: { service_id: serviceId },
-      }),
-      this.prisma.serviceSecret.deleteMany({
-        where: { service_id: serviceId },
-      }),
-      this.prisma.environmentVariable.deleteMany({
-        where: { service_id: serviceId },
-      }),
-      this.prisma.serviceVolume.deleteMany({
-        where: { service_id: serviceId },
-      }),
-      this.prisma.service.delete({
-        where: { id: serviceId },
-      }),
-    ]);
-
-    return { success: true, message: 'Service deleted successfully' };
-  }
-
-  /**
-   * Find the Docker container for a service by its aero.service.id label.
-   * Returns the container ID, or null if not found.
-   */
-  private async findServiceContainer(
-    serviceId: string,
-  ): Promise<string | null> {
-    try {
-      const containers = await this.dockerService.listContainers({
-        all: true,
-        filters: { label: [`aero.service.id=${serviceId}`] },
-      });
-      if (containers.length === 0) return null;
-      return containers[0].Id;
-    } catch {
-      return null;
-    }
-  }
-
-  // POST /services/:serviceId/start
-  async startService(serviceId: string, userId?: string) {
-    await this.validateServiceAccess(serviceId, userId);
-
-    const containerId = await this.findServiceContainer(serviceId);
-    if (containerId) {
-      try {
-        await this.dockerService.startContainer(containerId);
-        this.logger.log(
-          `Started container ${containerId} for service ${serviceId}`,
-        );
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        // Container already running is not an error
-        if (!msg.includes('already started') && !msg.includes('304')) {
-          this.logger.error(`Failed to start container: ${msg}`);
-          throw new BadRequestException(`Failed to start container: ${msg}`);
-        }
-      }
-    } else {
-      this.logger.warn(`No container found for service ${serviceId}`);
-    }
-
-    const service = await this.prisma.service.update({
-      where: { id: serviceId },
-      data: { status: 'running' },
-      include: { node: true },
-    });
-
-    // Sync tunnel ingress so traffic routes to the newly started container
-    this.syncTunnelIngress().catch(() => {});
-
-    return {
-      success: true,
-      message: `Service '${service.name}' started`,
-      service,
-    };
-  }
-
-  // POST /services/:serviceId/stop
-  async stopService(serviceId: string, userId?: string) {
-    await this.validateServiceAccess(serviceId, userId);
-
-    const containerId = await this.findServiceContainer(serviceId);
-    if (containerId) {
-      try {
-        await this.dockerService.stopContainer(containerId);
-        this.logger.log(
-          `Stopped container ${containerId} for service ${serviceId}`,
-        );
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (!msg.includes('already stopped') && !msg.includes('304')) {
-          this.logger.error(`Failed to stop container: ${msg}`);
-          throw new BadRequestException(`Failed to stop container: ${msg}`);
-        }
-      }
-    }
-
-    const service = await this.prisma.service.update({
-      where: { id: serviceId },
-      data: { status: 'stopped' },
-      include: { node: true },
-    });
-
-    // Sync tunnel ingress to remove this service from routing
-    this.syncTunnelIngress().catch(() => {});
-
-    return {
-      success: true,
-      message: `Service '${service.name}' stopped`,
-      service,
-    };
-  }
-
-  // POST /services/:serviceId/restart
-  async restartService(serviceId: string, userId?: string) {
-    await this.validateServiceAccess(serviceId, userId);
-
-    const containerId = await this.findServiceContainer(serviceId);
-    if (containerId) {
-      try {
-        await this.dockerService.restartContainer(containerId);
-        this.logger.log(
-          `Restarted container ${containerId} for service ${serviceId}`,
-        );
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.logger.error(`Failed to restart container: ${msg}`);
-        throw new BadRequestException(`Failed to restart container: ${msg}`);
-      }
-    } else {
-      throw new NotFoundException('No container found for this service');
-    }
-
-    const service = await this.prisma.service.update({
-      where: { id: serviceId },
-      data: { status: 'running' },
-      include: { node: true },
-    });
-
-    // Sync tunnel ingress for the restarted container
-    this.syncTunnelIngress().catch(() => {});
-
-    return {
-      success: true,
-      message: `Service '${service.name}' restarted`,
-      service,
-    };
-  }
-
-  async listOrganizations(userId?: string) {
-    if (!userId) {
-      return this.prisma.organization.findMany({ take: 50 });
-    }
-    return this.prisma.organization.findMany({
-      where: {
-        members: {
-          some: { user_id: userId },
-        },
-      },
-      take: 50,
-    });
-  }
-
-  async listProjects(orgId: string) {
-    return this.prisma.project.findMany({
-      where: { organization_id: orgId },
-      take: 50,
-    });
-  }
-
-  async createService(data: CreateServiceDto, userId?: string) {
-    const {
-      projectId,
-      repo,
-      branch,
-      buildCmd,
-      startCmd,
-      sourceType = 'git',
-      dockerImage,
-      domain,
-      internalPort,
-      envVars,
-    } = data;
-
-    // Validate inputs based on source_type
-    if (sourceType === 'git' && (!repo || !branch)) {
-      throw new BadRequestException(
-        'repo and branch are required when source_type is git',
-      );
-    }
-    if (sourceType === 'docker_image' && !dockerImage) {
-      throw new BadRequestException(
-        'dockerImage is required when source_type is docker_image',
-      );
-    }
-
-    const baseName =
-      sourceType === 'git'
-        ? repo?.split('/').pop() || 'new-service'
-        : dockerImage?.split('/').pop() || 'new-service';
-    const baseSlug = baseName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
-    const slug = `${baseSlug}-${Math.random().toString(36).substring(2, 8)}`;
-    const name = baseName;
-
-    // Auto-generate aerodeploy.app subdomain if no custom domain provided
-    const autoDomain = `${slug}.aerodeploy.app`;
-
-    const service = await this.prisma.service.create({
-      data: {
-        project_id: projectId,
-        node_id: data.nodeId,
-        name,
-        slug,
-        type: 'application',
-        source_type: sourceType,
-        git_repository: repo,
-        git_branch: branch,
-        git_subdirectory: data.gitSubdirectory,
-        docker_image: dockerImage,
-        build_command: buildCmd,
-        start_command: startCmd,
-        internal_port: internalPort || 3000,
-        ...(envVars && {
-          variables: {
-            create: Object.entries(envVars).map(([key, value]) => {
-              const encrypted = this.vaultService.encrypt(value);
-              return {
-                key,
-                encrypted_value: encrypted.encryptedValue,
-                iv: encrypted.iv,
-                auth_tag: encrypted.authTag,
-                key_version: encrypted.version,
-              };
-            }),
-          },
-        }),
-        domains: {
-          create: domain
-            ? [
-                // User provided a custom domain
-                {
-                  domain,
-                  type: 'custom' as const,
-                  verification_status: 'pending' as const,
-                },
-                // Also create the auto-generated free subdomain
-                {
-                  domain: autoDomain,
-                  type: 'auto_generated' as const,
-                  verification_status: 'verified' as const,
-                },
-              ]
-            : [
-                // No custom domain — only the auto-generated free subdomain
-                {
-                  domain: autoDomain,
-                  type: 'auto_generated' as const,
-                  verification_status: 'verified' as const,
-                },
-              ],
-        },
-      },
-    });
-
-    // Register the auto-generated subdomain with Cloudflare DNS (best-effort, non-blocking)
-    this.cloudflareService.createDeploymentDomain(autoDomain).catch((err) => {
-      console.warn(`Failed to register DNS for ${autoDomain}:`, err);
-    });
-
-    // Also register the custom domain with Cloudflare DNS if the user provided one
-    if (domain) {
-      this.cloudflareService.createDeploymentDomain(domain).catch((err) => {
-        console.warn(
-          `Failed to register DNS for custom domain ${domain}:`,
-          err,
-        );
-      });
-    }
-
-    // Queue initial deployment
-    return this.triggerDeployment(service.id, userId);
   }
 
   async triggerDeployment(
@@ -579,21 +87,19 @@ export class DeploymentsService implements OnApplicationBootstrap {
     });
   }
 
-  // GET /services/:serviceId/deployments/:id
   async getDeploymentDetails(
     serviceId: string,
     deploymentId: string,
   ): Promise<Deployment> {
     const deployment = await this.prisma.deployment.findFirst({
       where: { id: deploymentId, service_id: serviceId },
-      include: { logs: { orderBy: { created_at: 'asc' } } }, // Fetch logs too!
+      include: { logs: { orderBy: { created_at: 'asc' } } },
     });
 
     if (!deployment) throw new NotFoundException('Deployment not found');
     return deployment;
   }
 
-  // GET /services/:serviceId/deployments/:id/logs
   async getDeploymentLogs(serviceId: string, deploymentId: string) {
     const deployment = await this.prisma.deployment.findFirst({
       where: { id: deploymentId, service_id: serviceId },
@@ -607,7 +113,6 @@ export class DeploymentsService implements OnApplicationBootstrap {
     });
   }
 
-  // POST /services/:serviceId/deployments/:id/rollback
   async triggerRollback(
     serviceId: string,
     deploymentId: string,
@@ -636,7 +141,6 @@ export class DeploymentsService implements OnApplicationBootstrap {
     return updatedDeployment;
   }
 
-  // POST /services/:serviceId/deployments/:id/cancel
   async cancelDeployment(
     serviceId: string,
     deploymentId: string,
@@ -653,7 +157,6 @@ export class DeploymentsService implements OnApplicationBootstrap {
       );
     }
 
-    // Update the database
     const cancelled = await this.prisma.deployment.update({
       where: { id: deploymentId },
       data: {
@@ -662,8 +165,6 @@ export class DeploymentsService implements OnApplicationBootstrap {
       },
     });
 
-    // Attempt to remove the job from the BullMQ queue if it hasn't started processing yet
-    // BullMQ generates job IDs automatically
     try {
       const jobs = await this.deploymentsQueue.getJobs(['waiting', 'delayed']);
       const jobToCancel = jobs.find(

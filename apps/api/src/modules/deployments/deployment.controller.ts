@@ -3,94 +3,20 @@ import {
   Get,
   Post,
   Param,
-  Query,
   UseGuards,
   Req,
-  Body,
+  Query,
 } from '@nestjs/common';
 import { DeploymentsService } from './deployment.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../../common/interfaces/Authenticated.interface';
-import { CreateServiceDto } from './dto/create-service.dto';
-import { UpdateServiceDto } from './dto/update-service.dto';
-import { Delete, Patch } from '@nestjs/common';
 
-@Controller()
+@Controller('services')
 @UseGuards(JwtAuthGuard)
 export class DeploymentsController {
   constructor(private readonly deploymentsService: DeploymentsService) {}
 
-  @Post('services')
-  async createService(
-    @Body() data: CreateServiceDto,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    const userId = req.user?.id;
-    return this.deploymentsService.createService(data, userId);
-  }
-
-  @Get('services')
-  async listServices(@Req() req: AuthenticatedRequest) {
-    const userId = req.user?.id;
-    return this.deploymentsService.listAllServices(userId);
-  }
-
-  @Get('services/:serviceId')
-  async getService(
-    @Param('serviceId') serviceId: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    const userId = req.user?.id;
-    return this.deploymentsService.getServiceDetails(serviceId, userId);
-  }
-
-  @Patch('services/:serviceId')
-  async updateService(
-    @Param('serviceId') serviceId: string,
-    @Body() data: UpdateServiceDto,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    const userId = req.user?.id;
-    return this.deploymentsService.updateService(serviceId, data, userId);
-  }
-
-  @Delete('services/:serviceId')
-  async deleteService(
-    @Param('serviceId') serviceId: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    const userId = req.user?.id;
-    return this.deploymentsService.deleteService(serviceId, userId);
-  }
-
-  @Post('services/:serviceId/start')
-  async startService(
-    @Param('serviceId') serviceId: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    const userId = req.user?.id;
-    return this.deploymentsService.startService(serviceId, userId);
-  }
-
-  @Post('services/:serviceId/stop')
-  async stopService(
-    @Param('serviceId') serviceId: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    const userId = req.user?.id;
-    return this.deploymentsService.stopService(serviceId, userId);
-  }
-
-  @Post('services/:serviceId/restart')
-  async restartService(
-    @Param('serviceId') serviceId: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    const userId = req.user?.id;
-    return this.deploymentsService.restartService(serviceId, userId);
-  }
-
-  @Post('services/:serviceId/deployments')
+  @Post(':serviceId/deployments')
   async triggerDeploy(
     @Param('serviceId') serviceId: string,
     @Req() req: AuthenticatedRequest,
@@ -99,7 +25,7 @@ export class DeploymentsController {
     return this.deploymentsService.triggerDeployment(serviceId, userId);
   }
 
-  @Get('services/:serviceId/deployments')
+  @Get(':serviceId/deployments')
   async listDeployments(
     @Param('serviceId') serviceId: string,
     @Query('limit') limit?: string,
@@ -108,7 +34,7 @@ export class DeploymentsController {
     return this.deploymentsService.listDeployments(serviceId, take);
   }
 
-  @Get('services/:serviceId/deployments/:id')
+  @Get(':serviceId/deployments/:id')
   async getDeploymentDetails(
     @Param('serviceId') serviceId: string,
     @Param('id') deploymentId: string,
@@ -119,7 +45,7 @@ export class DeploymentsController {
     );
   }
 
-  @Get('services/:serviceId/deployments/:id/logs')
+  @Get(':serviceId/deployments/:id/logs')
   async getDeploymentLogs(
     @Param('serviceId') serviceId: string,
     @Param('id') deploymentId: string,
@@ -127,7 +53,7 @@ export class DeploymentsController {
     return this.deploymentsService.getDeploymentLogs(serviceId, deploymentId);
   }
 
-  @Post('services/:serviceId/deployments/:id/rollback')
+  @Post(':serviceId/deployments/:id/rollback')
   async triggerRollback(
     @Param('serviceId') serviceId: string,
     @Param('id') deploymentId: string,
@@ -135,25 +61,11 @@ export class DeploymentsController {
     return this.deploymentsService.triggerRollback(serviceId, deploymentId);
   }
 
-  @Post('services/:serviceId/deployments/:id/cancel')
+  @Post(':serviceId/deployments/:id/cancel')
   async cancelDeployment(
     @Param('serviceId') serviceId: string,
     @Param('id') deploymentId: string,
   ) {
     return this.deploymentsService.cancelDeployment(serviceId, deploymentId);
-  }
-
-  @Post('services/:serviceId/scale')
-  async scaleService(
-    @Param('serviceId') serviceId: string,
-    @Body() body: { replicas: number },
-    @Req() req: AuthenticatedRequest,
-  ) {
-    const userId = req.user?.id;
-    return this.deploymentsService.updateService(
-      serviceId,
-      { replicas: body.replicas },
-      userId,
-    );
   }
 }
