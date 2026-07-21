@@ -9,19 +9,28 @@ interface EnvVar { id: string; key: string; created_at: string; }
 interface DeploymentLog { id: string; phase: string; message: string; level: string; created_at: string; }
 interface Deployment { id: string; status: string; trigger: string; git_commit_sha?: string; created_at: string; finished_at?: string; logs?: DeploymentLog[]; }
 interface NodeInfo { id: string; name: string; status: string; hostname: string; last_heartbeat_at?: string; }
-interface ResourceLimits {
-  cpu?: string | number;
-  memory?: string | number;
+interface ResourceLimits { cpu?: string | number; memory?: string | number; }
+interface HealthCheck { path?: string; port?: number; interval?: number; }
+interface RestartPolicy { condition?: string; max_attempts?: number; }
+
+interface ServiceVolume {
+  id: string;
+  name: string;
+  mount_path: string;
+  host_path?: string;
+  driver?: string;
+  created_at: string;
 }
-interface HealthCheck {
-  path?: string;
-  port?: number;
-  interval?: number;
+
+interface Backup {
+  id: string;
+  filename: string;
+  size_bytes: number;
+  status: string;
+  trigger: string;
+  created_at: string;
 }
-interface RestartPolicy {
-  condition?: string;
-  max_attempts?: number;
-}
+
 interface ServiceDetail {
   id: string; name: string; slug: string; type: string; status: string;
   source_type: string; git_repository?: string; git_branch?: string;
@@ -45,11 +54,18 @@ export default function ServiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'deployments' | 'domains' | 'env' | 'webhooks' | 'logs'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'deployments' | 'domains' | 'env' | 'volumes' | 'backups' | 'webhooks' | 'logs'>('overview');
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedDeploymentId, setSelectedDeploymentId] = useState<string | null>(null);
   const [deploymentLogs, setDeploymentLogs] = useState<DeploymentLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+
+  // Volumes & Backups State
+  const [volumes, setVolumes] = useState<ServiceVolume[]>([]);
+  const [backups, setBackups] = useState<Backup[]>([]);
+  const [volName, setVolName] = useState('');
+  const [volMount, setVolMount] = useState('');
+  const [isVolModalOpen, setIsVolModalOpen] = useState(false);
 
   const API_BASE = '/api';
   const getToken = () => {
@@ -75,12 +91,37 @@ export default function ServiceDetailPage() {
     }
   }, [serviceId]);
 
+  const fetchVolumes = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/services/${serviceId}/volumes`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (res.ok) {
+        setVolumes(await res.json());
+      }
+    } catch { /* ignore */ }
+  }, [serviceId]);
+
+  const fetchBackups = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/services/${serviceId}/backups`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBackups(Array.isArray(data) ? data : data?.data || []);
+      }
+    } catch { /* ignore */ }
+  }, [serviceId]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchService();
+      fetchVolumes();
+      fetchBackups();
     }, 0);
     return () => clearTimeout(timer);
-  }, [fetchService]);
+  }, [fetchService, fetchVolumes, fetchBackups]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -121,6 +162,66 @@ export default function ServiceDetailPage() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleCreateVolume = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!volName.trim() || !volMount.trim()) return;
+    try {
+      const res = await fetch(`${API_BASE}/services/${serviceId}/volumes`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: volName, mount_path: volMount }),
+      });
+      if (res.ok) {
+        setIsVolModalOpen(false);
+        setVolName(''); setVolMount('');
+        fetchVolumes();
+      }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      alert(errMsg);
+    }
+  };
+
+  const handleDeleteVolume = async (volId: string) => {
+    if (!confirm('Detach volume?')) return;
+    try {
+      await fetch(`${API_BASE}/services/${serviceId}/volumes/${volId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      fetchVolumes();
+    } catch { /* ignore */ }
+  };
+
+  const handleTriggerBackup = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/services/${serviceId}/backups`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (res.ok) {
+        fetchBackups();
+      }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      alert(errMsg);
+    }
+  };
+
+  const handleDeleteBackup = async (bId: string) => {
+    if (!confirm('Delete backup record?')) return;
+    try {
+      await fetch(`${API_BASE}/services/${serviceId}/backups/${bId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      fetchBackups();
+    } catch { /* ignore */ }
   };
 
   const fetchDeploymentLogs = async (deploymentId: string) => {
@@ -174,6 +275,8 @@ export default function ServiceDetailPage() {
     { key: 'deployments', label: `Deployments (${service.deployments.length})` },
     { key: 'domains', label: `Domains (${service.domains.length})` },
     { key: 'env', label: `Variables (${service.variables.length})` },
+    { key: 'volumes', label: `Volumes (${volumes.length})` },
+    { key: 'backups', label: `Backups (${backups.length})` },
     { key: 'webhooks', label: 'Webhooks' },
     { key: 'logs', label: 'Logs' },
   ] as const;
@@ -211,7 +314,7 @@ export default function ServiceDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid var(--border-glass)', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid var(--border-glass)', marginBottom: '24px', flexWrap: 'wrap' }}>
         {tabs.map(t => (
           <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
             padding: '10px 16px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', width: 'auto',
@@ -338,6 +441,88 @@ export default function ServiceDetailPage() {
               </div>
             ))}
           </>)}
+        </div>
+      )}
+
+      {activeTab === 'volumes' && (
+        <div className="metric-card" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-glass)', padding: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Persistent Volumes</h3>
+            <button onClick={() => setIsVolModalOpen(true)} style={{ padding: '6px 12px', fontSize: '11px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, width: 'auto' }}>
+              + Attach Volume
+            </button>
+          </div>
+
+          {volumes.length === 0 ? (
+            <p style={{ color: 'var(--text-dim)', fontSize: '13px', textAlign: 'center', padding: '30px' }}>No persistent volumes attached.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {volumes.map(v => (
+                <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'var(--bg-tertiary)', borderRadius: '6px', border: '1px solid var(--border-glass)' }}>
+                  <div>
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: '#f3f4f6' }}>{v.name}</span>
+                    <span style={{ fontSize: '12px', color: '#9ca3af', fontFamily: 'var(--font-mono)', marginLeft: '12px' }}>→ {v.mount_path}</span>
+                  </div>
+                  <button onClick={() => handleDeleteVolume(v.id)} style={{ backgroundColor: 'transparent', color: '#ef4444', border: '1px solid #7f1d1d', padding: '4px 10px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', width: 'auto' }}>
+                    Detach
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {isVolModalOpen && (
+            <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+              <div style={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '8px', padding: '24px', width: '100%', maxWidth: '400px', color: '#fff' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>Attach Persistent Volume</h3>
+                <form onSubmit={handleCreateVolume}>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#9ca3af', marginBottom: '4px' }}>Volume Name</label>
+                    <input type="text" required placeholder="e.g. data-volume" value={volName} onChange={(e) => setVolName(e.target.value)} style={{ width: '100%', padding: '8px 12px', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '6px', color: '#fff' }} />
+                  </div>
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#9ca3af', marginBottom: '4px' }}>Container Mount Path</label>
+                    <input type="text" required placeholder="e.g. /var/lib/data" value={volMount} onChange={(e) => setVolMount(e.target.value)} style={{ width: '100%', padding: '8px 12px', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '6px', color: '#fff' }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                    <button type="button" onClick={() => setIsVolModalOpen(false)} style={{ padding: '8px 14px', backgroundColor: 'transparent', color: '#9ca3af', border: '1px solid #374151', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
+                    <button type="submit" style={{ padding: '8px 14px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Attach</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'backups' && (
+        <div className="metric-card" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-glass)', padding: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Service Backups</h3>
+            <button onClick={handleTriggerBackup} style={{ padding: '6px 12px', fontSize: '11px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, width: 'auto' }}>
+              + Trigger Backup
+            </button>
+          </div>
+
+          {backups.length === 0 ? (
+            <p style={{ color: 'var(--text-dim)', fontSize: '13px', textAlign: 'center', padding: '30px' }}>No backups recorded yet.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {backups.map(b => (
+                <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'var(--bg-tertiary)', borderRadius: '6px', border: '1px solid var(--border-glass)' }}>
+                  <div>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#f3f4f6', fontFamily: 'var(--font-mono)' }}>{b.filename}</span>
+                    <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: '12px' }}>{(b.size_bytes / (1024 * 1024)).toFixed(2)} MB · {relTime(b.created_at)}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => handleDeleteBackup(b.id)} style={{ backgroundColor: 'transparent', color: '#ef4444', border: '1px solid #7f1d1d', padding: '4px 10px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', width: 'auto' }}>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
