@@ -595,8 +595,13 @@ export default function ProfilePage() {
             </div>
             <button
               onClick={() => {
-                const baseURL = process.env.NEXT_PUBLIC_API_URL || '/api';
-                window.location.href = `${baseURL}/auth/github?client=web`;
+                const url = process.env.NEXT_PUBLIC_API_URL || '';
+                const target = (!url || url === '/api')
+                  ? '/api/auth/github?client=web'
+                  : url.endsWith('/api/v1')
+                    ? `${url}/auth/github?client=web`
+                    : `${url.replace(/\/+$/, '')}/api/v1/auth/github?client=web`;
+                window.location.href = target;
               }}
               style={{
                 padding: '8px 16px',

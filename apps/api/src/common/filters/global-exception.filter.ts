@@ -33,10 +33,23 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message = responseObj.message || exception.message;
         if (
           status === HttpStatus.NOT_FOUND &&
+          (request.url === '/' || request.url === '')
+        ) {
+          return response.status(HttpStatus.OK).json({
+            status: 'ok',
+            name: 'Aero Control Plane API',
+            version: '1.0',
+            docs: '/api/docs',
+            api: '/api/v1',
+          });
+        }
+
+        if (
+          status === HttpStatus.NOT_FOUND &&
           typeof responseObj.message === 'string' &&
           responseObj.message.includes('Cannot GET')
         ) {
-          message = `The route [${request.method}] ${request.url} does not exist.`;
+          message = `The route [${request.method}] ${request.url} does not exist. Available API base is /api/v1`;
         }
       }
     } else if (exception instanceof Error) {

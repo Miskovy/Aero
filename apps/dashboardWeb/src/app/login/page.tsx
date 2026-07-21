@@ -219,7 +219,19 @@ export default function LoginPage() {
             {isLoading ? 'Connecting...' : 'Login'}
           </button>
 
-          <button type="button" className="github-login-button" onClick={() => window.location.href = `${baseURL}/auth/github?client=web`}>
+          <button
+            type="button"
+            className="github-login-button"
+            onClick={() => {
+              const url = process.env.NEXT_PUBLIC_API_URL || '';
+              const target = (!url || url === '/api')
+                ? '/api/auth/github?client=web'
+                : url.endsWith('/api/v1')
+                  ? `${url}/auth/github?client=web`
+                  : `${url.replace(/\/+$/, '')}/api/v1/auth/github?client=web`;
+              window.location.href = target;
+            }}
+          >
             <GitHubIcon size={18} />
             Continue With GitHub
           </button>
