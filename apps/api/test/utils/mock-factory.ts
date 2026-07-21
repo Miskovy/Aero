@@ -6,6 +6,7 @@ export type MockPrismaServiceType = {
   serviceSecret: Record<string, jest.Mock>;
   environmentVariable: Record<string, jest.Mock>;
   serviceVolume: Record<string, jest.Mock>;
+  backup: Record<string, jest.Mock>;
   user: Record<string, jest.Mock>;
   refreshToken: Record<string, jest.Mock>;
   organization: Record<string, jest.Mock>;
@@ -53,7 +54,19 @@ export const mockPrismaService = (): MockPrismaServiceType => ({
   },
   serviceVolume: {
     findMany: jest.fn(),
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    delete: jest.fn(),
     deleteMany: jest.fn(),
+  },
+  backup: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
   },
   user: {
     findMany: jest.fn(),

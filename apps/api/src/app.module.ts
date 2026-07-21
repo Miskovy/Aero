@@ -28,6 +28,9 @@ import { CloudflareModule } from './modules/cloudflare/cloudflare.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
+import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
+import { BackupsModule } from './modules/backups/backups.module';
+import { VolumesModule } from './modules/volumes/volumes.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { RedisModule } from './redis/redis.module';
@@ -105,6 +108,9 @@ import { MailModule } from './mail/mail.module';
     CloudflareModule,
     WebhooksModule,
     AlertsModule,
+    AuditLogsModule,
+    BackupsModule,
+    VolumesModule,
     EventEmitterModule.forRoot(),
   ],
   controllers: [AppController],
