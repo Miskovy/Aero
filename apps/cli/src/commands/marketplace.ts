@@ -8,7 +8,7 @@
 import { Command } from 'commander';
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
-import { apiRequest, requireAuth } from '../api/api.js';
+import { apiRequest, requireAuth, unwrapData } from '../api/api.js';
 import icons from '../utils/icons.js';
 import { renderTable } from '../utils/tables.js';
 
@@ -21,7 +21,8 @@ export async function marketplaceListAction() {
   s.start('Fetching available templates from Marketplace...');
 
   try {
-    const templates = await apiRequest<any[]>({ method: 'GET', url: '/marketplace/templates' });
+    const raw = await apiRequest<any>({ method: 'GET', url: '/marketplace/templates' });
+    const templates = unwrapData(raw);
     s.stop(`${icons.success} Marketplace templates loaded`);
 
     if (templates.length === 0) {
@@ -56,7 +57,8 @@ export async function marketplaceDeployAction() {
 
   try {
     // 1. Fetch organizations
-    const orgs = await apiRequest<any[]>({ method: 'GET', url: '/organizations' });
+    const rawOrgs = await apiRequest<any>({ method: 'GET', url: '/organizations' });
+    const orgs = unwrapData(rawOrgs);
 
     if (orgs.length === 0) {
       p.log.error('You must belong to an organization first.');
@@ -70,7 +72,8 @@ export async function marketplaceDeployAction() {
     if (p.isCancel(orgId)) return;
 
     // 2. Fetch projects
-    const projects = await apiRequest<any[]>({ method: 'GET', url: `/organizations/${orgId}/projects` });
+    const rawProjects = await apiRequest<any>({ method: 'GET', url: `/projects?orgId=${orgId}` });
+    const projects = unwrapData(rawProjects);
 
     if (projects.length === 0) {
       p.log.error('No projects found. Create a project first.');
@@ -86,7 +89,8 @@ export async function marketplaceDeployAction() {
     // 3. Fetch Templates
     const s = p.spinner();
     s.start('Fetching templates...');
-    const templates = await apiRequest<any[]>({ method: 'GET', url: '/marketplace/templates' });
+    const rawTemplates = await apiRequest<any>({ method: 'GET', url: '/marketplace/templates' });
+    const templates = unwrapData(rawTemplates);
     s.stop('');
 
     if (templates.length === 0) {

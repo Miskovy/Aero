@@ -63,7 +63,8 @@ export default function ProjectsPage() {
         throw new Error(`Server returned status: ${res.status}`);
       }
 
-      const data = await res.json();
+      const rawData = await res.json();
+      const data = Array.isArray(rawData) ? rawData : (rawData?.data || []);
       setOrgs(data);
 
       if (data.length > 0) {
@@ -101,7 +102,8 @@ export default function ProjectsPage() {
         throw new Error(`Server returned status: ${res.status}`);
       }
 
-      const data = await res.json();
+      const rawData = await res.json();
+      const data = Array.isArray(rawData) ? rawData : (rawData?.data || []);
       setProjects(data);
     } catch (err: unknown) {
       setProjectsError(err instanceof Error ? err.message : String(err));

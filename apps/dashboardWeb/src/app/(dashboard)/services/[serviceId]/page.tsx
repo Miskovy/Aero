@@ -130,7 +130,10 @@ export default function ServiceDetailPage() {
       const res = await fetch(`${API_BASE}/services/${serviceId}/deployments/${deploymentId}/logs`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
-      if (res.ok) setDeploymentLogs(await res.json());
+      if (res.ok) {
+        const rawLogs = await res.json();
+        setDeploymentLogs(Array.isArray(rawLogs) ? rawLogs : (rawLogs?.data || []));
+      }
     } catch { /* ignore */ }
     finally { setLogsLoading(false); }
   };

@@ -8,6 +8,7 @@ import {
   UseGuards,
   Req,
   Patch,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { NodesService } from './nodes.service';
@@ -15,6 +16,7 @@ import { CreateNodeDto } from './dto/node.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../../common/interfaces/Authenticated.interface';
 import { UpdateNodeDto } from './dto/updateNode.dto';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @ApiTags('Nodes / Servers')
 @ApiBearerAuth()
@@ -28,9 +30,10 @@ export class NodesController {
   async listNodes(
     @Param('orgId') orgId: string,
     @Req() req: AuthenticatedRequest,
+    @Query() pagination: PaginationDto,
   ) {
     const userId = req.user?.id;
-    return this.nodesService.listNodes(orgId, userId);
+    return this.nodesService.listNodes(orgId, pagination, userId);
   }
 
   @Post()

@@ -33,6 +33,11 @@ import {
   webhooksDeleteAction,
 } from './commands/webhooks.js';
 import {
+  domainsListAction,
+  domainsAddAction,
+  domainsRemoveAction,
+} from './commands/domains.js';
+import {
   projectsListAction,
   projectsInspectAction,
   projectsCreateAction,
@@ -87,6 +92,13 @@ webhooksCmd.command('list [serviceId]').description('List all webhooks for a ser
 webhooksCmd.command('create [serviceId]').description('Create a new webhook for a service').action(webhooksCreateAction);
 webhooksCmd.command('delete [serviceId] [webhookId]').description('Delete a webhook').action(webhooksDeleteAction);
 program.addCommand(webhooksCmd);
+
+// ── Domains ──
+const domainsCmd = new Command('domains').description('Manage service domains');
+domainsCmd.command('list [serviceId]').description('List all domains for a service').action(domainsListAction);
+domainsCmd.command('add [serviceId] [domain]').description('Add a domain to a service').action(domainsAddAction);
+domainsCmd.command('remove [serviceId] [domainId]').description('Remove a domain from a service').action(domainsRemoveAction);
+program.addCommand(domainsCmd);
 
 // ── Nodes ──
 const nodeCmd = new Command('node').description('Manage connected servers (nodes)');

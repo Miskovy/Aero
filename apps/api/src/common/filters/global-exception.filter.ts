@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { NestHttpExceptionResponse } from '../interfaces/filters.interface';
+import { AeroErrorCode } from '../constants/error-codes';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -48,6 +49,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     response.status(status).json({
       statusCode: status,
+      errorCode: AeroErrorCode.INTERNAL_ERROR, // Can be improved later by mapping HttpException types to AeroErrorCodes
       timestamp: new Date().toISOString(),
       path: request.url,
       message: message,

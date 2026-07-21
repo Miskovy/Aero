@@ -7,12 +7,19 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import * as crypto from 'crypto';
 import { UpdateNodeDto } from './dto/updateNode.dto';
+import { PaginationDto } from '../../common/dto/pagination.dto';
+import { PaginatedResponse } from '../../common/interfaces/paginated-response';
+import { Prisma } from '../../../generated/prisma/client';
 
 @Injectable()
 export class NodesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listNodes(orgId: string, userId?: string) {
+  async listNodes(
+    orgId: string,
+    pagination: PaginationDto,
+    userId?: string,
+  ): Promise<PaginatedResponse<any>> {
     // Validate organization access
     const org = await this.prisma.organization.findUnique({
       where: { id: orgId },
@@ -26,10 +33,13 @@ export class NodesService {
       if (!isMember) throw new ForbiddenException('Access denied');
     }
 
-    // Exclude the agent_token from the list view for security
-    return this.prisma.node.findMany({
+    const { cursor, limit = 20 } = pagination;
+    const take = limit + 1;
+
+    const query: Prisma.NodeFindManyArgs = {
       where: { organization_id: orgId },
       orderBy: { created_at: 'desc' },
+      take,
       select: {
         id: true,
         name: true,
@@ -40,7 +50,19 @@ export class NodesService {
         system_info: true,
         resource_usage: true,
       },
-    });
+    };
+
+    if (cursor) {
+      query.cursor = { id: cursor };
+      query.skip = 1;
+    }
+
+    const items = await this.prisma.node.findMany(query);
+    const hasMore = items.length > limit;
+    if (hasMore) items.pop();
+    const nextCursor = items.length > 0 ? items[items.length - 1].id : null;
+
+    return { data: items, meta: { cursor: nextCursor, hasMore } };
   }
 
   async createNode(

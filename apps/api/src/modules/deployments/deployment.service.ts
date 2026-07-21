@@ -8,7 +8,13 @@ import {
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
-import { Deployment } from '../../../generated/prisma/client';
+import {
+  Deployment,
+  DeploymentLog,
+  Prisma,
+} from '../../../generated/prisma/client';
+import { PaginationDto } from '../../common/dto/pagination.dto';
+import { PaginatedResponse } from '../../common/interfaces/paginated-response';
 
 @Injectable()
 export class DeploymentsService implements OnApplicationBootstrap {
@@ -78,13 +84,28 @@ export class DeploymentsService implements OnApplicationBootstrap {
 
   async listDeployments(
     serviceId: string,
-    limit: number = 10,
-  ): Promise<Deployment[]> {
-    return this.prisma.deployment.findMany({
+    pagination: PaginationDto,
+  ): Promise<PaginatedResponse<Deployment>> {
+    const { cursor, limit = 20 } = pagination;
+    const take = limit + 1;
+
+    const query: Prisma.DeploymentFindManyArgs = {
       where: { service_id: serviceId },
       orderBy: { created_at: 'desc' },
-      take: limit,
-    });
+      take,
+    };
+
+    if (cursor) {
+      query.cursor = { id: cursor };
+      query.skip = 1;
+    }
+
+    const items = await this.prisma.deployment.findMany(query);
+    const hasMore = items.length > limit;
+    if (hasMore) items.pop();
+    const nextCursor = items.length > 0 ? items[items.length - 1].id : null;
+
+    return { data: items, meta: { cursor: nextCursor, hasMore } };
   }
 
   async getDeploymentDetails(
@@ -100,17 +121,37 @@ export class DeploymentsService implements OnApplicationBootstrap {
     return deployment;
   }
 
-  async getDeploymentLogs(serviceId: string, deploymentId: string) {
+  async getDeploymentLogs(
+    serviceId: string,
+    deploymentId: string,
+    pagination: PaginationDto,
+  ): Promise<PaginatedResponse<DeploymentLog>> {
     const deployment = await this.prisma.deployment.findFirst({
       where: { id: deploymentId, service_id: serviceId },
     });
 
     if (!deployment) throw new NotFoundException('Deployment not found');
 
-    return this.prisma.deploymentLog.findMany({
+    const { cursor, limit = 100 } = pagination;
+    const take = limit + 1;
+
+    const query: Prisma.DeploymentLogFindManyArgs = {
       where: { deployment_id: deploymentId },
       orderBy: { created_at: 'asc' },
-    });
+      take,
+    };
+
+    if (cursor) {
+      query.cursor = { id: cursor };
+      query.skip = 1;
+    }
+
+    const items = await this.prisma.deploymentLog.findMany(query);
+    const hasMore = items.length > limit;
+    if (hasMore) items.pop();
+    const nextCursor = items.length > 0 ? items[items.length - 1].id : null;
+
+    return { data: items, meta: { cursor: nextCursor, hasMore } };
   }
 
   async triggerRollback(

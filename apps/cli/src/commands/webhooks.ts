@@ -6,7 +6,7 @@
 
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
-import { apiRequest, requireAuth } from '../api/api.js';
+import { apiRequest, requireAuth, unwrapData } from '../api/api.js';
 import { renderTable } from '../utils/tables.js';
 import icons from '../utils/icons.js';
 
@@ -17,7 +17,8 @@ async function promptForService(): Promise<string | undefined> {
   s.start('Loading services...');
 
   try {
-    const services = await apiRequest<any[]>({ method: 'GET', url: '/services' });
+    const raw = await apiRequest<any>({ method: 'GET', url: '/services' });
+    const services = unwrapData(raw);
     s.stop('');
 
     if (!services || services.length === 0) {
@@ -52,10 +53,11 @@ export async function webhooksListAction(serviceId?: string) {
   s.start('Fetching webhooks...');
 
   try {
-    const webhooks = await apiRequest<any[]>({
+    const raw = await apiRequest<any>({
       method: 'GET',
       url: `/services/${serviceId}/webhooks`,
     });
+    const webhooks = unwrapData(raw);
     s.stop(`${icons.success} Webhooks loaded!`);
 
     if (!webhooks || webhooks.length === 0) {

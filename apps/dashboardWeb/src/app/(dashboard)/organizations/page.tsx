@@ -21,7 +21,7 @@ export default function OrganizationsPage() {
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [isDemoMode] = useState(false);
 
   // Form Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -63,7 +63,7 @@ export default function OrganizationsPage() {
       }
 
       const data = await res.json();
-      setOrgs(data);
+      setOrgs(Array.isArray(data) ? data : (data?.data || []));
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.warn('Backend connection failed, loading local state storage instead:', errMsg);

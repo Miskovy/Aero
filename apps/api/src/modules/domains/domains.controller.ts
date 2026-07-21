@@ -6,11 +6,13 @@ import {
   Body,
   Param,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { DomainsService } from './domain.service';
 import { AddDomainDto } from './dto/domain.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @ApiTags('Domains')
 @ApiBearerAuth()
@@ -21,8 +23,11 @@ export class DomainsController {
 
   @Get()
   @ApiOperation({ summary: 'List all domains for a service' })
-  async listDomains(@Param('serviceId') serviceId: string) {
-    return this.domainsService.listDomains(serviceId);
+  async listDomains(
+    @Param('serviceId') serviceId: string,
+    @Query() pagination: PaginationDto,
+  ) {
+    return this.domainsService.listDomains(serviceId, pagination);
   }
 
   @Post()

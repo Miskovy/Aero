@@ -58,7 +58,7 @@ export default function ServicesPage() {
       }
 
       const data = await res.json();
-      setServices(data);
+      setServices(Array.isArray(data) ? data : (data?.data || []));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

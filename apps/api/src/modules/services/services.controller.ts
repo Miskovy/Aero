@@ -8,6 +8,7 @@ import {
   Body,
   Patch,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { ServicesService } from './services.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -15,6 +16,7 @@ import { ServiceAccessGuard } from './guards/service-access.guard';
 import { AuthenticatedRequest } from '../../common/interfaces/Authenticated.interface';
 import { CreateServiceDto } from '../deployments/dto/create-service.dto';
 import { UpdateServiceDto } from '../deployments/dto/update-service.dto';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @Controller('services')
 @UseGuards(JwtAuthGuard, ServiceAccessGuard)
@@ -31,9 +33,12 @@ export class ServicesController {
   }
 
   @Get()
-  async listServices(@Req() req: AuthenticatedRequest) {
+  async listServices(
+    @Req() req: AuthenticatedRequest,
+    @Query() pagination: PaginationDto,
+  ) {
     const userId = req.user?.id;
-    return this.servicesService.listAllServices(userId);
+    return this.servicesService.listAllServices(pagination, userId);
   }
 
   @Get(':serviceId')

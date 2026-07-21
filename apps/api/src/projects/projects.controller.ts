@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @Controller('projects')
 @UseGuards(JwtAuthGuard)
@@ -18,8 +19,11 @@ export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Get()
-  async listProjects(@Query('orgId') orgId: string) {
-    return this.projectsService.listProjects(orgId);
+  async listProjects(
+    @Query('orgId') orgId: string,
+    @Query() pagination: PaginationDto,
+  ) {
+    return this.projectsService.listProjects(orgId, pagination);
   }
 
   @Get(':id')

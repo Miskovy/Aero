@@ -6,7 +6,7 @@
 
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
-import { apiRequest, requireAuth } from '../api/api.js';
+import { apiRequest, requireAuth, unwrapData, unwrapItem } from '../api/api.js';
 import { renderTable } from '../utils/tables.js';
 import icons from '../utils/icons.js';
 
@@ -18,7 +18,8 @@ async function selectOrg(): Promise<string | null> {
 
   let orgs: any[];
   try {
-    orgs = await apiRequest<any[]>({ method: 'GET', url: '/organizations' });
+    const raw = await apiRequest<any>({ method: 'GET', url: '/organizations' });
+    orgs = unwrapData(raw);
     s.stop('');
   } catch (err: any) {
     s.stop(chalk.red(`${icons.error} Failed to load organizations.`));
@@ -47,7 +48,8 @@ async function selectProject(orgId: string): Promise<string | null> {
 
   let projects: any[];
   try {
-    projects = await apiRequest<any[]>({ method: 'GET', url: `/projects?orgId=${orgId}` });
+    const raw = await apiRequest<any>({ method: 'GET', url: `/projects?orgId=${orgId}` });
+    projects = unwrapData(raw);
     s.stop('');
   } catch (err: any) {
     s.stop(chalk.red(`${icons.error} Failed to load projects.`));
@@ -83,7 +85,8 @@ export async function projectsListAction() {
   s.start('Fetching projects...');
 
   try {
-    const projects = await apiRequest<any[]>({ method: 'GET', url: `/projects?orgId=${orgId}` });
+    const raw = await apiRequest<any>({ method: 'GET', url: `/projects?orgId=${orgId}` });
+    const projects = unwrapData(raw);
     s.stop(`${icons.success} Projects loaded!`);
 
     if (!projects || projects.length === 0) {

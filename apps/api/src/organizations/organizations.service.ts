@@ -1,22 +1,44 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PaginationDto } from '../common/dto/pagination.dto';
+import { PaginatedResponse } from '../common/interfaces/paginated-response';
+import { Organization, Prisma } from '../../generated/prisma/client';
 
 @Injectable()
 export class OrganizationsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listOrganizations(userId?: string) {
-    if (!userId) {
-      return this.prisma.organization.findMany({ take: 50 });
+  async listOrganizations(
+    pagination: PaginationDto,
+    userId?: string,
+  ): Promise<PaginatedResponse<Organization>> {
+    const { cursor, limit = 20 } = pagination;
+    const take = limit + 1;
+
+    const query: Prisma.OrganizationFindManyArgs = {
+      take,
+      orderBy: { created_at: 'desc' },
+    };
+
+    if (cursor) {
+      query.cursor = { id: cursor };
+      query.skip = 1;
     }
-    return this.prisma.organization.findMany({
-      where: {
+
+    if (userId) {
+      query.where = {
         members: {
           some: { user_id: userId },
         },
-      },
-      take: 50,
-    });
+      };
+    }
+
+    const items = await this.prisma.organization.findMany(query);
+    const hasMore = items.length > limit;
+    if (hasMore) items.pop();
+    const nextCursor = items.length > 0 ? items[items.length - 1].id : null;
+
+    return { data: items, meta: { cursor: nextCursor, hasMore } };
   }
 
   async createOrganization(name: string, userId?: string) {

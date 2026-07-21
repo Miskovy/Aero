@@ -88,7 +88,8 @@ export default function DashboardHome() {
       });
       if (!orgsRes.ok) throw new Error('Could not retrieve user organizations');
       
-      const orgsData = await orgsRes.json();
+      const rawOrgs = await orgsRes.json();
+      const orgsData = Array.isArray(rawOrgs) ? rawOrgs : (rawOrgs?.data || []);
       setOrgs(orgsData);
 
       let activeOrgId = null;
@@ -110,7 +111,8 @@ export default function DashboardHome() {
         }
       });
       if (servicesRes.ok) {
-        const servicesData = await servicesRes.json();
+        const rawServices = await servicesRes.json();
+        const servicesData = Array.isArray(rawServices) ? rawServices : (rawServices?.data || []);
         setServices(servicesData.map((s: ApiService) => ({
           id: s.id,
           name: s.name,
@@ -130,7 +132,8 @@ export default function DashboardHome() {
           }
         });
         if (nodesRes.ok) {
-          const nodesData = await nodesRes.json();
+          const rawNodes = await nodesRes.json();
+          const nodesData = Array.isArray(rawNodes) ? rawNodes : (rawNodes?.data || []);
           setNodes(nodesData.map((n: ApiNode) => ({
             id: n.id,
             name: n.name,

@@ -6,7 +6,7 @@
 
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
-import { apiRequest, requireAuth } from '../api/api.js';
+import { apiRequest, requireAuth, unwrapData } from '../api/api.js';
 import { renderTable } from '../utils/tables.js';
 import icons from '../utils/icons.js';
 
@@ -21,7 +21,8 @@ async function promptForOrg(): Promise<string | undefined> {
   s.start('Loading organizations...');
 
   try {
-    const orgs = await apiRequest<any[]>({ method: 'GET', url: '/organizations' });
+    const raw = await apiRequest<any>({ method: 'GET', url: '/organizations' });
+    const orgs = unwrapData(raw);
     s.stop('');
 
     if (!orgs || orgs.length === 0) {
@@ -56,7 +57,8 @@ export async function nodeListAction() {
   s.start('Fetching connected nodes...');
 
   try {
-    const nodes = await apiRequest<any[]>({ method: 'GET', url: `/organizations/${orgId}/nodes` });
+    const raw = await apiRequest<any>({ method: 'GET', url: `/organizations/${orgId}/nodes` });
+    const nodes = unwrapData(raw);
     s.stop(`${icons.success} Nodes loaded!`);
 
     if (!nodes || nodes.length === 0) {

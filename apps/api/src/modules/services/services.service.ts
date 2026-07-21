@@ -13,6 +13,9 @@ import { CreateServiceDto } from '../deployments/dto/create-service.dto';
 import { UpdateServiceDto } from '../deployments/dto/update-service.dto';
 import { DeploymentsService } from '../deployments/deployment.service';
 import { OnApplicationBootstrap } from '@nestjs/common';
+import { PaginationDto } from '../../common/dto/pagination.dto';
+import { PaginatedResponse } from '../../common/interfaces/paginated-response';
+import { Prisma } from '../../../generated/prisma/client';
 
 @Injectable()
 export class ServicesService implements OnApplicationBootstrap {
@@ -82,13 +85,26 @@ export class ServicesService implements OnApplicationBootstrap {
     }
   }
 
-  async listAllServices(userId?: string) {
-    if (!userId) {
-      return this.prisma.service.findMany({ take: 50 });
+  async listAllServices(
+    pagination: PaginationDto,
+    userId?: string,
+  ): Promise<PaginatedResponse<any>> {
+    const { cursor, limit = 20 } = pagination;
+    const take = limit + 1; // Fetch one extra to determine hasMore
+
+    const query: Prisma.ServiceFindManyArgs = {
+      take,
+      include: { project: true },
+      orderBy: { created_at: 'desc' },
+    };
+
+    if (cursor) {
+      query.cursor = { id: cursor };
+      query.skip = 1; // Skip the cursor itself
     }
 
-    return this.prisma.service.findMany({
-      where: {
+    if (userId) {
+      query.where = {
         project: {
           organization: {
             members: {
@@ -96,10 +112,25 @@ export class ServicesService implements OnApplicationBootstrap {
             },
           },
         },
+      };
+    }
+
+    const items = await this.prisma.service.findMany(query);
+
+    const hasMore = items.length > limit;
+    if (hasMore) {
+      items.pop();
+    }
+
+    const nextCursor = items.length > 0 ? items[items.length - 1].id : null;
+
+    return {
+      data: items,
+      meta: {
+        cursor: nextCursor,
+        hasMore,
       },
-      include: { project: true },
-      take: 50,
-    });
+    };
   }
 
   async getServiceDetails(serviceId: string) {

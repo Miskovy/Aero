@@ -7,6 +7,7 @@ import {
   Param,
   UseGuards,
   Req,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,6 +19,7 @@ import { ApiKeysService } from './api-keys.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../../common/interfaces/Authenticated.interface';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @ApiTags('API Keys')
 @Controller('users/api-keys')
@@ -48,10 +50,13 @@ export class ApiKeysController {
     status: 200,
     description: 'List of API keys with masked values.',
   })
-  async listApiKeys(@Req() req: AuthenticatedRequest) {
+  async listApiKeys(
+    @Req() req: AuthenticatedRequest,
+    @Query() pagination: PaginationDto,
+  ) {
     const userId = req.user?.id;
     if (!userId) throw new Error('User not authenticated');
-    return this.apiKeysService.listApiKeys(userId);
+    return this.apiKeysService.listApiKeys(userId, pagination);
   }
 
   @Delete(':keyId')

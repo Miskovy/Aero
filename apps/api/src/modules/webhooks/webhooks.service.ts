@@ -9,7 +9,9 @@ import { CreateWebhookDto } from './dto/create-webhook.dto';
 import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
 import { DeploymentsService } from '../deployments/deployment.service';
 import { WebhookPayload } from './interfaces/webhook.interface';
-import { WebhookProvider } from '../../../generated/prisma/client';
+import { PaginationDto } from '../../common/dto/pagination.dto';
+import { PaginatedResponse } from '../../common/interfaces/paginated-response';
+import { WebhookProvider, Prisma } from '../../../generated/prisma/client';
 
 @Injectable()
 export class WebhooksService {
@@ -54,10 +56,17 @@ export class WebhooksService {
   /**
    * List all webhooks for a service.
    */
-  async listWebhooks(serviceId: string, userId: string) {
+  async listWebhooks(
+    serviceId: string,
+    userId: string,
+    pagination: PaginationDto,
+  ): Promise<PaginatedResponse<any>> {
     await this.validateServiceOwnership(serviceId, userId);
 
-    const webhooks = await this.prisma.webhook.findMany({
+    const { cursor, limit = 20 } = pagination;
+    const take = limit + 1;
+
+    const query: Prisma.WebhookFindManyArgs = {
       where: { service_id: serviceId },
       select: {
         id: true,
@@ -69,18 +78,28 @@ export class WebhooksService {
         last_triggered_at: true,
         last_status: true,
         created_at: true,
-        // Mask the secret token — only show first 8 chars
-        secret_token: true,
       },
       orderBy: { created_at: 'desc' },
-    });
+      take,
+    };
 
-    // Mask the secret tokens
-    return webhooks.map((wh) => ({
+    if (cursor) {
+      query.cursor = { id: cursor };
+      query.skip = 1;
+    }
+
+    const items = await this.prisma.webhook.findMany(query);
+    const hasMore = items.length > limit;
+    if (hasMore) items.pop();
+    const nextCursor = items.length > 0 ? items[items.length - 1].id : null;
+
+    const formattedItems = items.map((wh) => ({
       ...wh,
       secret_token: '••••••••••••••••••••••••••••••••',
       webhook_url: `/api/webhooks/${wh.id}`,
     }));
+
+    return { data: formattedItems, meta: { cursor: nextCursor, hasMore } };
   }
 
   /**

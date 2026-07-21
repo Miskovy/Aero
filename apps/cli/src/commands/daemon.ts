@@ -47,6 +47,21 @@ export function createDaemonCommand() {
         const { execSync } = await import('node:child_process');
         execSync('docker info', { stdio: 'ignore' });
         console.log(chalk.green(`${icons.success} Docker is running and accessible`));
+        try {
+           const composeVersion = execSync('docker compose version').toString().trim();
+           console.log(chalk.green(`${icons.success} ${composeVersion}`));
+        } catch {
+           console.log(chalk.yellow(`${icons.warning} Docker Compose plugin not found`));
+        }
+
+        const os = await import('node:os');
+        console.log();
+        console.log(chalk.blue(`${icons.info} Hostname: ${os.hostname()}`));
+        console.log(chalk.blue(`${icons.info} Platform: ${os.platform()} ${os.release()}`));
+        console.log(chalk.blue(`${icons.info} Architecture: ${os.arch()}`));
+        console.log(chalk.blue(`${icons.info} CPUs: ${os.cpus().length}`));
+        console.log(chalk.blue(`${icons.info} Total Memory: ${Math.round(os.totalmem() / 1024 / 1024 / 1024)} GB`));
+        console.log(chalk.blue(`${icons.info} Free Memory: ${Math.round(os.freemem() / 1024 / 1024 / 1024)} GB`));
       } catch {
         console.log(chalk.red(`${icons.error} Docker is NOT running or accessible. The agent requires Docker.`));
       }

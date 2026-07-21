@@ -14,6 +14,15 @@ import axios, { AxiosRequestConfig, AxiosError } from 'axios';
 import chalk from 'chalk';
 import ConfigManager from '../utils/config.js';
 
+export function getApiBaseUrl(): string {
+  let url = ConfigManager.get('apiUrl') || 'http://localhost:3000';
+  url = url.replace(/\/+$/, '');
+  if (!url.endsWith('/api/v1')) {
+    url = `${url}/api/v1`;
+  }
+  return url;
+}
+
 // ─── Axios Client ────────────────────────────────────────────────────────────
 
 export const apiClient = axios.create({
@@ -22,7 +31,7 @@ export const apiClient = axios.create({
 
 // Dynamically resolve baseURL before every request
 apiClient.interceptors.request.use((config) => {
-  config.baseURL = ConfigManager.get('apiUrl');
+  config.baseURL = getApiBaseUrl();
 
   const token = ConfigManager.get('token');
   if (token && config.headers) {
@@ -79,7 +88,7 @@ apiClient.interceptors.response.use(
     }
 
     // Skip refreshing if this request was to the refresh endpoint itself
-    if (originalRequest.url === '/auth/refresh') {
+    if (originalRequest.url?.includes('/auth/refresh')) {
       ConfigManager.clearToken();
       const message = 'Session expired. Please run `aero login` to authenticate.';
       return Promise.reject(new Error(message));
@@ -109,9 +118,9 @@ apiClient.interceptors.response.use(
         isRefreshing = true;
 
         try {
-          const apiUrl = ConfigManager.get('apiUrl');
+          const baseUrl = getApiBaseUrl();
           const refreshResponse = await axios.post(
-            `${apiUrl}/auth/refresh`,
+            `${baseUrl}/auth/refresh`,
             {},
             {
               headers: {
@@ -158,6 +167,22 @@ apiClient.interceptors.response.use(
     return Promise.reject(new Error(errorMessage));
   },
 );
+
+// ─── Data Unwrapping Helpers ──────────────────────────────────────────────────
+
+export function unwrapData<T = any>(response: any): T[] {
+  if (!response) return [];
+  if (Array.isArray(response)) return response;
+  if (response.data && Array.isArray(response.data)) return response.data;
+  return [];
+}
+
+export function unwrapItem<T = any>(response: any): T {
+  if (response && typeof response === 'object' && 'data' in response && !Array.isArray(response.data)) {
+    return response.data as T;
+  }
+  return response as T;
+}
 
 // ─── Typed Request Helper ────────────────────────────────────────────────────
 

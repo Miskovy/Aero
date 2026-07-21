@@ -1,18 +1,40 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PaginationDto } from '../common/dto/pagination.dto';
+import { PaginatedResponse } from '../common/interfaces/paginated-response';
+import { Project, Prisma } from '../../generated/prisma/client';
 
 @Injectable()
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listProjects(orgId: string) {
-    return this.prisma.project.findMany({
+  async listProjects(
+    orgId: string,
+    pagination: PaginationDto,
+  ): Promise<PaginatedResponse<Project>> {
+    const { cursor, limit = 20 } = pagination;
+    const take = limit + 1;
+
+    const query: Prisma.ProjectFindManyArgs = {
       where: { organization_id: orgId },
       include: {
         _count: { select: { services: true } },
       },
-      take: 50,
-    });
+      take,
+      orderBy: { created_at: 'desc' },
+    };
+
+    if (cursor) {
+      query.cursor = { id: cursor };
+      query.skip = 1;
+    }
+
+    const items = await this.prisma.project.findMany(query);
+    const hasMore = items.length > limit;
+    if (hasMore) items.pop();
+    const nextCursor = items.length > 0 ? items[items.length - 1].id : null;
+
+    return { data: items, meta: { cursor: nextCursor, hasMore } };
   }
 
   async getProject(projectId: string) {

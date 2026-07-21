@@ -6,7 +6,7 @@
 
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
-import { apiRequest, requireAuth } from '../api/api.js';
+import { apiRequest, requireAuth, unwrapData, unwrapItem } from '../api/api.js';
 import { renderTable } from '../utils/tables.js';
 import icons from '../utils/icons.js';
 
@@ -33,7 +33,8 @@ export async function servicesListAction() {
   s.start('Fetching services...');
 
   try {
-    const services = await apiRequest<any[]>({ method: 'GET', url: '/services' });
+    const raw = await apiRequest<any>({ method: 'GET', url: '/services' });
+    const services = unwrapData(raw);
     s.stop(`${icons.success} Services loaded!`);
 
     if (!services || services.length === 0) {
@@ -68,7 +69,8 @@ async function handleServiceLifecycle(action: 'start' | 'stop' | 'restart' | 'de
     const s = p.spinner();
     s.start('Loading services...');
     try {
-      const services = await apiRequest<any[]>({ method: 'GET', url: '/services' });
+      const raw = await apiRequest<any>({ method: 'GET', url: '/services' });
+      const services = unwrapData(raw);
       s.stop('');
       if (!services || services.length === 0) {
         p.log.info('No services available.');
@@ -129,7 +131,8 @@ export async function servicesInspectAction(serviceId?: string) {
     const s = p.spinner();
     s.start('Loading services...');
     try {
-      const services = await apiRequest<any[]>({ method: 'GET', url: '/services' });
+      const raw = await apiRequest<any>({ method: 'GET', url: '/services' });
+      const services = unwrapData(raw);
       s.stop('');
       if (!services || services.length === 0) {
         p.log.info('No services available.');
@@ -152,7 +155,8 @@ export async function servicesInspectAction(serviceId?: string) {
   s.start('Inspecting service...');
 
   try {
-    const svc = await apiRequest<any>({ method: 'GET', url: `/services/${serviceId}` });
+    const raw = await apiRequest<any>({ method: 'GET', url: `/services/${serviceId}` });
+    const svc = unwrapItem(raw);
     s.stop(`${icons.success} Service loaded.`);
 
     const statusFn = statusColor(svc.status);

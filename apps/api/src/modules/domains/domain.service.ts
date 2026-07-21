@@ -7,6 +7,9 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as dns from 'dns/promises';
+import { PaginationDto } from '../../common/dto/pagination.dto';
+import { PaginatedResponse } from '../../common/interfaces/paginated-response';
+import { Prisma } from '../../../generated/prisma/client';
 
 @Injectable()
 export class DomainsService {
@@ -30,8 +33,30 @@ export class DomainsService {
     });
   }
 
-  async listDomains(serviceId: string) {
-    return this.getAllServiceDomains(serviceId);
+  async listDomains(
+    serviceId: string,
+    pagination: PaginationDto,
+  ): Promise<PaginatedResponse<any>> {
+    const { cursor, limit = 20 } = pagination;
+    const take = limit + 1;
+
+    const query: Prisma.ServiceDomainFindManyArgs = {
+      where: { service_id: serviceId },
+      orderBy: { created_at: 'desc' },
+      take,
+    };
+
+    if (cursor) {
+      query.cursor = { id: cursor };
+      query.skip = 1;
+    }
+
+    const items = await this.prisma.serviceDomain.findMany(query);
+    const hasMore = items.length > limit;
+    if (hasMore) items.pop();
+    const nextCursor = items.length > 0 ? items[items.length - 1].id : null;
+
+    return { data: items, meta: { cursor: nextCursor, hasMore } };
   }
 
   async addCustomDomain(serviceId: string, domainName: string) {

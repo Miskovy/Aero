@@ -6,6 +6,9 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { randomBytes, createHash } from 'crypto';
+import { PaginationDto } from '../../common/dto/pagination.dto';
+import { PaginatedResponse } from '../../common/interfaces/paginated-response';
+import { Prisma } from '../../../generated/prisma/client';
 
 @Injectable()
 export class ApiKeysService {
@@ -69,8 +72,14 @@ export class ApiKeysService {
   /**
    * List all API keys for a user (without revealing the actual key).
    */
-  async listApiKeys(userId: string) {
-    return this.prisma.apiKey.findMany({
+  async listApiKeys(
+    userId: string,
+    pagination: PaginationDto,
+  ): Promise<PaginatedResponse<any>> {
+    const { cursor, limit = 20 } = pagination;
+    const take = limit + 1;
+
+    const query: Prisma.ApiKeyFindManyArgs = {
       where: { user_id: userId },
       select: {
         id: true,
@@ -86,7 +95,20 @@ export class ApiKeysService {
         },
       },
       orderBy: { created_at: 'desc' },
-    });
+      take,
+    };
+
+    if (cursor) {
+      query.cursor = { id: cursor };
+      query.skip = 1;
+    }
+
+    const items = await this.prisma.apiKey.findMany(query);
+    const hasMore = items.length > limit;
+    if (hasMore) items.pop();
+    const nextCursor = items.length > 0 ? items[items.length - 1].id : null;
+
+    return { data: items, meta: { cursor: nextCursor, hasMore } };
   }
 
   /**

@@ -143,6 +143,22 @@ export class MailService implements OnModuleInit {
   }
 
   /**
+   * Send generic email
+   */
+  async sendGenericEmail(
+    toEmail: string,
+    subject: string,
+    message: string,
+  ): Promise<void> {
+    await this.sendMail({
+      to: toEmail,
+      subject,
+      text: message,
+      html: `<p>${message.replace(/\n/g, '<br>')}</p>`,
+    });
+  }
+
+  /**
    * Internal sender router
    */
   private async sendMail(options: {

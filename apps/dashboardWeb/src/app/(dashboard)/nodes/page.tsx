@@ -88,7 +88,8 @@ export default function NodesPage() {
         throw new Error(`Server returned status: ${res.status}`);
       }
 
-      const data = await res.json();
+      const rawData = await res.json();
+      const data = Array.isArray(rawData) ? rawData : (rawData?.data || []);
       setOrgs(data);
 
       if (data.length > 0) {
@@ -127,7 +128,8 @@ export default function NodesPage() {
         throw new Error(`Server returned status: ${res.status}`);
       }
 
-      const data = await res.json();
+      const rawData = await res.json();
+      const data = Array.isArray(rawData) ? rawData : (rawData?.data || []);
       setNodes(data);
     } catch (err: unknown) {
       if (!silent) {

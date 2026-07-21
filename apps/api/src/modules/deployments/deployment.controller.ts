@@ -8,6 +8,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { DeploymentsService } from './deployment.service';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../../common/interfaces/Authenticated.interface';
 
@@ -28,10 +29,9 @@ export class DeploymentsController {
   @Get(':serviceId/deployments')
   async listDeployments(
     @Param('serviceId') serviceId: string,
-    @Query('limit') limit?: string,
+    @Query() pagination: PaginationDto,
   ) {
-    const take = limit ? parseInt(limit, 10) : 10;
-    return this.deploymentsService.listDeployments(serviceId, take);
+    return this.deploymentsService.listDeployments(serviceId, pagination);
   }
 
   @Get(':serviceId/deployments/:id')
@@ -49,8 +49,13 @@ export class DeploymentsController {
   async getDeploymentLogs(
     @Param('serviceId') serviceId: string,
     @Param('id') deploymentId: string,
+    @Query() pagination: PaginationDto,
   ) {
-    return this.deploymentsService.getDeploymentLogs(serviceId, deploymentId);
+    return this.deploymentsService.getDeploymentLogs(
+      serviceId,
+      deploymentId,
+      pagination,
+    );
   }
 
   @Post(':serviceId/deployments/:id/rollback')

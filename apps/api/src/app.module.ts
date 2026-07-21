@@ -2,7 +2,8 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { VaultModule } from './modules/vault/vault.module';
@@ -26,6 +27,7 @@ import { NodesModule } from './modules/nodes/nodes.module';
 import { CloudflareModule } from './modules/cloudflare/cloudflare.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { AlertsModule } from './modules/alerts/alerts.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { RedisModule } from './redis/redis.module';
@@ -102,6 +104,7 @@ import { MailModule } from './mail/mail.module';
     NetworkingModule,
     CloudflareModule,
     WebhooksModule,
+    AlertsModule,
     EventEmitterModule.forRoot(),
   ],
   controllers: [AppController],
@@ -110,6 +113,10 @@ import { MailModule } from './mail/mail.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
     },
   ],
 })

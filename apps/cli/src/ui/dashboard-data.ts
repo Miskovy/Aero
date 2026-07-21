@@ -11,8 +11,8 @@
  */
 
 import * as os from 'node:os';
-import { apiRequest } from '../api/api.js';
-import { formatUptime, formatBytes, timeAgo, statusDot } from './render.js';
+import { apiRequest, unwrapData } from '../api/api.js';
+import { formatBytes, timeAgo } from './render.js';
 import ConfigManager from '../utils/config.js';
 import icons from '../utils/icons.js';
 import chalk from 'chalk';
@@ -108,8 +108,8 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   }
 
   // Services summary
-  if (servicesResult.status === 'fulfilled' && Array.isArray(servicesResult.value)) {
-    const svcs = servicesResult.value;
+  if (servicesResult.status === 'fulfilled') {
+    const svcs = unwrapData(servicesResult.value);
     result.services.total = svcs.length;
     result.services.running = svcs.filter((s: any) => s.status === 'running').length;
     result.services.failed = svcs.filter((s: any) => s.status === 'failed').length;
@@ -124,9 +124,9 @@ export async function fetchDashboardData(): Promise<DashboardData> {
         const dep = svc.deployments[0];
         const action =
           dep.status === 'completed' ? 'deployed' :
-          dep.status === 'failed' ? 'build failed' :
-          dep.status === 'queued' ? 'queued' :
-          dep.status === 'building' ? 'building' : dep.status;
+            dep.status === 'failed' ? 'build failed' :
+              dep.status === 'queued' ? 'queued' :
+                dep.status === 'building' ? 'building' : dep.status;
         result.recentActivity.push({
           message: `${svc.name} ${action}`,
           time: timeAgo(dep.created_at),
@@ -141,8 +141,8 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   }
 
   // Nodes
-  if (nodesResult.status === 'fulfilled' && Array.isArray(nodesResult.value)) {
-    result.nodes = nodesResult.value.map((n: any) => ({
+  if (nodesResult.status === 'fulfilled') {
+    result.nodes = unwrapData(nodesResult.value).map((n: any) => ({
       name: n.name || n.hostname || n.id?.substring(0, 12) || 'unknown',
       status: n.status || 'offline',
     }));
@@ -185,7 +185,7 @@ export function buildDashboardLayout(data: DashboardData) {
   healthItems.push({
     label: 'RAM',
     value: `${chalk.white(formatBytes(usedMemory))} / ${chalk.dim(formatBytes(data.machine.totalMemory))}` +
-           chalk.dim(` (${memPercent.toFixed(0)}%)`),
+      chalk.dim(` (${memPercent.toFixed(0)}%)`),
     dot: memPercent >= 90 ? chalk.red(icons.dot) : memPercent >= 70 ? chalk.yellow(icons.dot) : chalk.green(icons.dot),
   });
 

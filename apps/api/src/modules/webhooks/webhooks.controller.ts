@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../../common/interfaces/Authenticated.interface';
 import { CreateWebhookDto } from './dto/create-webhook.dto';
 import { WebhookPayload } from './interfaces/webhook.interface';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @ApiTags('Webhooks')
 @Controller()
@@ -59,10 +60,11 @@ export class WebhooksController {
   async listWebhooks(
     @Param('serviceId') serviceId: string,
     @Req() req: AuthenticatedRequest,
+    @Query() pagination: PaginationDto,
   ) {
     const userId = req.user?.id;
     if (!userId) throw new Error('User not authenticated');
-    return this.webhooksService.listWebhooks(serviceId, userId);
+    return this.webhooksService.listWebhooks(serviceId, userId, pagination);
   }
 
   @Delete('services/:serviceId/webhooks/:webhookId')

@@ -58,8 +58,8 @@ export default function WebhooksManager({ serviceId }: WebhooksManagerProps) {
       const res = await fetch(`${API_BASE}/services/${serviceId}/webhooks`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
-      if (!res.ok) throw new Error(`Status ${res.status}`);
-      setWebhooks(await res.json());
+      const rawData = await res.json();
+      setWebhooks(Array.isArray(rawData) ? rawData : (rawData?.data || []));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch webhooks');
     } finally {
