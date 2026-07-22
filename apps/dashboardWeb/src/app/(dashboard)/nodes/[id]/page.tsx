@@ -1,5 +1,7 @@
 'use client';
 
+import { getApiBaseUrl } from '@/lib/api-config';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import SshTerminal from '../../../../components/SshTerminal';
@@ -48,7 +50,7 @@ export default function NodeDetailsPage({ params }: { params: Promise<{ id: stri
   const [activeTab, setActiveTab] = useState<'overview' | 'services' | 'terminal'>('overview');
   const [sessionToken, setSessionToken] = useState<string>('');
 
-  const API_BASE = '/api';
+  const API_BASE = getApiBaseUrl();
 
   useEffect(() => {
     params.then((p) => setNodeId(p.id));
@@ -91,7 +93,7 @@ export default function NodeDetailsPage({ params }: { params: Promise<{ id: stri
     } finally {
       setLoading(false);
     }
-  }, [nodeId]);
+  }, [nodeId, API_BASE]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

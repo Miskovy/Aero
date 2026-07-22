@@ -4,13 +4,14 @@ import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
 import AeroLogo from '@/components/AeroLogo';
 
+import { getApiUrl } from '@/lib/api-config';
+
 const Hero3DBackground = dynamic(
   () => import('@/components/Hero3DBackground'),
   { ssr: false }
 );
 
 export default function ForgotPasswordPage() {
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || '/api';
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
@@ -52,7 +53,7 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${baseURL}/auth/forgot-password`, {
+      const response = await fetch(getApiUrl('/auth/forgot-password'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -62,10 +63,10 @@ export default function ForgotPasswordPage() {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to request reset PIN.');
+        throw new Error(data.message || 'Failed to send reset code.');
       }
 
-      setSuccessMessage('A 6-digit security PIN has been dispatched to your email.');
+      setSuccessMessage('Security PIN sent! Please check your email inbox.');
       setStep(2);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred.');
@@ -85,7 +86,7 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${baseURL}/auth/verify-reset-pin`, {
+      const response = await fetch(getApiUrl('/auth/verify-reset-pin'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -122,7 +123,7 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${baseURL}/auth/reset-password`, {
+      const response = await fetch(getApiUrl('/auth/reset-password'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

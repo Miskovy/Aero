@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import GitHubIcon from '@/components/GitHubIcon';
 import AeroLogo from '@/components/AeroLogo';
+import { getApiUrl } from '@/lib/api-config';
 
 const Hero3DBackground = dynamic(
   () => import('@/components/Hero3DBackground'),
@@ -12,12 +14,11 @@ const Hero3DBackground = dynamic(
 );
 
 export default function LoginPage() {
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || '/api';
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
@@ -34,13 +35,12 @@ export default function LoginPage() {
       if (token) {
         document.cookie = `aero_session=${token}; path=/; max-age=${86400}; SameSite=Lax`;
         window.history.replaceState({}, document.title, window.location.pathname);
-        window.location.href = '/';
+        router.push('/');
         return;
       }
 
-      // If no token in URL, try silent refresh using the HttpOnly cookie
       try {
-        const response = await fetch(baseURL + '/auth/refresh', {
+        const response = await fetch(getApiUrl('/auth/refresh'), {
           method: 'POST',
           credentials: 'include',
         });
@@ -49,95 +49,44 @@ export default function LoginPage() {
           const data = await response.json();
           if (data.access_token) {
             document.cookie = `aero_session=${data.access_token}; path=/; max-age=${86400}; SameSite=Lax`;
-            window.location.href = '/';
-            return;
+            router.push('/');
           }
         }
-      } catch (err) {
-        console.error('Silent refresh failed:', err);
-      } finally {
-        setIsCheckingSession(false);
+      } catch {
+        /* Session refresh failed - stay on login page */
       }
     };
 
     checkSession();
-
-    const handlePageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) {
-        setIsCheckingSession(false);
-      }
-    };
-
-    window.addEventListener('pageshow', handlePageShow);
-    return () => {
-      window.removeEventListener('pageshow', handlePageShow);
-    };
-  }, [baseURL]);
-
-  if (isCheckingSession) {
-    return (
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        background: '#09090b',
-        color: '#f4f4f5',
-        fontFamily: 'system-ui, sans-serif'
-      }}>
-        <style>{`
-          @keyframes pulseScale {
-            0%, 100% { transform: scale(1); opacity: 0.5; }
-            50% { transform: scale(1.2); opacity: 0.9; }
-          }
-          .custom-spinner {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background: radial-gradient(circle, var(--accent-cyan, #06b6d4) 0%, transparent 70%);
-            animation: pulseScale 2s infinite ease-in-out;
-            margin-bottom: 20px;
-          }
-        `}</style>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', marginRight: '21px' }}>
-          <AeroLogo size={36} />
-          <span style={{ fontSize: '36px', fontWeight: 'bold', letterSpacing: '-0.03em' }}>AERO</span>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-          <div className="custom-spinner" />
-          <span style={{ fontSize: '12px', color: '#a1a1aa', letterSpacing: '0.07em', textTransform: 'uppercase', fontWeight: 500 }}>
-            Verifying secure session...
-          </span>
-        </div>
-      </div>
-    );
-  }
+  }, [router]);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(baseURL + '/auth/login', {
+      const response = await fetch(getApiUrl('/auth/login'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           email,
-          password
-        })
+          password,
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) throw new Error(data.message || 'Invalid credentials');
 
-      document.cookie = `aero_session=${data.access_token}; path=/; max-age=${86400}; SameSite=Lax`;
-      window.location.href = '/';
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : String(error));
+      if (data.access_token) {
+        document.cookie = `aero_session=${data.access_token}; path=/; max-age=${86400}; SameSite=Lax`;
+      }
+
+      router.push('/');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setIsLoading(false);
     }
@@ -157,6 +106,7 @@ export default function LoginPage() {
             placeholder="Email"
             value={email}
             onChange={e => setEmail(e.target.value)}
+            required
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ position: 'relative', width: '100%' }}>
@@ -166,6 +116,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 style={{ paddingRight: '40px' }}
+                required
               />
               <button
                 type="button"
@@ -186,16 +137,7 @@ export default function LoginPage() {
                   width: 'auto',
                 }}
               >
-                {showPassword ? (
-                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                  </svg>
-                ) : (
-                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                )}
+                {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -208,8 +150,6 @@ export default function LoginPage() {
                   transition: 'color 0.2s',
                   fontWeight: 500,
                 }}
-                onMouseOver={e => e.currentTarget.style.color = 'var(--text-primary)'}
-                onMouseOut={e => e.currentTarget.style.color = 'var(--text-dim)'}
               >
                 Forgot Password?
               </Link>
@@ -223,13 +163,7 @@ export default function LoginPage() {
             type="button"
             className="github-login-button"
             onClick={() => {
-              const url = process.env.NEXT_PUBLIC_API_URL || '';
-              const target = (!url || url === '/api')
-                ? '/api/auth/github?client=web'
-                : url.endsWith('/api/v1')
-                  ? `${url}/auth/github?client=web`
-                  : `${url.replace(/\/+$/, '')}/api/v1/auth/github?client=web`;
-              window.location.href = target;
+              window.location.href = getApiUrl('/auth/github?client=web');
             }}
           >
             <GitHubIcon size={18} />
@@ -244,7 +178,7 @@ export default function LoginPage() {
 
           <button
             type="button"
-            onClick={() => window.location.href = '/signup'}
+            onClick={() => router.push('/signup')}
             style={{
               width: '100%',
               padding: '12px 24px',
@@ -259,44 +193,15 @@ export default function LoginPage() {
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            onMouseOver={e => {
-              e.currentTarget.style.borderColor = 'var(--border-hover)';
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
-            }}
-            onMouseOut={e => {
-              e.currentTarget.style.borderColor = 'var(--border-glass)';
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
           >
             Create an Account
           </button>
 
           {error && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div className="error-alert-box">
-                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M7.49997 0.833313C3.81807 0.833313 0.833302 3.81808 0.833302 7.50001C0.833302 11.1819 3.81807 14.1667 7.49997 14.1667C11.1819 14.1667 14.1666 11.1819 14.1666 7.50001C14.1666 3.81808 11.1819 0.833313 7.49997 0.833313ZM8.12497 4.37501V8.12501H6.87497V4.37501H8.12497ZM8.12497 9.37501V10.625H6.87497V9.37501H8.12497Z" fill="currentColor" />
-                </svg>
+              <div className="error-alert-box" style={{ padding: '10px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#f87171', borderRadius: '6px', fontSize: '13px' }}>
                 <span>{error}</span>
               </div>
-              {error.includes('verify your email') && (
-                <button
-                  type="button"
-                  onClick={() => window.location.href = `/verify-email?email=${encodeURIComponent(email)}`}
-                  style={{
-                    padding: '10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--accent-cyan, #06b6d4)',
-                    background: 'rgba(6, 182, 212, 0.1)',
-                    color: 'var(--accent-cyan, #06b6d4)',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    fontWeight: 600
-                  }}
-                >
-                  Go to Verification Page
-                </button>
-              )}
             </div>
           )}
         </form>
@@ -304,7 +209,6 @@ export default function LoginPage() {
 
       <div className="login-banner">
         <Hero3DBackground />
-
         <div style={{ textAlign: 'center', zIndex: 10, padding: '0 40px', width: '100%' }}>
           <h1 style={{ fontSize: '48px', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '16px' }}>
             Self-Hosted <em>Cloud</em>

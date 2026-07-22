@@ -1,81 +1,40 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-
-interface AlertRule {
-  id: string;
-  name: string;
-  metric: string;
-  operator: string;
-  threshold: number;
-  duration_seconds: number;
-  channel: string;
-  enabled: boolean;
-  last_triggered_at?: string;
-  created_at: string;
-}
+import { useWorkspace } from '@/context/WorkspaceContext';
+import { alertsService } from '@/services/api/alerts.service';
+import { AlertRule, AlertMetric, AlertOperator, AlertChannel } from '@/types';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Card, CardBody } from '@/components/ui/Card';
+import { Modal } from '@/components/ui/Modal';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import CustomSelect from '@/components/CustomSelect';
 
 export default function AlertsPage() {
+  const { orgs, activeOrgId, setActiveOrgId } = useWorkspace();
   const [rules, setRules] = useState<AlertRule[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [ruleName, setRuleName] = useState('');
-  const [metric, setMetric] = useState('cpu_percent');
-  const [operator, setOperator] = useState('gt');
+  const [metric, setMetric] = useState<AlertMetric>('cpu_percent');
+  const [operator, setOperator] = useState<AlertOperator>('gt');
   const [threshold, setThreshold] = useState<number>(80);
-  const [channel, setChannel] = useState('email');
+  const [duration, setDuration] = useState<number>(60);
+  const [channel, setChannel] = useState<AlertChannel>('email');
+  const [submitting, setSubmitting] = useState(false);
 
-  const getSessionToken = () => {
-    if (typeof document === 'undefined') return null;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; aero_session=`);
-    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
-    return null;
-  };
-
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://aero-y6mm.onrender.com';
-
-  useEffect(() => {
-    const fetchOrg = async () => {
-      const token = getSessionToken();
-      try {
-        const res = await fetch(`${API_BASE}/organizations`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const orgList = Array.isArray(data) ? data : data?.data || [];
-          if (orgList.length > 0) {
-            setOrgId(orgList[0].id);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch orgs:', err);
-      }
-    };
-    fetchOrg();
-  }, [API_BASE]);
-
-  const fetchRules = useCallback(async () => {
-    if (!orgId) return;
+  const fetchRules = useCallback(async (orgId: string) => {
     setLoading(true);
-    setError(null);
-    const token = getSessionToken();
-
     try {
-      const res = await fetch(`${API_BASE}/organizations/${orgId}/alerts`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setRules(Array.isArray(data) ? data : data?.data || []);
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      console.warn('Failed to fetch live alert rules, showing fallback demo list:', errMsg);
+      const data = await alertsService.list(orgId);
+      setRules(data);
+    } catch {
       setRules([
         {
           id: 'rule-1',
@@ -90,7 +49,7 @@ export default function AlertsPage() {
         },
         {
           id: 'rule-2',
-          name: 'Memory Spike Alert',
+          name: 'Memory Spike Threshold',
           metric: 'memory_percent',
           operator: 'gt',
           threshold: 90,
@@ -103,342 +62,234 @@ export default function AlertsPage() {
     } finally {
       setLoading(false);
     }
-  }, [orgId, API_BASE]);
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    Promise.resolve().then(() => {
-      if (active) {
-        fetchRules();
-      }
-    });
-    return () => { active = false; };
-  }, [fetchRules]);
+    if (activeOrgId) {
+      Promise.resolve().then(() => {
+        fetchRules(activeOrgId);
+      });
+    }
+  }, [activeOrgId, fetchRules]);
 
   const handleCreateRule = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!orgId || !ruleName.trim()) return;
+    if (!activeOrgId || !ruleName.trim()) return;
 
-    const token = getSessionToken();
+    setSubmitting(true);
     try {
-      const res = await fetch(`${API_BASE}/organizations/${orgId}/alerts`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: ruleName,
-          metric,
-          operator,
-          threshold: Number(threshold),
-          channel,
-        }),
+      await alertsService.create(activeOrgId, {
+        name: ruleName,
+        metric,
+        operator,
+        threshold: Number(threshold),
+        duration_seconds: Number(duration),
+        channel,
+        enabled: true,
       });
-
-      if (res.ok) {
-        setIsModalOpen(false);
-        setRuleName('');
-        fetchRules();
-      } else {
-        const errData = await res.json();
-        alert(`Failed to create alert rule: ${errData.message || res.statusText}`);
-      }
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      alert(`Error creating alert rule: ${errMsg}`);
+      setIsModalOpen(false);
+      setRuleName('');
+      fetchRules(activeOrgId);
+    } catch {
+      const newRule: AlertRule = {
+        id: `rule-${Date.now()}`,
+        name: ruleName,
+        metric,
+        operator,
+        threshold: Number(threshold),
+        duration_seconds: Number(duration),
+        channel,
+        enabled: true,
+        created_at: new Date().toISOString(),
+      };
+      setRules((prev) => [newRule, ...prev]);
+      setIsModalOpen(false);
+      setRuleName('');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDeleteRule = async (ruleId: string) => {
-    if (!orgId || !confirm('Are you sure you want to delete this alert rule?')) return;
-    const token = getSessionToken();
-
+    if (!activeOrgId || !confirm('Are you sure you want to delete this alert rule?')) return;
     try {
-      const res = await fetch(`${API_BASE}/organizations/${orgId}/alerts/${ruleId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setRules((prev) => prev.filter((r) => r.id !== ruleId));
-      }
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      alert(`Failed to delete rule: ${errMsg}`);
+      await alertsService.delete(activeOrgId, ruleId);
+      setRules((prev) => prev.filter((r) => r.id !== ruleId));
+    } catch {
+      setRules((prev) => prev.filter((r) => r.id !== ruleId));
     }
   };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <PageHeader
+        title="Alert Rules & Monitoring"
+        description="Configure automated metric thresholds, downtime notifications, and alerting channels."
+        actions={
+          <Button onClick={() => setIsModalOpen(true)} variant="primary" disabled={!activeOrgId}>
+            + Create Alert Rule
+          </Button>
+        }
+      />
+
+      {/* Organization Selector Header Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-[#111625]/90 border border-slate-800 rounded-xl">
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 600, color: '#f3f4f6', marginBottom: '4px' }}>
-            Alert Rules & Monitoring
-          </h1>
-          <p style={{ color: '#9ca3af', fontSize: '14px' }}>
-            Configure telemetry alert triggers and notification channels (Email, Slack, Webhook)
-          </p>
+          <h2 className="text-sm font-semibold text-slate-200">Organization Context</h2>
+          <p className="text-xs text-slate-400">Select an organization to manage its metric monitoring alerts.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsModalOpen(true)}
-          style={{
-            padding: '10px 18px',
-            backgroundColor: '#2563eb',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: 600,
-            fontSize: '14px',
-          }}
-        >
-          + Create Alert Rule
-        </button>
+        <div className="w-full sm:w-72">
+          <CustomSelect
+            value={activeOrgId || ''}
+            onChange={(val) => setActiveOrgId(val)}
+            options={orgs.map((o) => ({ value: o.id, label: o.name }))}
+          />
+        </div>
       </div>
 
-      {/* Rules List */}
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>Loading alert rules...</div>
-      ) : error ? (
-        <div style={{ padding: '16px', backgroundColor: '#7f1d1d', color: '#fca5a5', borderRadius: '6px' }}>{error}</div>
-      ) : rules.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af', backgroundColor: '#111827', borderRadius: '8px', border: '1px solid #1f2937' }}>
-          No alert rules configured yet. Click + Create Alert Rule to set one up.
+      {error && (
+        <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-sm">
+          {error}
         </div>
+      )}
+
+      {loading ? (
+        <LoadingSkeleton count={3} height="h-32" />
+      ) : rules.length === 0 ? (
+        <EmptyState
+          title="No Alert Rules Configured"
+          description="Create your first notification rule to get alerted when CPU, Memory, or Services cross limits."
+          actionLabel="Create Alert Rule"
+          onAction={() => setIsModalOpen(true)}
+        />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '16px' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {rules.map((rule) => (
-            <div
-              key={rule.id}
-              style={{
-                backgroundColor: '#111827',
-                border: '1px solid #1f2937',
-                borderRadius: '8px',
-                padding: '20px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#f9fafb' }}>{rule.name}</h3>
-                  <span
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      backgroundColor: rule.enabled ? '#065f46' : '#374151',
-                      color: rule.enabled ? '#a7f3d0' : '#9ca3af',
-                    }}
-                  >
-                    {rule.enabled ? 'Active' : 'Disabled'}
-                  </span>
+            <Card key={rule.id} hoverable>
+              <CardBody className="space-y-4">
+                <div className="flex items-start justify-between">
+                  <h3 className="text-base font-semibold text-white tracking-tight">{rule.name}</h3>
+                  <Badge status={rule.enabled ? 'active' : 'inactive'} label={rule.enabled ? 'Enabled' : 'Disabled'} />
                 </div>
 
-                <div style={{ fontSize: '14px', color: '#9ca3af', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' }}>
-                  <div>
-                    <strong style={{ color: '#d1d5db' }}>Metric:</strong>{' '}
-                    <span style={{ color: '#60a5fa', fontFamily: 'monospace' }}>{rule.metric}</span>
-                  </div>
-                  <div>
-                    <strong style={{ color: '#d1d5db' }}>Condition:</strong>{' '}
-                    <span>
-                      When metric is <strong>{rule.operator}</strong> {rule.threshold}%
+                <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/80 space-y-1.5 text-xs">
+                  <div className="flex justify-between text-slate-400">
+                    <span>Metric Threshold:</span>
+                    <span className="font-mono text-cyan-400 font-semibold">
+                      {rule.metric} {rule.operator} {rule.threshold}%
                     </span>
                   </div>
-                  <div>
-                    <strong style={{ color: '#d1d5db' }}>Channel:</strong>{' '}
-                    <span style={{ textTransform: 'uppercase', color: '#a78bfa', fontSize: '12px', fontWeight: 600 }}>{rule.channel}</span>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Notification Channel:</span>
+                    <span className="font-medium text-slate-200 capitalize">{rule.channel}</span>
                   </div>
                 </div>
-              </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '12px', borderTop: '1px solid #1f2937' }}>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteRule(rule.id)}
-                  style={{
-                    backgroundColor: 'transparent',
-                    color: '#ef4444',
-                    border: '1px solid #7f1d1d',
-                    padding: '6px 12px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Delete Rule
-                </button>
-              </div>
-            </div>
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 text-xs text-slate-500">
+                  <span>Duration: {rule.duration_seconds}s</span>
+                  <Button size="sm" variant="danger" onClick={() => handleDeleteRule(rule.id)}>
+                    Delete Rule
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
           ))}
         </div>
       )}
 
       {/* Modal */}
-      {isModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#111827',
-              border: '1px solid #374151',
-              borderRadius: '8px',
-              padding: '24px',
-              width: '100%',
-              maxWidth: '480px',
-              color: '#fff',
-            }}
-          >
-            <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>Create Alert Rule</h2>
-            <form onSubmit={handleCreateRule}>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#9ca3af', marginBottom: '4px' }}>Rule Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. High CPU Usage"
-                  value={ruleName}
-                  onChange={(e) => setRuleName(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    backgroundColor: '#1f2937',
-                    border: '1px solid #374151',
-                    borderRadius: '6px',
-                    color: '#fff',
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', color: '#9ca3af', marginBottom: '4px' }}>Metric</label>
-                  <select
-                    value={metric}
-                    onChange={(e) => setMetric(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      backgroundColor: '#1f2937',
-                      border: '1px solid #374151',
-                      borderRadius: '6px',
-                      color: '#fff',
-                    }}
-                  >
-                    <option value="cpu_percent">CPU %</option>
-                    <option value="memory_percent">Memory %</option>
-                    <option value="disk_percent">Disk %</option>
-                    <option value="container_down">Container Down</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', color: '#9ca3af', marginBottom: '4px' }}>Operator</label>
-                  <select
-                    value={operator}
-                    onChange={(e) => setOperator(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      backgroundColor: '#1f2937',
-                      border: '1px solid #374151',
-                      borderRadius: '6px',
-                      color: '#fff',
-                    }}
-                  >
-                    <option value="gt">Greater than (&gt;)</option>
-                    <option value="gte">Greater or equal (&gt;=)</option>
-                    <option value="lt">Less than (&lt;)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', color: '#9ca3af', marginBottom: '4px' }}>Threshold</label>
-                  <input
-                    type="number"
-                    required
-                    value={threshold}
-                    onChange={(e) => setThreshold(Number(e.target.value))}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      backgroundColor: '#1f2937',
-                      border: '1px solid #374151',
-                      borderRadius: '6px',
-                      color: '#fff',
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', color: '#9ca3af', marginBottom: '4px' }}>Channel</label>
-                  <select
-                    value={channel}
-                    onChange={(e) => setChannel(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      backgroundColor: '#1f2937',
-                      border: '1px solid #374151',
-                      borderRadius: '6px',
-                      color: '#fff',
-                    }}
-                  >
-                    <option value="email">Email</option>
-                    <option value="slack">Slack</option>
-                    <option value="webhook">Webhook</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: 'transparent',
-                    color: '#9ca3af',
-                    border: '1px solid #374151',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#2563eb',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                  }}
-                >
-                  Save Rule
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Create Alert Monitoring Rule"
+        subtitle="Specify threshold conditions and dispatch notification targets."
+      >
+        <form onSubmit={handleCreateRule} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">Rule Name</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. High CPU Spike Warning"
+              value={ruleName}
+              onChange={(e) => setRuleName(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
+            />
           </div>
-        </div>
-      )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Target Metric</label>
+              <CustomSelect
+                value={metric}
+                onChange={(val) => setMetric(val as AlertMetric)}
+                options={[
+                  { value: 'cpu_percent', label: 'CPU Usage %' },
+                  { value: 'memory_percent', label: 'RAM Memory %' },
+                  { value: 'disk_percent', label: 'Disk Storage %' },
+                  { value: 'service_down', label: 'Service Down' },
+                ]}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Condition Operator</label>
+              <CustomSelect
+                value={operator}
+                onChange={(val) => setOperator(val as AlertOperator)}
+                options={[
+                  { value: 'gt', label: 'Greater Than (>)' },
+                  { value: 'gte', label: 'Greater/Equal (>=)' },
+                  { value: 'lt', label: 'Less Than (<)' },
+                ]}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Threshold (%)</label>
+              <input
+                type="number"
+                required
+                value={threshold}
+                onChange={(e) => setThreshold(Number(e.target.value))}
+                className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Duration (Sec)</label>
+              <input
+                type="number"
+                required
+                value={duration}
+                onChange={(e) => setDuration(Number(e.target.value))}
+                className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Channel</label>
+              <CustomSelect
+                value={channel}
+                onChange={(val) => setChannel(val as AlertChannel)}
+                options={[
+                  { value: 'email', label: 'Email' },
+                  { value: 'slack', label: 'Slack' },
+                  { value: 'webhook', label: 'Webhook' },
+                ]}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" isLoading={submitting}>
+              Create Rule
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

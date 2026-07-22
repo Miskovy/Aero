@@ -1,13 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { PaginationDto } from '../../common/dto/pagination.dto';
 import { Prisma } from '../../../generated/prisma/client';
-
-export interface AuditLogQueryDto extends PaginationDto {
-  action?: string;
-  resource_type?: string;
-  user_id?: string;
-}
+import { AuditLogQueryDto } from './interfaces/audit-log.interface';
 
 @Injectable()
 export class AuditLogsService {

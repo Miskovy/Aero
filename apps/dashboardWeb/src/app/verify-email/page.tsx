@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import AeroLogo from '@/components/AeroLogo';
+import { getApiUrl } from '@/lib/api-config';
 
 const Hero3DBackground = dynamic(
   () => import('@/components/Hero3DBackground'),
@@ -10,7 +11,6 @@ const Hero3DBackground = dynamic(
 );
 
 function VerifyEmailContent() {
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || '/api';
   const [status, setStatus] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [email, setEmail] = useState(() => {
@@ -32,7 +32,7 @@ function VerifyEmailContent() {
     setStatus('verifying');
     setErrorMessage(null);
     try {
-      const response = await fetch(`${baseURL}/auth/verify-email`, {
+      const response = await fetch(getApiUrl('/auth/verify-email'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -49,19 +49,20 @@ function VerifyEmailContent() {
       setStatus('success');
     } catch (err) {
       setStatus('error');
-      setErrorMessage(err instanceof Error ? err.message : 'Verification failed.');
+      setErrorMessage(err instanceof Error ? err.message : 'An unexpected error occurred during verification.');
     }
-  }, [baseURL]);
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const urlToken = params.get('token');
+    const tokenParam = params.get('token');
 
-    if (urlToken) {
-      const timer = setTimeout(() => {
-        verifyEmailToken(urlToken);
-      }, 0);
-      return () => clearTimeout(timer);
+    if (tokenParam) {
+      let active = true;
+      Promise.resolve().then(() => {
+        if (active) verifyEmailToken(tokenParam);
+      });
+      return () => { active = false; };
     }
   }, [verifyEmailToken]);
 
@@ -72,7 +73,7 @@ function VerifyEmailContent() {
     setResendStatus('sending');
     setResendMessage(null);
     try {
-      const response = await fetch(`${baseURL}/auth/resend-verification`, {
+      const response = await fetch(getApiUrl('/auth/resend-verification'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

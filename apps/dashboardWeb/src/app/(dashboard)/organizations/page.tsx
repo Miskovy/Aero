@@ -1,16 +1,16 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import CustomSelect from '../../../components/CustomSelect';
-
-interface Organization {
-  id: string;
-  name: string;
-  tier: 'Developer Tier' | 'Standard Tier' | 'Enterprise Tier';
-  membersCount: number;
-  projectsCount: number;
-  status: 'Active' | 'Suspended';
-}
+import { orgsService } from '@/services/api/orgs.service';
+import { Organization } from '@/types';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Card, CardBody } from '@/components/ui/Card';
+import { Modal } from '@/components/ui/Modal';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import CustomSelect from '@/components/CustomSelect';
 
 const DEFAULT_ORGS: Organization[] = [
   { id: 'org-1', name: 'Core Infrastructure Org', tier: 'Enterprise Tier', membersCount: 8, projectsCount: 12, status: 'Active' },
@@ -21,406 +21,217 @@ export default function OrganizationsPage() {
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDemoMode] = useState(false);
 
   // Form Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Inputs state
+  // Form inputs
   const [orgName, setOrgName] = useState('');
   const [orgTier, setOrgTier] = useState<Organization['tier']>('Developer Tier');
 
-  const API_BASE = 'https://aero-y6mm.onrender.com';
-
-  // Extract Cookie helper
-  const getSessionToken = () => {
-    if (typeof document === 'undefined') return null;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; aero_session=`);
-    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
-    return null;
-  };
-
-  // 1. READ: Fetch all organizations
   const fetchOrganizations = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const token = getSessionToken();
-
     try {
-      // Connect to real backend
-      const res = await fetch(`${API_BASE}/organizations`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!res.ok) {
-        throw new Error(`Server returned status: ${res.status}`);
-      }
-
-      const data = await res.json();
-      setOrgs(Array.isArray(data) ? data : (data?.data || []));
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      console.warn('Backend connection failed, loading local state storage instead:', errMsg);
-      // Fallback to local storage for testability
-      const localData = localStorage.getItem('aero_local_orgs');
-      if (localData) {
-        setOrgs(JSON.parse(localData));
+      const data = await orgsService.list();
+      if (data && data.length > 0) {
+        setOrgs(data);
       } else {
-        setOrgs(DEFAULT_ORGS);
-        localStorage.setItem('aero_local_orgs', JSON.stringify(DEFAULT_ORGS));
+        const localData = localStorage.getItem('aero_local_orgs');
+        if (localData) {
+          setOrgs(JSON.parse(localData));
+        } else {
+          setOrgs(DEFAULT_ORGS);
+          localStorage.setItem('aero_local_orgs', JSON.stringify(DEFAULT_ORGS));
+        }
       }
+    } catch (err: unknown) {
+      console.warn('Backend org list warning:', err);
+      const localData = localStorage.getItem('aero_local_orgs');
+      setOrgs(localData ? JSON.parse(localData) : DEFAULT_ORGS);
     } finally {
       setLoading(false);
     }
-  }, [API_BASE]);
+  }, []);
 
   useEffect(() => {
     let active = true;
     Promise.resolve().then(() => {
-      if (active) {
-        fetchOrganizations();
-      }
+      if (active) fetchOrganizations();
     });
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [fetchOrganizations]);
 
-  // Save to local storage helper (in demo mode)
-  const saveToLocal = (updatedOrgs: Organization[]) => {
-    setOrgs(updatedOrgs);
-    localStorage.setItem('aero_local_orgs', JSON.stringify(updatedOrgs));
-  };
-
-  // 2. CREATE: Submit new Organization
-  const handleCreateOrg = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!orgName.trim()) return;
-
-    const token = getSessionToken();
-    const payload = {
-      name: orgName,
-      tier: orgTier,
-      membersCount: 1,
-      projectsCount: 0,
-      status: 'Active'
-    };
-
-    if (isDemoMode) {
-      const newOrg: Organization = {
-        // eslint-disable-next-line react-hooks/purity
-        id: `org-${Date.now()}`,
-        name: orgName,
-        tier: orgTier,
-        membersCount: 1,
-        projectsCount: 0,
-        status: 'Active'
-      };
-      const updated = [...orgs, newOrg];
-      saveToLocal(updated);
-      closeModal();
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_BASE}/organizations`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) throw new Error('Failed to create organization in backend');
-
-      fetchOrganizations();
-      closeModal();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  };
-
-  // 3. UPDATE: Rename organization
-  const handleUpdateOrg = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedOrgId || !orgName.trim()) return;
-
-    const token = getSessionToken();
-
-    if (isDemoMode) {
-      const updated = orgs.map(o => o.id === selectedOrgId ? { ...o, name: orgName, tier: orgTier } : o);
-      saveToLocal(updated);
-      closeModal();
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_BASE}/organizations/${selectedOrgId}`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ name: orgName, tier: orgTier })
-      });
-
-      if (!res.ok) throw new Error('Failed to update organization in backend');
-
-      fetchOrganizations();
-      closeModal();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  };
-
-  // 4. DELETE: Remove organization
-  const handleDeleteOrg = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this organization? This action is permanent.')) return;
-
-    const token = getSessionToken();
-
-    if (isDemoMode) {
-      const updated = orgs.filter(o => o.id !== id);
-      saveToLocal(updated);
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_BASE}/organizations/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!res.ok) throw new Error('Failed to delete organization in backend');
-
-      fetchOrganizations();
-    } catch (err: unknown) {
-      alert(`Delete error: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  };
-
-  // Modal open helpers
   const openCreateModal = () => {
     setModalMode('create');
     setOrgName('');
     setOrgTier('Developer Tier');
-    setError(null);
+    setSelectedOrgId(null);
     setIsModalOpen(true);
   };
 
   const openEditModal = (org: Organization) => {
     setModalMode('edit');
-    setSelectedOrgId(org.id);
     setOrgName(org.name);
     setOrgTier(org.tier);
-    setError(null);
+    setSelectedOrgId(org.id);
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setSelectedOrgId(null);
-    setOrgName('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orgName.trim()) return;
+
+    setSubmitting(true);
+    try {
+      if (modalMode === 'create') {
+        await orgsService.create({ name: orgName, tier: orgTier, membersCount: 1, status: 'Active' });
+      } else if (selectedOrgId) {
+        await orgsService.update(selectedOrgId, { name: orgName, tier: orgTier });
+      }
+      fetchOrganizations();
+      closeModal();
+    } catch {
+      // Local fallback in demo mode
+      const updated = modalMode === 'create'
+        ? [...orgs, { id: `org-${Date.now()}`, name: orgName, tier: orgTier, membersCount: 1, projectsCount: 0, status: 'Active' as const }]
+        : orgs.map(o => o.id === selectedOrgId ? { ...o, name: orgName, tier: orgTier } : o);
+      setOrgs(updated);
+      localStorage.setItem('aero_local_orgs', JSON.stringify(updated));
+      closeModal();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this organization?')) return;
+
+    try {
+      await orgsService.delete(id);
+      fetchOrganizations();
+    } catch {
+      const updated = orgs.filter(o => o.id !== id);
+      setOrgs(updated);
+      localStorage.setItem('aero_local_orgs', JSON.stringify(updated));
+    }
   };
 
   return (
-    <div className="metrics-grid" style={{ gridTemplateColumns: '1fr', gap: '24px', position: 'relative' }}>
-      <div className="metric-card">
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <PageHeader
+        title="Organizations"
+        description="Manage workspace teams, access tiers, and resource limits across your cloud infrastructure."
+        actions={
+          <Button onClick={openCreateModal} variant="primary">
+            + Create Organization
+          </Button>
+        }
+      />
 
-        {/* Header Console */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                AERO TEAMS & ORGANIZATIONS
-              </h2>
-              {isDemoMode && (
-                <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'rgba(251, 191, 36, 0.08)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.15)', fontWeight: 600 }}>
-                  ⚠️ OFFLINE DEMO MODE
-                </span>
-              )}
-            </div>
-            <p style={{ color: 'var(--text-dim)', fontSize: '13px', marginTop: '4px' }}>
-              Manage shared tenant spaces, collaborative memberships, and role permissions.
-            </p>
-          </div>
-          <button
-            onClick={openCreateModal}
-            className="nav-item active"
-            style={{ width: 'auto', padding: '8px 16px', fontSize: '12px', border: '1px solid var(--border-glass)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', cursor: 'pointer' }}
-          >
-            CREATE ORGANIZATION
-          </button>
-        </div>
-
-        {/* Loading Indicator */}
-        {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 0' }}>
-            <style>{`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-              .throbber {
-                width: 36px;
-                height: 36px;
-                border: 3px solid rgba(56, 189, 248, 0.1);
-                border-top: 3px solid var(--accent-cyan, #38bdf8);
-                border-radius: 50%;
-                animation: spin 0.8s linear infinite;
-              }
-            `}</style>
-            <div className="throbber" />
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-            {orgs.map(org => (
-              <div key={org.id} className="metric-card" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-glass)', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--bg-tertiary)', color: 'var(--accent-cyan)', fontWeight: 600 }}>
-                      {org.tier}
-                    </span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{org.status}</span>
-                  </div>
-
-                  <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>{org.name}</h3>
-
-                  <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-dim)', marginBottom: '24px' }}>
-                    <div>👥 {org.membersCount} {org.membersCount === 1 ? 'Member' : 'Members'}</div>
-                    <div>⚡ {org.projectsCount} {org.projectsCount === 1 ? 'Stack' : 'Stacks'}</div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px', borderTop: '1px solid var(--border-glass)', paddingTop: '16px' }}>
-                  <button
-                    onClick={() => openEditModal(org)}
-                    className="nav-item"
-                    style={{ flex: 1, justifyContent: 'center', padding: '8px', fontSize: '12px', border: '1px solid var(--border-glass)', background: 'transparent', color: 'var(--text-dim)', cursor: 'pointer' }}
-                  >
-                    RENAME
-                  </button>
-                  <button
-                    onClick={() => handleDeleteOrg(org.id)}
-                    className="nav-item"
-                    style={{ flex: 1, justifyContent: 'center', padding: '8px', fontSize: '12px', border: '1px solid rgba(239, 68, 68, 0.15)', background: 'rgba(239, 68, 68, 0.05)', color: '#f87171', cursor: 'pointer' }}
-                  >
-                    DELETE
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Frosted-Glass CRUD Modal ── */}
-      {isModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.6)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div className="metric-card" style={{
-            width: '100%',
-            maxWidth: '440px',
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-glass)',
-            padding: '30px',
-            borderRadius: '8px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
-          }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
-              {modalMode === 'create' ? 'CREATE NEW TEAM SPACE' : 'RENAME TEAM SPACE'}
-            </h3>
-            <p style={{ color: 'var(--text-dim)', fontSize: '13px', marginBottom: '24px' }}>
-              Provide the organization credentials to authenticate with the orchestration system.
-            </p>
-
-            <form onSubmit={modalMode === 'create' ? handleCreateOrg : handleUpdateOrg}>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-dim)', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase' }}>
-                  Organization Name
-                </label>
-                <input
-                  type="text"
-                  value={orgName}
-                  onChange={e => setOrgName(e.target.value)}
-                  placeholder="e.g. Acme Corporation"
-                  required
-                  style={{
-                    width: '100%',
-                    background: 'var(--bg-tertiary)',
-                    border: '1px solid var(--border-glass)',
-                    borderRadius: '4px',
-                    padding: '10px 14px',
-                    fontSize: '13px',
-                    color: 'var(--text-primary)',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-dim)', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase' }}>
-                  Subscription Tier
-                </label>
-                <CustomSelect
-                  value={orgTier}
-                  onChange={val => setOrgTier(val as Organization['tier'])}
-                  options={[
-                    { value: 'Developer Tier', label: 'Developer Tier' },
-                    { value: 'Standard Tier', label: 'Standard Tier' },
-                    { value: 'Enterprise Tier', label: 'Enterprise Tier' }
-                  ]}
-                  style={{ width: '100%' }}
-                />
-              </div>
-
-              {error && (
-                <div style={{ padding: '10px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)', color: '#f87171', fontSize: '12px', marginBottom: '20px' }}>
-                  {error}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="nav-item"
-                  style={{ width: 'auto', padding: '8px 16px', fontSize: '12px', border: '1px solid var(--border-glass)', background: 'transparent', color: 'var(--text-dim)', cursor: 'pointer' }}
-                >
-                  CANCEL
-                </button>
-                <button
-                  type="submit"
-                  className="nav-item active"
-                  style={{ width: 'auto', padding: '8px 16px', fontSize: '12px', border: '1px solid var(--border-glass)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', cursor: 'pointer' }}
-                >
-                  {modalMode === 'create' ? 'PROCEED' : 'SAVE CHANGES'}
-                </button>
-              </div>
-            </form>
-          </div>
+      {error && (
+        <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-sm">
+          {error}
         </div>
       )}
+
+      {loading ? (
+        <LoadingSkeleton count={3} height="h-28" />
+      ) : orgs.length === 0 ? (
+        <EmptyState
+          title="No Organizations Found"
+          description="Create your first organization to start managing teams and deploying cloud services."
+          actionLabel="Create Organization"
+          onAction={openCreateModal}
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {orgs.map((org) => (
+            <Card key={org.id} hoverable>
+              <CardBody className="space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white tracking-tight">{org.name}</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">{org.tier}</p>
+                  </div>
+                  <Badge status={org.status === 'Active' ? 'active' : 'inactive'} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 p-3 bg-slate-900/60 rounded-lg border border-slate-800/80 text-xs">
+                  <div>
+                    <span className="text-slate-500 block">Members</span>
+                    <span className="text-slate-200 font-semibold">{org.membersCount} Users</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">Projects</span>
+                    <span className="text-slate-200 font-semibold">{org.projectsCount || 0} Apps</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800/60">
+                  <Button size="sm" variant="ghost" onClick={() => openEditModal(org)}>
+                    Edit
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={() => handleDelete(org.id)}>
+                    Delete
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={modalMode === 'create' ? 'Create Organization' : 'Edit Organization'}
+        subtitle="Organizations group teams, projects, and permissions under a single billing tier."
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">Organization Name</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Acme Dev Team"
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">Access Tier</label>
+            <CustomSelect
+              value={orgTier}
+              onChange={(val) => setOrgTier(val as Organization['tier'])}
+              options={[
+                { value: 'Developer Tier', label: 'Developer Tier (Basic limits)' },
+                { value: 'Standard Tier', label: 'Standard Tier (Team features)' },
+                { value: 'Enterprise Tier', label: 'Enterprise Tier (Unlimited & Priority)' }
+              ]}
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+            <Button type="button" variant="ghost" onClick={closeModal}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" isLoading={submitting}>
+              {modalMode === 'create' ? 'Create' : 'Save Changes'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

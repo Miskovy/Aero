@@ -33,13 +33,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message = responseObj.message || exception.message;
         if (
           status === HttpStatus.NOT_FOUND &&
-          request.url.startsWith('/auth/github')
-        ) {
-          return response.redirect(`/api/v1${request.url}`);
-        }
-
-        if (
-          status === HttpStatus.NOT_FOUND &&
           (request.url === '/' || request.url === '')
         ) {
           return response.status(HttpStatus.OK).json({

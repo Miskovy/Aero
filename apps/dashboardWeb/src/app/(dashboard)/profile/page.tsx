@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { getApiUrl } from '@/lib/api-config';
 import GitHubIcon from '@/components/GitHubIcon';
 
 interface UserProfile {
@@ -179,7 +180,7 @@ export default function ProfilePage() {
     setForgotPasswordSuccess(false);
 
     try {
-      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+      const res = await fetch(getApiUrl('/auth/forgot-password'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -595,13 +596,7 @@ export default function ProfilePage() {
             </div>
             <button
               onClick={() => {
-                const url = process.env.NEXT_PUBLIC_API_URL || '';
-                const target = (!url || url === '/api')
-                  ? '/api/auth/github?client=web'
-                  : url.endsWith('/api/v1')
-                    ? `${url}/auth/github?client=web`
-                    : `${url.replace(/\/+$/, '')}/api/v1/auth/github?client=web`;
-                window.location.href = target;
+                window.location.href = getApiUrl('/auth/github?client=web');
               }}
               style={{
                 padding: '8px 16px',

@@ -1,17 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import {
-  AlertRule,
-  Organization,
-  Service,
-  AlertChannel,
-} from '../../../generated/prisma/client';
 import { MailService } from '../../mail/mail.service';
-
-type RuleWithRelations = AlertRule & {
-  organization: Organization;
-  service: Service | null;
-};
+import { RuleWithRelations } from './types/alerts.type';
+import { AlertChannel } from '../../../generated/prisma/client';
 
 @Injectable()
 export class NotificationDispatcherService {

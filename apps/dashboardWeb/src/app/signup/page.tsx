@@ -2,8 +2,11 @@
 
 import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import GitHubIcon from '@/components/GitHubIcon';
 import AeroLogo from '@/components/AeroLogo';
+import { getApiUrl } from '@/lib/api-config';
 
 const Hero3DBackground = dynamic(
   () => import('@/components/Hero3DBackground'),
@@ -11,7 +14,7 @@ const Hero3DBackground = dynamic(
 );
 
 export default function SignUpPage() {
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || '/api';
+  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,7 +33,7 @@ export default function SignUpPage() {
     }
 
     try {
-      const response = await fetch(baseURL + '/auth/register', {
+      const response = await fetch(getApiUrl('/auth/register'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -38,20 +41,17 @@ export default function SignUpPage() {
         body: JSON.stringify({
           name,
           email,
-          password,
-          auth_provider: 'web'
+          password
         })
       });
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
+      if (!response.ok) throw new Error(data.message || 'Registration failed');
 
-      window.location.href = `/verify-email?email=${encodeURIComponent(email)}&pending=true`;
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : String(error));
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
       setIsLoading(false);
     }
@@ -98,13 +98,7 @@ export default function SignUpPage() {
             type="button"
             className="github-login-button"
             onClick={() => {
-              const url = process.env.NEXT_PUBLIC_API_URL || '';
-              const target = (!url || url === '/api')
-                ? '/api/auth/github?client=web'
-                : url.endsWith('/api/v1')
-                  ? `${url}/auth/github?client=web`
-                  : `${url.replace(/\/+$/, '')}/api/v1/auth/github?client=web`;
-              window.location.href = target;
+              window.location.href = getApiUrl('/auth/github?client=web');
             }}
           >
             <GitHubIcon size={18} />
@@ -117,40 +111,29 @@ export default function SignUpPage() {
             <div style={{ flex: 1, height: '1px', backgroundColor: 'currentColor' }} />
           </div>
 
-          <button
-            type="button"
-            onClick={() => window.location.href = '/login'}
+          <Link
+            href="/login"
             style={{
               width: '100%',
               padding: '12px 24px',
               borderRadius: 'var(--border-radius-sm)',
               fontWeight: 600,
               cursor: 'pointer',
-              transition: 'all 0.2s ease',
               color: 'var(--text-primary)',
               background: 'transparent',
               border: '1px solid var(--border-glass)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-            }}
-            onMouseOver={e => {
-              e.currentTarget.style.borderColor = 'var(--border-hover)';
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
-            }}
-            onMouseOut={e => {
-              e.currentTarget.style.borderColor = 'var(--border-glass)';
-              e.currentTarget.style.backgroundColor = 'transparent';
+              textDecoration: 'none',
+              fontSize: '14px',
             }}
           >
             Log In
-          </button>
+          </Link>
 
           {error && (
-            <div className="error-alert-box">
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7.49997 0.833313C3.81807 0.833313 0.833302 3.81808 0.833302 7.50001C0.833302 11.1819 3.81807 14.1667 7.49997 14.1667C11.1819 14.1667 14.1666 11.1819 14.1666 7.50001C14.1666 3.81808 11.1819 0.833313 7.49997 0.833313ZM8.12497 4.37501V8.12501H6.87497V4.37501H8.12497ZM8.12497 9.37501V10.625H6.87497V9.37501H8.12497Z" fill="currentColor" />
-              </svg>
+            <div style={{ padding: '10px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#f87171', borderRadius: '6px', fontSize: '13px' }}>
               <span>{error}</span>
             </div>
           )}
@@ -159,13 +142,12 @@ export default function SignUpPage() {
 
       <div className="login-banner">
         <Hero3DBackground />
-
         <div style={{ textAlign: 'center', zIndex: 10, padding: '0 40px', width: '100%' }}>
           <h1 style={{ fontSize: '48px', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '16px' }}>
             Self-Hosted <em>Cloud</em>
           </h1>
           <p style={{ color: 'var(--text-secondary)', maxWidth: '420px', fontSize: '15px', lineHeight: '1.6', margin: '0 auto' }}>
-            Turn your local machines and developer hardware into high-performance servers instantly.
+            Deploy apps, databases, and microservices on your own infrastructure.
           </p>
         </div>
       </div>

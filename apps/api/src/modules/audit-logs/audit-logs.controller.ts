@@ -1,7 +1,8 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { AuditLogsService, AuditLogQueryDto } from './audit-logs.service';
+import { AuditLogsService } from './audit-logs.service';
+import { AuditLogQueryDto } from './interfaces/audit-log.interface';
 
 @ApiTags('Audit Logs')
 @ApiBearerAuth()

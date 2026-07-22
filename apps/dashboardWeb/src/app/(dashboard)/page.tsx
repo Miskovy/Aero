@@ -1,5 +1,7 @@
 'use client';
 
+import { getApiBaseUrl } from '@/lib/api-config';
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CustomSelect from '../../components/CustomSelect';
 
@@ -62,7 +64,7 @@ export default function DashboardHome() {
 
   const logRef = useRef<HTMLDivElement>(null);
   const lastFetchedOrgIdRef = useRef<string | null>(null);
-  const API_BASE = '/api';
+  const API_BASE = getApiBaseUrl();
 
   const getSessionToken = () => {
     if (typeof document === 'undefined') return null;
@@ -150,7 +152,7 @@ export default function DashboardHome() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [API_BASE]);
 
   useEffect(() => {
     let active = true;
@@ -196,7 +198,7 @@ export default function DashboardHome() {
     };
 
     fetchNodesForOrg();
-  }, [selectedOrgId, loading]);
+  }, [selectedOrgId, loading, API_BASE]);
 
   const handleOrgChange = (orgId: string) => {
     setSelectedOrgId(orgId);

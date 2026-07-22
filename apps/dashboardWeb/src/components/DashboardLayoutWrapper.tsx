@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import AeroLogo from './AeroLogo';
+import { getApiUrl } from '@/lib/api-config';
+import { WorkspaceProvider } from '@/context/WorkspaceContext';
 
 interface DashboardLayoutWrapperProps {
   children: React.ReactNode;
@@ -66,14 +68,13 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
   }, []);
 
   useEffect(() => {
-    const baseURL = process.env.NEXT_PUBLIC_API_URL || '/api';
     let isRefreshing = false;
 
     const performRefresh = async () => {
       if (isRefreshing) return;
       isRefreshing = true;
       try {
-        const response = await fetch(baseURL + '/auth/refresh', {
+        const response = await fetch(getApiUrl('/auth/refresh'), {
           method: 'POST',
           credentials: 'include',
         });
@@ -88,7 +89,7 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
           window.location.href = '/login';
         }
       } catch (err) {
-        console.error('Failed proactive session refresh:', err);
+        console.warn('Failed to perform proactive session refresh:', err);
       } finally {
         isRefreshing = false;
       }
@@ -100,6 +101,7 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
 
       try {
         const payloadBase64 = token.split('.')[1];
+        if (!payloadBase64) return;
         const payloadJson = atob(payloadBase64);
         const payload = JSON.parse(payloadJson);
         const exp = payload.exp;
@@ -107,12 +109,11 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
         if (exp) {
           const timeLeft = exp * 1000 - Date.now();
           if (timeLeft < 300_000) {
-            console.log(`Access token expiring/expired in ${Math.round(timeLeft / 1000)}s. Refreshing...`);
             performRefresh();
           }
         }
-      } catch (e) {
-        console.error('Error in proactive token check:', e);
+      } catch {
+        /* ignore invalid token format */
       }
     };
 
@@ -173,9 +174,8 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
   }
 
   const handleLogout = async () => {
-    const baseURL = process.env.NEXT_PUBLIC_API_URL || '/api';
     try {
-      await fetch(`${baseURL}/auth/logout`, {
+      await fetch(getApiUrl('/auth/logout'), {
         method: 'POST',
         credentials: 'include',
       });
@@ -407,7 +407,9 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
         </header>
 
         <main className="content-viewport">
-          {children}
+          <WorkspaceProvider>
+            {children}
+          </WorkspaceProvider>
         </main>
       </div>
     </div>

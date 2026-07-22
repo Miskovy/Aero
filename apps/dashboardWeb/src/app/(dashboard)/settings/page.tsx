@@ -1,5 +1,7 @@
 'use client';
 
+import { getApiBaseUrl } from '@/lib/api-config';
+
 import React, { useState, useEffect, useCallback } from 'react';
 
 interface ApiKeyItem {
@@ -23,7 +25,7 @@ export default function SettingsPage() {
   const [copied, setCopied] = useState(false);
   const [now, setNow] = useState<number | null>(null);
 
-  const API_BASE = '/api';
+  const API_BASE = getApiBaseUrl();
   const getToken = () => {
     if (typeof document === 'undefined') return null;
     const v = `; ${document.cookie}`;
@@ -41,7 +43,7 @@ export default function SettingsPage() {
       if (res.ok) setApiKeys(await res.json());
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, []);
+  }, [API_BASE]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

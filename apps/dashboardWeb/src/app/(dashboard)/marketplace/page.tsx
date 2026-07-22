@@ -1,5 +1,7 @@
 'use client';
 
+import { getApiBaseUrl } from '@/lib/api-config';
+
 import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CustomSelect from "@/components/CustomSelect";
@@ -154,7 +156,7 @@ export default function MarketplacePage() {
   const [deployError, setDeployError] = useState<string | null>(null);
   const [deploySuccess, setDeploySuccess] = useState(false);
 
-  const API_BASE = '/api';
+  const API_BASE = getApiBaseUrl();
 
   const getSessionToken = () => {
     if (typeof document === 'undefined') return null;
@@ -196,7 +198,7 @@ export default function MarketplacePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [API_BASE]);
 
   const fetchProjectsForOrg = useCallback(async (orgId: string) => {
     const token = getSessionToken();
@@ -225,7 +227,7 @@ export default function MarketplacePage() {
     } catch (err) {
       console.error("Failed to load projects:", err);
     }
-  }, []);
+  }, [API_BASE]);
 
   // Fetch Organizations and Projects
   const fetchOrgsAndProjects = useCallback(async () => {
@@ -256,7 +258,7 @@ export default function MarketplacePage() {
     } catch (err) {
       console.error("Failed to load organizations:", err);
     }
-  }, [fetchProjectsForOrg]);
+  }, [API_BASE, fetchProjectsForOrg]);
 
   useEffect(() => {
     let active = true;

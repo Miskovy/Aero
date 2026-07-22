@@ -1,5 +1,7 @@
 'use client';
 
+import { getApiBaseUrl } from '@/lib/api-config';
+
 import React, { useState, useEffect } from 'react';
 import WebhooksManager from '@/components/WebhooksManager';
 import CustomSelect from '@/components/CustomSelect';
@@ -16,7 +18,7 @@ export default function WebhooksPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const API_BASE = '/api';
+  const API_BASE = getApiBaseUrl();
 
   const getToken = () => {
     if (typeof document === 'undefined') return null;
@@ -48,7 +50,7 @@ export default function WebhooksPage() {
     };
 
     fetchServices();
-  }, []);
+  }, [API_BASE]);
 
   const selectOptions = services.map(s => ({
     value: s.id,

@@ -1,5 +1,7 @@
 'use client';
 
+import { getApiBaseUrl } from '@/lib/api-config';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import WebhooksManager from '@/components/WebhooksManager';
@@ -67,7 +69,7 @@ export default function ServiceDetailPage() {
   const [volMount, setVolMount] = useState('');
   const [isVolModalOpen, setIsVolModalOpen] = useState(false);
 
-  const API_BASE = '/api';
+  const API_BASE = getApiBaseUrl();
   const getToken = () => {
     if (typeof document === 'undefined') return null;
     const v = `; ${document.cookie}`;
@@ -89,7 +91,7 @@ export default function ServiceDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [serviceId]);
+  }, [serviceId, API_BASE]);
 
   const fetchVolumes = useCallback(async () => {
     try {
@@ -100,7 +102,7 @@ export default function ServiceDetailPage() {
         setVolumes(await res.json());
       }
     } catch { /* ignore */ }
-  }, [serviceId]);
+  }, [serviceId, API_BASE]);
 
   const fetchBackups = useCallback(async () => {
     try {
@@ -112,7 +114,7 @@ export default function ServiceDetailPage() {
         setBackups(Array.isArray(data) ? data : data?.data || []);
       }
     } catch { /* ignore */ }
-  }, [serviceId]);
+  }, [serviceId, API_BASE]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

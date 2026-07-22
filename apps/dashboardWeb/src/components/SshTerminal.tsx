@@ -5,6 +5,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { io, Socket } from "socket.io-client";
+import { getApiBaseUrl } from "@/lib/api-config";
 
 interface SshTerminalProps {
   nodeId: string;
@@ -72,8 +73,9 @@ export default function SshTerminal({ nodeId, nodeName, token }: SshTerminalProp
     });
 
     // Socket connection
-    const baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://aero-y6mm.onrender.com';
-    const socket: Socket = io(baseURL + "/terminal", {
+    const socketBase = getApiBaseUrl();
+    const socketTarget = socketBase === '/api' ? window.location.origin : socketBase.replace(/\/api\/v1\/?$/, '');
+    const socket: Socket = io(socketTarget + "/terminal", {
       auth: { token },
       reconnectionAttempts: 3,
       transports: ["websocket"],  // Skip long-polling, go straight to WS

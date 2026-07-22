@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import DashboardLayoutWrapper from '@/components/DashboardLayoutWrapper';
+import { getApiUrl } from '@/lib/api-config';
 
 export const metadata: Metadata = {
   title: 'Aero Cloud Console',
@@ -25,9 +26,8 @@ export default async function RootLayout({
     redirect('/login');
   }
 
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://aero-y6mm.onrender.com';
   try {
-    const res = await fetch(`${baseURL}/projects`, {
+    const res = await fetch(getApiUrl('/projects'), {
       headers: {
         Authorization: `Bearer ${token}`
       },
