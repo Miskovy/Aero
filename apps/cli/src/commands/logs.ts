@@ -10,7 +10,7 @@
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { setTimeout } from 'node:timers/promises';
-import { apiRequest, apiClient, requireAuth } from '../api/api.js';
+import { apiRequest, apiClient, requireAuth, unwrapData } from '../api/api.js';
 import { statusDot } from '../ui/render.js';
 import { io } from 'socket.io-client';
 import icons from '../utils/icons.js';
@@ -201,7 +201,8 @@ export async function logsAction(initialServiceId?: string) {
 
     let services: any[] = [];
     try {
-      services = await apiRequest<any[]>({ method: 'GET', url: '/services' });
+      const rawServices = await apiRequest<any>({ method: 'GET', url: '/services' });
+      services = unwrapData(rawServices);
       sFetch.stop(`${icons.success} Services loaded!`);
     } catch (err: any) {
       sFetch.stop(chalk.red(`${icons.error} Failed to load services`));
@@ -240,10 +241,11 @@ export async function logsAction(initialServiceId?: string) {
   s.start('Fetching deployments for your service...');
 
   try {
-    const deployments = await apiRequest<any[]>({
+    const rawDeployments = await apiRequest<any>({
       method: 'GET',
       url: `/services/${serviceId}/deployments?limit=10`,
     });
+    const deployments = unwrapData(rawDeployments);
 
     s.stop(`${icons.success} Deployments retrieved!`);
 

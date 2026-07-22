@@ -7,7 +7,7 @@
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { setTimeout } from 'node:timers/promises';
-import { apiRequest, requireAuth } from '../api/api.js';
+import { apiRequest, requireAuth, unwrapData } from '../api/api.js';
 import icons from '../utils/icons.js';
 
 export async function deployAction() {
@@ -20,7 +20,8 @@ export async function deployAction() {
 
   let services: any[] = [];
   try {
-    services = await apiRequest<any[]>({ method: 'GET', url: '/services' });
+    const rawServices = await apiRequest<any>({ method: 'GET', url: '/services' });
+    services = unwrapData(rawServices);
     sFetch.stop(`${icons.success} Services loaded!`);
   } catch (err: any) {
     sFetch.stop(chalk.red(`${icons.error} Failed to load services`));

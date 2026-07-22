@@ -1,13 +1,13 @@
 /**
  * create.ts — Create & deploy a new service wizard.
  *
- * Uses requireAuth guard and icons system. All emojis replaced.
+ * Uses requireAuth guard and icons system.
  */
 
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { setTimeout } from 'node:timers/promises';
-import { apiRequest, requireAuth } from '../api/api.js';
+import { apiRequest, requireAuth, unwrapData } from '../api/api.js';
 import { watchDeploymentLogs } from './logs.js';
 import icons from '../utils/icons.js';
 
@@ -22,7 +22,8 @@ export async function createAction() {
   sFetch.start('Loading your organizations...');
   let orgs: any[] = [];
   try {
-    orgs = await apiRequest<any[]>({ method: 'GET', url: '/organizations' });
+    const rawOrgs = await apiRequest<any>({ method: 'GET', url: '/organizations' });
+    orgs = unwrapData(rawOrgs);
   } catch (err: any) {
     sFetch.stop(`${icons.error} Failed to load organizations.`);
     p.log.error(err.message || 'An error occurred');
@@ -73,7 +74,8 @@ export async function createAction() {
   sFetch.start('Loading projects...');
   let projects: any[] = [];
   try {
-    projects = await apiRequest<any[]>({ method: 'GET', url: `/projects?orgId=${String(orgId)}` });
+    const rawProjects = await apiRequest<any>({ method: 'GET', url: `/projects?orgId=${String(orgId)}` });
+    projects = unwrapData(rawProjects);
   } catch (err: any) {
     sFetch.stop(`${icons.error} Failed to load projects.`);
     p.log.error(err.message || 'An error occurred');
@@ -249,7 +251,8 @@ export async function createAction() {
   sFetch.start('Loading available nodes...');
   let nodes: any[] = [];
   try {
-    nodes = await apiRequest<any[]>({ method: 'GET', url: '/nodes' });
+    const rawNodes = await apiRequest<any>({ method: 'GET', url: `/organizations/${String(orgId)}/nodes` });
+    nodes = unwrapData(rawNodes);
   } catch {
     // Ignore if nodes API is unavailable
   }
@@ -261,7 +264,7 @@ export async function createAction() {
   nodes.forEach((n) => {
     nodeOptions.push({
       value: n.id,
-      label: `${icons.local} Local Device: ${n.hostname || n.id} (${n.status})`,
+      label: `${icons.local} Local Device: ${n.hostname || n.name || n.id} (${n.status})`,
     });
   });
 

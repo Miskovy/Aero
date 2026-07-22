@@ -9,7 +9,7 @@ import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { apiRequest, requireAuth } from '../api/api.js';
+import { apiRequest, requireAuth, unwrapData } from '../api/api.js';
 import { renderTable } from '../utils/tables.js';
 import icons from '../utils/icons.js';
 
@@ -20,7 +20,8 @@ async function promptForService(): Promise<string | undefined> {
   s.start('Loading services...');
 
   try {
-    const services = await apiRequest<any[]>({ method: 'GET', url: '/services' });
+    const rawServices = await apiRequest<any>({ method: 'GET', url: '/services' });
+    const services = unwrapData(rawServices);
     s.stop('');
 
     if (!services || services.length === 0) {
@@ -152,7 +153,8 @@ export async function envUnsetAction(serviceId?: string, key?: string) {
 
   let secrets: any[] = [];
   try {
-    secrets = await apiRequest<any[]>({ method: 'GET', url: `/services/${serviceId}/secrets` });
+    const rawSecrets = await apiRequest<any>({ method: 'GET', url: `/services/${serviceId}/secrets` });
+    secrets = unwrapData(rawSecrets);
   } catch {
     p.log.error('Failed to fetch secrets to delete.');
     return;
