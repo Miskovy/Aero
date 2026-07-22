@@ -45,7 +45,7 @@
     "typescript": "^5.9.3"
   },
   "bin": {
-    "aero": "./dist/index.js"
+    "aero": "dist/index.js"
   },
   "type": "module"
 }
