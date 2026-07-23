@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # ─── 1. PostgreSQL Database ──────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: aero-prod-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aero}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-AeroProdPass2026!}
+      POSTGRES_DB: ${POSTGRES_DB:-aero_production}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-aero} -d $${POSTGRES_DB:-aero_production}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aero-internal
+
+  # ─── 2. Redis Pub/Sub Caching & Adapter ────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: aero-prod-redis
+    restart: always
+    command: redis-server --save 60 1 --loglevel notice
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_prod_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aero-internal
+
+  # ─── 3. NestJS Control Plane API ───────────────────────────────────────────
+  api:
+    build:
+      context: ../
+      dockerfile: apps/api/Dockerfile
+    container_name: aero-prod-api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-aero}:${POSTGRES_PASSWORD:-AeroProdPass2026!}@postgres:5432/${POSTGRES_DB:-aero_production}?schema=public
+      REDIS_URL: redis://redis:6379
+      AERO_VAULT_MASTER_KEY: ${AERO_VAULT_MASTER_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      AERO_CORS_ORIGINS: ${AERO_CORS_ORIGINS:-http://localhost:3001,https://aero-cloud.app}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - certs_data:/var/aero/certs
+      - backups_data:/var/aero/backups
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - aero-internal
+
+  # ─── 4. Next.js Web Dashboard ──────────────────────────────────────────────
+  dashboard:
+    build:
+      context: ../
+      dockerfile: apps/dashboardWeb/Dockerfile
+    container_name: aero-prod-dashboard
+    restart: always
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000/api/v1}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:3000}
+    networks:
+      - aero-internal
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
+  certs_data:
+  backups_data:
+
+networks:
+  aero-internal:
+    driver: bridge
