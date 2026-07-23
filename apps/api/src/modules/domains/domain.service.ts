@@ -11,11 +11,16 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 import { PaginatedResponse } from '../../common/interfaces/paginated-response';
 import { Prisma } from '../../../generated/prisma/client';
 
+import { AcmeCertificateService } from './acme-certificate.service';
+
 @Injectable()
 export class DomainsService {
   private readonly logger = new Logger(DomainsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly acmeCertificateService: AcmeCertificateService,
+  ) {}
 
   async getPrimaryDomain(serviceId: string): Promise<string> {
     const service = await this.prisma.serviceDomain.findFirst({
@@ -115,13 +120,16 @@ export class DomainsService {
       const records = await dns.resolve4(domainRecord.domain);
 
       if (records && records.length > 0) {
-        return this.prisma.serviceDomain.update({
+        await this.prisma.serviceDomain.update({
           where: { id: domainId },
           data: {
             verification_status: 'verified',
             verified_at: new Date(),
           },
         });
+
+        // Automatically provision ACME SSL/TLS certificate
+        return this.acmeCertificateService.provisionCertificate(domainId);
       }
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : String(e);

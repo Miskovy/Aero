@@ -457,9 +457,16 @@ export class BuildProcessor extends WorkerHost {
       await this.updatePhase(
         deploymentId,
         'routing',
-        'Traffic routed successfully. Cleaning up old containers...',
+        'Blue container healthy. Switching ingress traffic & draining predecessor containers...',
       );
-      await this.containerService.removeOldContainers(service.id, containerId);
+
+      // Sync Cloudflare tunnel / proxy ingress rules to switch traffic to healthy Blue container
+      await this.syncTunnelIngress();
+
+      // Gracefully drain active connections on old (Green) container before removal
+      await this.containerService.removeOldContainers(service.id, containerId, {
+        gracefulDrainTimeoutSec: 5,
+      });
 
       // Update service status to running
       await this.prisma.service.update({
@@ -473,7 +480,7 @@ export class BuildProcessor extends WorkerHost {
       await this.updatePhase(
         deploymentId,
         'completed',
-        'Deployment successful',
+        'Zero-downtime Blue/Green deployment successful',
       );
 
       // Update deployment with image tag and timestamps
@@ -485,9 +492,6 @@ export class BuildProcessor extends WorkerHost {
           finished_at: new Date(),
         },
       });
-
-      // Sync Cloudflare tunnel ingress rules with all running services
-      await this.syncTunnelIngress();
 
       return { success: true, containerId, imageTag };
     } catch (error: unknown) {

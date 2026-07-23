@@ -316,14 +316,20 @@ export class DockerService {
   // Networks Management
 
   // Reading
-  async listNetworks(): Promise<Docker.NetworkInspectInfo[]> {
+  async listNetworks(
+    options?: Docker.NetworkListOptions,
+  ): Promise<Docker.NetworkInspectInfo[]> {
     try {
-      const networks = await this.docker.listNetworks();
-      return networks;
+      const networks = await this.docker.listNetworks(options);
+      return networks || [];
     } catch (error) {
       console.error('Failed to list networks:', error);
       throw error;
     }
+  }
+
+  getNetwork(networkId: string): Docker.Network {
+    return this.docker.getNetwork(networkId);
   }
 
   // Writing
@@ -403,17 +409,46 @@ export class DockerService {
   }
 
   // Writing
-  async createVolume(
-    name: string,
-    options?: Docker.VolumeCreateOptions[],
-  ): Promise<Docker.VolumeCreateResponse> {
+  async ensureNetwork(name: string): Promise<Docker.Network> {
     try {
-      const volume = await this.docker.createVolume({ Name: name, ...options });
-      return volume;
-    } catch (error) {
-      console.error('Failed to create volume:', error);
-      throw error;
+      const networks = await this.listNetworks();
+      const existing = networks.find((n) => n.Name === name);
+      if (existing) {
+        return this.getNetwork(existing.Id);
+      }
+      return await this.createNetwork(name);
+    } catch {
+      return await this.createNetwork(name);
     }
+  }
+
+  async ensureVolume(name: string): Promise<Docker.VolumeInspectInfo> {
+    try {
+      const volume = this.getVolume(name);
+      return await volume.inspect();
+    } catch {
+      const vol = await this.docker.createVolume({ Name: name });
+      return vol as unknown as Docker.VolumeInspectInfo;
+    }
+  }
+
+  async execInContainer(containerId: string, cmd: string[]): Promise<string> {
+    const container = this.getContainer(containerId);
+    const exec = await container.exec({
+      Cmd: cmd,
+      AttachStdout: true,
+      AttachStderr: true,
+    });
+
+    const stream = await exec.start({});
+    return new Promise((resolve, reject) => {
+      let output = '';
+      stream.on('data', (chunk: Buffer) => {
+        output += chunk.toString('utf-8');
+      });
+      stream.on('end', () => resolve(output));
+      stream.on('error', (err) => reject(err));
+    });
   }
 
   async removeVolume(name: string): Promise<void> {

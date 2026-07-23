@@ -38,6 +38,11 @@ import {
   domainsRemoveAction,
 } from './commands/domains.js';
 import {
+  backupsListAction,
+  backupsCreateAction,
+  backupsRestoreAction,
+} from './commands/backups.js';
+import {
   projectsListAction,
   projectsInspectAction,
   projectsCreateAction,
@@ -99,6 +104,13 @@ domainsCmd.command('list [serviceId]').description('List all domains for a servi
 domainsCmd.command('add [serviceId] [domain]').description('Add a domain to a service').action(domainsAddAction);
 domainsCmd.command('remove [serviceId] [domainId]').description('Remove a domain from a service').action(domainsRemoveAction);
 program.addCommand(domainsCmd);
+
+// ── Backups ──
+const backupsCmd = new Command('backups').description('Manage database and volume backups');
+backupsCmd.command('list [serviceId]').description('List all backups for a service').action(backupsListAction);
+backupsCmd.command('create [serviceId]').description('Trigger a database or volume backup dump').action(backupsCreateAction);
+backupsCmd.command('restore [serviceId] [backupId]').description('Restore a service from a backup archive').action(backupsRestoreAction);
+program.addCommand(backupsCmd);
 
 // ── Nodes ──
 const nodeCmd = new Command('node').description('Manage connected servers (nodes)');

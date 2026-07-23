@@ -8,10 +8,16 @@ import cookieParser from 'cookie-parser';
 import * as path from 'path';
 import helmet from 'helmet';
 
+import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
   });
+
+  const redisIoAdapter = new RedisIoAdapter(app);
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
 
   app.useStaticAssets(path.join(process.cwd(), 'public'));
 

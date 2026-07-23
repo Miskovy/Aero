@@ -5,6 +5,15 @@ export interface User {
   avatar_url?: string;
 }
 
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    cursor: string | null;
+    hasMore: boolean;
+    total?: number;
+  };
+}
+
 export interface Organization {
   id: string;
   name: string;

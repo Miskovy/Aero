@@ -3,7 +3,9 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as crypto from 'crypto';
 import { UpdateNodeDto } from './dto/updateNode.dto';
@@ -13,7 +15,114 @@ import { Prisma } from '../../../generated/prisma/client';
 
 @Injectable()
 export class NodesService {
+  private readonly logger = new Logger(NodesService.name);
+
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Background health checker loop running every 30 seconds.
+   * Marks nodes missing heartbeats for over 2 minutes as offline.
+   */
+  @Cron(CronExpression.EVERY_30_SECONDS)
+  async auditNodeHealth() {
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+
+    const staleNodes = await this.prisma.node.updateMany({
+      where: {
+        status: 'online',
+        OR: [
+          { last_heartbeat_at: { lt: twoMinutesAgo } },
+          { last_heartbeat_at: null },
+        ],
+      },
+      data: {
+        status: 'offline',
+      },
+    });
+
+    if (staleNodes.count > 0) {
+      this.logger.warn(
+        `Marked ${staleNodes.count} stale node(s) as offline due to missing heartbeats.`,
+      );
+    }
+  }
+
+  /**
+   * Record telemetry heartbeat from agent daemon.
+   */
+  async recordHeartbeat(
+    agentToken: string,
+    metrics: {
+      cpuUsage?: number;
+      memoryUsage?: number;
+      systemInfo?: Record<string, any>;
+      ipAddress?: string;
+    },
+  ) {
+    if (!agentToken) {
+      throw new BadRequestException('Agent token is required');
+    }
+
+    const node = await this.prisma.node.findUnique({
+      where: { agent_token: agentToken },
+    });
+
+    if (!node) {
+      throw new NotFoundException('Node not registered or invalid token');
+    }
+
+    const resourceUsage = {
+      cpu_usage_pct: metrics.cpuUsage ?? 0,
+      memory_usage_pct: metrics.memoryUsage ?? 0,
+      updated_at: new Date().toISOString(),
+    };
+
+    return this.prisma.node.update({
+      where: { id: node.id },
+      data: {
+        status: 'online',
+        last_heartbeat_at: new Date(),
+        resource_usage: resourceUsage as Prisma.InputJsonValue,
+        ip_address: metrics.ipAddress || node.ip_address,
+        system_info: (metrics.systemInfo || node.system_info) as Prisma.InputJsonValue,
+      },
+    });
+  }
+
+  /**
+   * Select optimal worker node for container deployment (least-loaded scheduler).
+   */
+  async selectOptimalNode(orgId: string) {
+    const onlineNodes = await this.prisma.node.findMany({
+      where: {
+        organization_id: orgId,
+        status: 'online',
+      },
+      include: {
+        services: true,
+      },
+    });
+
+    if (onlineNodes.length === 0) {
+      const anyNode = await this.prisma.node.findFirst({
+        where: { organization_id: orgId },
+      });
+      return anyNode || null;
+    }
+
+    // Sort by service count (ascending), then CPU usage (ascending)
+    onlineNodes.sort((a, b) => {
+      const aServices = a.services.length;
+      const bServices = b.services.length;
+      if (aServices !== bServices) return aServices - bServices;
+
+      const aCpu = (a.resource_usage as any)?.cpu_usage_pct ?? 0;
+      const bCpu = (b.resource_usage as any)?.cpu_usage_pct ?? 0;
+      return aCpu - bCpu;
+    });
+
+    return onlineNodes[0];
+  }
 
   async listNodes(
     orgId: string,

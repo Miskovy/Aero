@@ -13,12 +13,15 @@ import {
   VaultItem,
 } from './interfaces/container.interface';
 
+import { PrismaService } from '../../prisma/prisma.service';
+
 @Injectable()
 export class ContainerService {
   constructor(
     private readonly dockerService: DockerService,
     private readonly vaultService: VaultService,
     private readonly traefikService: TraefikService,
+    private readonly prisma: PrismaService,
   ) {}
 
   // Create an Aero-managed container from a service definition
@@ -34,6 +37,32 @@ export class ContainerService {
         'No Docker image specified for this service or deployment',
       );
     }
+
+    // 1. Ensure project network isolation exists
+    const projectNetworkName = `aero_proj_${service.project_id.substring(0, 12)}`;
+    try {
+      await this.dockerService.ensureNetwork(projectNetworkName);
+    } catch {
+      // Ignore network creation failures if Docker socket unavailable
+    }
+
+    // 2. Resolve active persistent volumes for container host binds
+    const binds: string[] = [];
+    try {
+      const volumes = await this.prisma.serviceVolume.findMany({
+        where: { service_id: service.id },
+      });
+      for (const vol of volumes) {
+        const volName = vol.host_path || `aero_vol_${vol.id.substring(0, 12)}`;
+        if (!vol.host_path) {
+          await this.dockerService.ensureVolume(volName);
+        }
+        binds.push(`${volName}:${vol.mount_path}`);
+      }
+    } catch {
+      // Fall back if prisma volumes query fails
+    }
+
     const traefikLabels = await this.traefikService.getRoutingLabels(
       service,
       3000,
@@ -50,6 +79,8 @@ export class ContainerService {
       Labels: allLabels,
       Env: this.buildEnvironment(service),
       HostConfig: {
+        NetworkMode: projectNetworkName,
+        Binds: binds.length > 0 ? binds : undefined,
         RestartPolicy: this.buildRestartPolicy(service),
         ...this.buildResourceLimits(service),
       },
@@ -63,7 +94,9 @@ export class ContainerService {
   async removeOldContainers(
     serviceId: string,
     newContainerId: string,
+    options: { gracefulDrainTimeoutSec?: number } = {},
   ): Promise<void> {
+    const drainTimeout = options.gracefulDrainTimeoutSec ?? 5;
     try {
       const containers = await this.dockerService.listContainers({
         all: true,
@@ -73,6 +106,16 @@ export class ContainerService {
       });
       for (const containerInfo of containers) {
         if (containerInfo.Id !== newContainerId) {
+          try {
+            // Gracefully stop predecessor container to allow in-flight connections to drain
+            await this.dockerService.stopContainer(containerInfo.Id, drainTimeout);
+          } catch (e) {
+            console.warn(
+              `Graceful stop on predecessor container ${containerInfo.Id} finished or already stopped`,
+              e,
+            );
+          }
+
           try {
             await this.dockerService.removeContainer(containerInfo.Id, {
               force: true,

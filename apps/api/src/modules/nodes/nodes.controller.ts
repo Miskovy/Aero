@@ -5,6 +5,7 @@ import {
   Delete,
   Body,
   Param,
+  Headers,
   UseGuards,
   Req,
   Patch,
@@ -24,6 +25,12 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 @Controller('organizations/:orgId/nodes')
 export class NodesController {
   constructor(private readonly nodesService: NodesService) {}
+
+  @Get('optimal')
+  @ApiOperation({ summary: 'Get optimal placement node for service scheduling' })
+  async selectOptimalNode(@Param('orgId') orgId: string) {
+    return this.nodesService.selectOptimalNode(orgId);
+  }
 
   @Get()
   @ApiOperation({ summary: 'List all connected servers for an organization' })
@@ -81,5 +88,28 @@ export class NodesController {
   ) {
     const userId = req.user?.id;
     return this.nodesService.updateNode(orgId, nodeId, dto, userId);
+  }
+}
+
+@ApiTags('Nodes / Telemetry')
+@Controller('nodes')
+export class NodeHeartbeatController {
+  constructor(private readonly nodesService: NodesService) {}
+
+  @Post('heartbeat')
+  @ApiOperation({ summary: 'Record agent telemetry heartbeat' })
+  async recordHeartbeat(
+    @Headers('x-agent-token') headerToken: string,
+    @Body()
+    dto: {
+      agentToken?: string;
+      cpuUsage?: number;
+      memoryUsage?: number;
+      systemInfo?: Record<string, any>;
+      ipAddress?: string;
+    },
+  ) {
+    const token = headerToken || dto.agentToken || '';
+    return this.nodesService.recordHeartbeat(token, dto);
   }
 }

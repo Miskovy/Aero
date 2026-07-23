@@ -85,7 +85,7 @@ describe('Docker Integration (e2e)', () => {
       const containerName = `${testPrefix}-vol-container`;
 
       // Create volume
-      await dockerService.createVolume(volumeName);
+      await dockerService.ensureVolume(volumeName);
 
       // Create container that writes to volume
       const container = await dockerService.createContainer({
