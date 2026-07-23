@@ -10,8 +10,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --external node-pty",
-    "dev": "tsup src/index.ts --format cjs --watch"
+    "build": "tsup",
+    "dev": "tsup --watch"
   },
   "keywords": [
     "aero",
@@ -24,11 +24,12 @@
   "author": "Miskovy",
   "license": "ISC",
   "dependencies": {
-    "@clack/prompts": "^1.2.0",
-    "axios": "^1.15.2",
+    "@clack/prompts": "^0.9.1",
+    "axios": "^1.7.9",
     "chalk": "^5.6.2",
     "cli-highlight": "^2.1.11",
     "commander": "^14.0.3",
+    "https-proxy-agent": "^7.0.5",
     "inquirer": "^13.4.2",
     "is-unicode-supported": "^2.1.0",
     "marked": "^15.0.12",
