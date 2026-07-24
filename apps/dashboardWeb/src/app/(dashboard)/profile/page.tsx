@@ -596,7 +596,9 @@ export default function ProfilePage() {
             </div>
             <button
               onClick={() => {
-                window.location.href = getApiUrl('/auth/github?client=web');
+                window.location.href = getApiUrl(
+                  `/auth/github?client=web&redirect_url=${encodeURIComponent(window.location.origin)}`,
+                );
               }}
               style={{
                 padding: '8px 16px',

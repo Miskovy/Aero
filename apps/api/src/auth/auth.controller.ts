@@ -201,13 +201,45 @@ export class AuthController {
   @Get('github')
   @UseGuards(GithubOauthGuard)
   @ApiOperation({ summary: 'Initiate GitHub OAuth login' })
-  githubAuth(@Query('client') client: string, @Res() res: Response) {
+  githubAuth(
+    @Query('client') client: string,
+    @Query('redirect_url') redirectUrlQuery: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
     // Store the client type in a short-lived cookie for the callback
     res.cookie('auth_client', client || 'web', {
       maxAge: 300000,
       httpOnly: true,
-      sameSite: 'strict',
+      sameSite: 'lax',
     });
+
+    // Detect frontend origin dynamically from query param, referer header, or env vars
+    let frontendUrl =
+      redirectUrlQuery ||
+      process.env.FRONTEND_URL ||
+      process.env.AERO_DASHBOARD_URL ||
+      process.env.DASHBOARD_URL;
+
+    const headers = req.headers as unknown as Record<string, string | undefined>;
+    const referer = headers?.['referer'] || headers?.['referrer'];
+
+    if (!frontendUrl && referer) {
+      try {
+        const parsed = new URL(referer);
+        frontendUrl = parsed.origin;
+      } catch {
+        // Fallback if referer cannot be parsed
+      }
+    }
+
+    if (frontendUrl) {
+      res.cookie('auth_frontend_url', frontendUrl, {
+        maxAge: 300000,
+        httpOnly: true,
+        sameSite: 'lax',
+      });
+    }
   }
 
   @Get('github/callback')
@@ -219,8 +251,20 @@ export class AuthController {
   ) {
     const user = req.user;
     const client = extractClientFromCookie(req);
+    const cookies = req.cookies as Record<string, string> | undefined;
+    const cookieFrontendUrl = cookies?.['auth_frontend_url'];
+
+    let frontendUrl =
+      cookieFrontendUrl ||
+      process.env.FRONTEND_URL ||
+      process.env.AERO_DASHBOARD_URL ||
+      process.env.DASHBOARD_URL ||
+      'http://localhost:3001';
+
+    frontendUrl = frontendUrl.replace(/\/$/, '');
 
     res.clearCookie('auth_client');
+    res.clearCookie('auth_frontend_url');
 
     if (client === 'desktop' || client === 'cli') {
       // ── Non-browser clients: issue a short-lived exchange code ──
@@ -238,7 +282,7 @@ export class AuthController {
     this.setRefreshCookie(res, tokens.refresh_token);
 
     return res.redirect(
-      `http://localhost:3001/login?token=${tokens.access_token}`,
+      `${frontendUrl}/login?token=${tokens.access_token}`,
     );
   }
 

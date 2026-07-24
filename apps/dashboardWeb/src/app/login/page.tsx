@@ -163,7 +163,9 @@ export default function LoginPage() {
             type="button"
             className="github-login-button"
             onClick={() => {
-              window.location.href = getApiUrl('/auth/github?client=web');
+              window.location.href = getApiUrl(
+                `/auth/github?client=web&redirect_url=${encodeURIComponent(window.location.origin)}`,
+              );
             }}
           >
             <GitHubIcon size={18} />

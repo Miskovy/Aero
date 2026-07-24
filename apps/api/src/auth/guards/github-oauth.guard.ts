@@ -49,7 +49,16 @@ export class GithubOauthGuard extends AuthGuard('github') {
       const cookies = request.cookies as Record<string, string> | undefined;
       const hasSession = !!cookies?.['aero_session'];
       const redirectPath = hasSession ? '/profile' : '/login';
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+      const cookieFrontendUrl = cookies?.['auth_frontend_url'];
+
+      let frontendUrl =
+        cookieFrontendUrl ||
+        process.env.FRONTEND_URL ||
+        process.env.AERO_DASHBOARD_URL ||
+        process.env.DASHBOARD_URL ||
+        'http://localhost:3001';
+
+      frontendUrl = frontendUrl.replace(/\/$/, '');
 
       response.redirect(
         `${frontendUrl}${redirectPath}?error=${encodeURIComponent(errorMessage)}`,
