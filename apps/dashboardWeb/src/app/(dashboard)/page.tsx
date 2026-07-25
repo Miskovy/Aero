@@ -4,6 +4,11 @@ import { getApiBaseUrl } from '@/lib/api-config';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CustomSelect from '../../components/CustomSelect';
+import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface ServerNode {
   id: string;
@@ -361,178 +366,190 @@ export default function DashboardHome() {
     : 0;
 
   return (
-    <div className="dashboard-content-grid" style={{ animation: 'fadeIn 0.4s ease' }}>
+    <div className="space-y-8 animate-in fade-in duration-300">
       
       {/* 🌟 Welcome / Overview Header */}
-      <section className="dashboard-welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <h1 style={{ fontFamily: 'var(--font-title)', fontSize: '28px', fontWeight: 600, letterSpacing: '-0.5px', marginBottom: '6px' }}>
-            Platform Infrastructure
-          </h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-dim)' }}>
-            Monitor cluster nodes, control active static/gateway microservices, and watch global container orchestrations.
-          </p>
-        </div>
-
-        {orgs.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, letterSpacing: '0.05em' }}>ORGANIZATION</span>
-            <CustomSelect
-              value={selectedOrgId || ''}
-              onChange={handleOrgChange}
-              options={orgs.map(org => ({ value: org.id, label: org.name }))}
-              style={{ width: '180px' }}
-            />
-          </div>
-        )}
-      </section>
+      <PageHeader
+        title="Platform Infrastructure"
+        description="Monitor cluster nodes, control active static/gateway microservices, and watch global container orchestrations."
+        actions={
+          orgs.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold tracking-wider text-slate-400">ORGANIZATION</span>
+              <CustomSelect
+                value={selectedOrgId || ''}
+                onChange={handleOrgChange}
+                options={orgs.map(org => ({ value: org.id, label: org.name }))}
+                style={{ width: '180px' }}
+              />
+            </div>
+          ) : undefined
+        }
+      />
 
       {/* 📊 High-Level Metrics Summary Deck */}
-      <div className="summary-deck">
-        <div className="deck-card">
-          <span className="card-lbl">Global Cluster Load</span>
-          <div className="card-val">
-            {averageCpu}%
-            <span className="trend positive">CPU Average</span>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <Card hoverable>
+          <CardBody className="space-y-2">
+            <span className="text-xs font-semibold tracking-wider uppercase text-slate-400">Global Cluster Load</span>
+            <div className="flex items-baseline justify-between">
+              <span className="text-3xl font-bold text-white tracking-tight">{averageCpu}%</span>
+              <Badge status="running" label="CPU Average" />
+            </div>
+          </CardBody>
+        </Card>
 
-        <div className="deck-card">
-          <span className="card-lbl">Registered Nodes</span>
-          <div className="card-val">
-            {nodes.filter(n => n.status === 'online').length} <span className="dim">/ {nodes.length}</span>
-            <span className="trend positive">Heartbeats Active</span>
-          </div>
-        </div>
+        <Card hoverable>
+          <CardBody className="space-y-2">
+            <span className="text-xs font-semibold tracking-wider uppercase text-slate-400">Registered Nodes</span>
+            <div className="flex items-baseline justify-between">
+              <span className="text-3xl font-bold text-white tracking-tight">
+                {nodes.filter(n => n.status === 'online').length} <span className="text-lg text-slate-500 font-normal">/ {nodes.length}</span>
+              </span>
+              <Badge status="online" label="Heartbeats Active" />
+            </div>
+          </CardBody>
+        </Card>
 
-        <div className="deck-card">
-          <span className="card-lbl">Total Microservices</span>
-          <div className="card-val">
-            {services.filter(s => s.status === 'running').length} <span className="dim">/ {services.length}</span>
-            <span className="trend neutral">Running Healthily</span>
-          </div>
-        </div>
+        <Card hoverable>
+          <CardBody className="space-y-2">
+            <span className="text-xs font-semibold tracking-wider uppercase text-slate-400">Total Microservices</span>
+            <div className="flex items-baseline justify-between">
+              <span className="text-3xl font-bold text-white tracking-tight">
+                {services.filter(s => s.status === 'running').length} <span className="text-lg text-slate-500 font-normal">/ {services.length}</span>
+              </span>
+              <Badge status="running" label="Running Healthily" />
+            </div>
+          </CardBody>
+        </Card>
       </div>
 
       {/* 🖥️ Nodes Status Grid */}
-      <section className="section-block">
-        <h2 className="section-title">Hardware Clusters & Hypervisors</h2>
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-white tracking-tight">Hardware Clusters & Hypervisors</h2>
         {nodes.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', border: '1px dashed var(--border-glass)', borderRadius: '8px', color: 'var(--text-dim)', fontSize: '13px' }}>
-            No registered server nodes connected to this organization.
-          </div>
+          <EmptyState
+            title="No Nodes Connected"
+            description="No registered server nodes connected to this organization."
+          />
         ) : (
-          <div className="nodes-grid">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {nodes.map(node => (
-              <div key={node.id} className={`node-flat-card ${node.status === 'offline' ? 'offline' : ''}`}>
-                <div className="node-head">
+              <Card key={node.id} hoverable className={node.status === 'offline' ? 'opacity-60' : ''}>
+                <CardHeader>
                   <div>
-                    <h3 className="node-name">{node.name}</h3>
-                    <span className="node-ip">{node.ip}</span>
+                    <CardTitle>{node.name}</CardTitle>
+                    <span className="text-xs font-mono text-slate-400">{node.ip}</span>
                   </div>
-                  <span className={`status-badge ${node.status}`}>
-                    {node.status}
-                  </span>
-                </div>
+                  <Badge status={node.status} />
+                </CardHeader>
 
-                {node.status === 'online' ? (
-                  <div className="node-metrics">
-                    <div className="metric-row">
-                      <div className="metric-meta">
-                        <span>Processor (CPU)</span>
-                        <strong>{node.cpu}%</strong>
+                <CardBody>
+                  {node.status === 'online' ? (
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-slate-400">Processor (CPU)</span>
+                          <span className="font-semibold text-white">{node.cpu}%</span>
+                        </div>
+                        <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                          <div className="bg-cyan-500 h-full transition-all duration-300" style={{ width: `${node.cpu}%` }}></div>
+                        </div>
                       </div>
-                      <div className="metric-bar">
-                        <div className="metric-fill" style={{ width: `${node.cpu}%` }}></div>
+
+                      <div>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-slate-400">Memory (RAM)</span>
+                          <span className="font-semibold text-white">{node.memory}%</span>
+                        </div>
+                        <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                          <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${node.memory}%` }}></div>
+                        </div>
                       </div>
                     </div>
-
-                    <div className="metric-row">
-                      <div className="metric-meta">
-                        <span>Memory (RAM)</span>
-                        <strong>{node.memory}%</strong>
-                      </div>
-                      <div className="metric-bar">
-                        <div className="metric-fill secondary" style={{ width: `${node.memory}%` }}></div>
-                      </div>
+                  ) : (
+                    <div className="text-xs text-slate-500 italic py-2 text-center">
+                      Awaiting edge daemon connection handshakes...
                     </div>
-                  </div>
-                ) : (
-                  <div className="node-offline-block">
-                    Awaiting edge daemon connection handshakes...
-                  </div>
-                )}
-              </div>
+                  )}
+                </CardBody>
+              </Card>
             ))}
           </div>
         )}
       </section>
 
       {/* 📦 Containers & Logs Double Column */}
-      <div className="split-view">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Active Services Console */}
-        <div className="split-column card-container">
-          <h2 className="section-title compact">Deployed Core Microservices</h2>
-          {services.length === 0 ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '13px' }}>
-              No active services currently deployed.
-            </div>
-          ) : (
-            <div className="services-list">
-              {services.map(service => (
-                <div key={service.id} className="service-row">
-                  <div className="service-info">
-                    <div className="service-headline">
-                      <span className="service-name-txt">{service.name}</span>
-                      <span className="service-tag">{service.type}</span>
+        <Card>
+          <CardHeader>
+            <CardTitle>Deployed Core Microservices</CardTitle>
+          </CardHeader>
+          <CardBody>
+            {services.length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-8">No active services currently deployed.</p>
+            ) : (
+              <div className="divide-y divide-slate-800/60">
+                {services.map(service => (
+                  <div key={service.id} className="py-3 flex items-center justify-between first:pt-0 last:pb-0 gap-3">
+                    <div className="min-width-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-100 truncate">{service.name}</span>
+                        <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300">{service.type}</span>
+                      </div>
+                      <span className="text-xs text-slate-400 font-mono block mt-0.5">{service.endpoint}</span>
                     </div>
-                    <span className="service-link">{service.endpoint}</span>
-                  </div>
 
-                  <div className="service-controls">
-                    <div className="service-status-meta">
-                      <span className={`pulse-indicator ${service.status === 'running' ? 'online' : 'offline'}`}></span>
-                      <span className="uptime-txt">{service.status === 'running' ? service.uptime : 'offline'}</span>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <Badge status={service.status} showPulse />
+                      <Button
+                        size="sm"
+                        variant={service.status === 'running' ? 'danger' : 'primary'}
+                        onClick={() => handleToggleService(service.id, service.status, service.name)} 
+                        disabled={service.status === 'deploying' || service.status === 'building'}
+                      >
+                        {service.status === 'running' ? 'Stop' : 'Start'}
+                      </Button>
                     </div>
-                    <button 
-                      onClick={() => handleToggleService(service.id, service.status, service.name)} 
-                      disabled={service.status === 'deploying' || service.status === 'building'}
-                      className={`service-action-btn ${service.status === 'running' ? 'stop' : 'start'}`}
-                    >
-                      {service.status === 'running' ? 'Stop' : 'Start'}
-                    </button>
                   </div>
+                ))}
+              </div>
+            )}
+          </CardBody>
+        </Card>
+
+        {/* Real-time System Stream Console */}
+        <Card className="flex flex-col">
+          <CardHeader>
+            <CardTitle>Aero Orchestrator Event Log</CardTitle>
+          </CardHeader>
+          <CardBody className="flex-1 flex flex-col space-y-3">
+            <div className="bg-[#0B0F19] border border-slate-800/80 rounded-lg p-3 font-mono text-xs max-h-64 overflow-y-auto space-y-1.5 flex-1" ref={logRef}>
+              {logs.map((log, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <span className="text-slate-500 shrink-0">[{log.time}]</span>
+                  <span className="text-cyan-400 shrink-0">{log.service}:</span>
+                  <span className={log.type === 'success' ? 'text-emerald-400' : log.type === 'warn' ? 'text-amber-400' : 'text-slate-300'}>
+                    {log.message}
+                  </span>
                 </div>
               ))}
             </div>
-          )}
-        </div>
 
-        {/* Real-time System Stream Console */}
-        <div className="split-column card-container flex-col">
-          <h2 className="section-title compact">Aero Orchestrator Event Log</h2>
-          
-          <div className="terminal-log-panel" ref={logRef}>
-            {logs.map((log, idx) => (
-              <div key={idx} className="log-line">
-                <span className="log-time">[{log.time}]</span>
-                <span className="log-service">{log.service}:</span>
-                <span className={`log-msg ${log.type}`}>{log.message}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="terminal-footer">
-            <span className="shell-indicator">fra-cluster-manager # ready</span>
-            <button 
-              onClick={() => setLogs([{ time: new Date().toTimeString().split(' ')[0], service: 'system', message: 'Logger logs history truncated.', type: 'info' }])}
-              className="log-clear-btn"
-            >
-              Flush Stream Buffer
-            </button>
-          </div>
-        </div>
+            <div className="flex items-center justify-between pt-2 text-xs border-t border-slate-800/60">
+              <span className="font-mono text-slate-500">fra-cluster-manager # ready</span>
+              <Button 
+                size="sm"
+                variant="ghost"
+                onClick={() => setLogs([{ time: new Date().toTimeString().split(' ')[0], service: 'system', message: 'Logger logs history truncated.', type: 'info' }])}
+              >
+                Flush Stream Buffer
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
 
       </div>
 

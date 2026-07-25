@@ -1,5 +1,5 @@
-/* Google Fonts - Inter & Outfit */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
 
 :root {
   /* ── Matte Design System Color Tokens (Zinc Matte Palette) ── */
@@ -59,8 +59,6 @@
 /* Base Resets */
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 input {
@@ -115,25 +113,6 @@ select option {
   padding: 8px;
 }
 
-button {
-  background-color: var(--text-primary);
-  border: 1px solid var(--text-primary);
-  border-radius: var(--border-radius-sm);
-  padding: 10px 16px;
-  color: var(--bg-primary);
-  font-size: 14px;
-  font-family: var(--font-sans);
-  font-weight: 500;
-  outline: none;
-  transition: all 0.2s ease;
-  width: 100%;
-  cursor: pointer;
-}
-
-button:focus,
-button:hover {
-  opacity: 0.85;
-}
 
 
 html,

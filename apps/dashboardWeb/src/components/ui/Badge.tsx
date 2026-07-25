@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type BadgeStatus = 'running' | 'active' | 'online' | 'success' | 'stopped' | 'offline' | 'inactive' | 'failed' | 'error' | 'degraded' | 'warning' | 'deploying' | 'building' | 'pending' | 'neutral';
+export type BadgeStatus = 'running' | 'active' | 'online' | 'success' | 'stopped' | 'offline' | 'inactive' | 'failed' | 'error' | 'degraded' | 'warning' | 'deploying' | 'building' | 'pending' | 'neutral' | 'draining' | 'maintenance';
 
 export interface BadgeProps {
   status?: BadgeStatus;
@@ -33,6 +33,8 @@ export const Badge: React.FC<BadgeProps> = ({
 
     degraded: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30', pulse: 'bg-amber-400' },
     warning: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30', pulse: 'bg-amber-400' },
+    draining: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30', pulse: 'bg-amber-400' },
+    maintenance: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30', pulse: 'bg-amber-400' },
 
     deploying: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/30', pulse: 'bg-cyan-400' },
     building: { bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/30', pulse: 'bg-indigo-400' },
