@@ -33,7 +33,7 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly redisService: RedisService,
     private readonly mailService: MailService,
-  ) {}
+  ) { }
 
   /**
    * Register a new user, store a verification token in Redis, and send verification email.
@@ -58,6 +58,8 @@ export class AuthService {
       password_hash: hashedPassword,
       auth_provider: authProvider,
       is_email_verified: false,
+      agreed_to_terms: registerDto.agreed_to_terms,
+      agreed_to_privacy: registerDto.agreed_to_privacy,
     });
 
     const verificationToken = crypto.randomBytes(16).toString('hex');
@@ -83,7 +85,7 @@ export class AuthService {
    * Authenticate with email + password, update last_login_at,
    * check email verification status, and return a fresh token pair.
    */
-  async login(loginDto: LoginDto): Promise<TokenPair> {
+  async login(loginDto: LoginDto): Promise<TokenPair & { user: Omit<User, 'password_hash' | 'two_factor_secret'> }> {
     const user = await this.userService.user({ email: loginDto.email });
 
     if (!user || !user.password_hash) {
@@ -109,7 +111,10 @@ export class AuthService {
       data: { last_login_at: new Date() },
     });
 
-    return this.tokenService.generateTokenPair(user);
+    const tokenPair = await this.tokenService.generateTokenPair(user);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password_hash, two_factor_secret, ...safeUser } = user;
+    return { ...tokenPair, user: safeUser };
   }
 
   /**

@@ -12,7 +12,7 @@ export default function PrivacyPolicy() {
           <AeroLogo size={20} />
           <span>AERO</span>
         </a>
-        <a href="/" className="btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}>
+        <a href="/" className="btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem', textDecoration: 'none' }}>
           Back to Home
         </a>
       </header>
@@ -28,84 +28,104 @@ export default function PrivacyPolicy() {
             Back to home
           </a>
           <h1 className="legal-title">Privacy Policy</h1>
-          <p className="legal-meta">Last updated: June 1, 2026</p>
+          <p className="legal-meta">Last updated: August 6, 2026</p>
         </div>
 
         <div className="legal-content">
           <section className="legal-section">
-            <h2>1. Our Commitment to Your Privacy</h2>
+            <h2>1. Privacy Principles &amp; Architecture</h2>
             <p>
-              Aero Technologies (&ldquo;Aero&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) builds proprietary, self-hosted deployment infrastructure. Our product philosophy is centered on <strong>data sovereignty</strong> and <strong>privacy by default</strong>.
+              Aero Technologies (&ldquo;Aero&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) designs self-hosted developer infrastructure focused on <strong>data sovereignty</strong> and <strong>privacy by default</strong>.
             </p>
             <p>
-              Unlike traditional cloud PaaS platforms that ingest, build, and store your applications on their servers, Aero is designed to run entirely on your own local hardware (personal PCs, developer workstations, local virtualization hosts, or on-premise servers). You own your hardware, and you own your data.
+              Because Aero operates as a self-hosted engine running on your own host machines (workstations, local servers, or private cloud VPS), your core application code, database data, environment secrets, and deployment logs remain on your machines under your control.
             </p>
           </section>
 
           <section className="legal-section">
-            <h2>2. No Application Data Harvesting</h2>
+            <h2>2. Information We Collect</h2>
             <p>
-              Aero does not collect, access, store, or monitor:
+              We collect minimal information necessary to operate our platform, process subscriptions, and authenticate user accounts:
             </p>
             <ul>
-              <li>Your application source code or build outputs.</li>
-              <li>Your database connection credentials, passwords, or schema designs.</li>
-              <li>Your environment variables or secrets.</li>
-              <li>Your deployment logs, traffic metadata, or visitor statistics.</li>
+              <li>
+                <strong>Account Information:</strong> Name, email address, and encrypted password credentials when you register an account.
+              </li>
+              <li>
+                <strong>License &amp; Usage Metadata:</strong> Subscription status, tier level (e.g. Free, Pro, Max), and license activation verification tokens.
+              </li>
+              <li>
+                <strong>Technical Logs:</strong> Minimal authentication logs (IP address, login timestamps, and browser user agent) for account security and session protection.
+              </li>
             </ul>
-            <p>
-              All build processes (triggered via git webhooks or the CLI) and application workloads run inside isolated Docker containers on your local host machines. All configuration states are stored in your local SQLite/PostgreSQL database instances, managed exclusively by you.
-            </p>
           </section>
 
           <section className="legal-section">
-            <h2>3. Local Secrets Encryption (AES-256-GCM)</h2>
+            <h2>3. Payment Processing &amp; Paymob Integration</h2>
             <p>
-              Any environment variables or API keys managed by the Aero Control Plane API are stored locally. These sensitive configurations are encrypted at rest on your host machine using the <strong>AES-256-GCM</strong> encryption standard with a master cryptography key generated locally on setup. This master key never leaves your system.
-            </p>
-          </section>
-
-          <section className="legal-section">
-            <h2>4. License Key Verification</h2>
-            <p>
-              Aero is proprietary commercial software. Utilizing the Aero self-hosted engine requires a valid, active subscription license key.
-            </p>
-            <p>
-              When you activate an Aero Pro subscription:
+              Subscription payments and recurring billing are processed securely through our third-party payment gateway provider, <strong>Paymob</strong>.
             </p>
             <ul>
-              <li>The self-hosted instance pings our central billing and key verification server (<code>https://api.aerodeploy.app/v1/licenses/verify</code>).</li>
-              <li>This ping only transmits the cryptographically signed license key string to verify active Stripe status.</li>
-              <li>No infrastructure telemetry, deployment details, node metadata, or user names are ever sent to our servers during verification.</li>
+              <li>
+                <strong>Payment Processing by Paymob:</strong> Payment transactions are executed directly by Paymob. When you purchase or manage a subscription, your payment details are collected through Paymob&apos;s secure interfaces.
+              </li>
+              <li>
+                <strong>No Card Credentials Stored by Aero:</strong> Aero does not collect, receive, or store full payment card numbers, CVC/CVV security codes, or card expiration dates on our servers.
+              </li>
+              <li>
+                <strong>Processed Payment Metadata:</strong> Aero receives and retains only non-sensitive transaction records provided by Paymob, such as transaction IDs, payment status, subscription tier, billing amount, and payment method indicators (e.g. card brand, last 4 digits, or wallet provider) for invoice history and account management.
+              </li>
+              <li>
+                <strong>Information Shared with Paymob:</strong> Necessary data (such as customer name, email address, transaction amount, and order reference) is transmitted to Paymob solely for the purpose of completing payment authorization, fraud detection, legal compliance, and transaction verification.
+              </li>
+            </ul>
+          </section>
+
+          <section className="legal-section">
+            <h2>4. Cookies, Session &amp; Local Storage</h2>
+            <p>
+              We use essential browser cookies and local storage mechanisms to support core application functionality:
+            </p>
+            <ul>
+              <li>
+                <strong>Session Tokens:</strong> Secure HTTP-only cookies or authentication tokens used to maintain your logged-in state across dashboard sessions.
+              </li>
+              <li>
+                <strong>Local Storage Preferences:</strong> Browser local storage keys (such as active workspace IDs, local preferences, or UI state) saved directly on your browser for seamless navigation.
+              </li>
             </ul>
           </section>
 
           <section className="legal-section">
             <h2>5. Opt-in Diagnostic Telemetry</h2>
             <p>
-              The Aero self-hosted software may collect minimal, completely anonymous diagnostic telemetry to help us improve system performance and identify core platform bugs.
-            </p>
-            <p>
-              <strong>Important Guidelines:</strong>
+              The Aero self-hosted software may collect minimal, optional diagnostic telemetry to assist in identifying system bugs and hardware compatibility issues.
             </p>
             <ul>
-              <li><strong>Completely Optional:</strong> You can completely disable telemetry on setup or anytime within the CLI settings using the command <code>aero telemetry disable</code>.</li>
-              <li><strong>Zero PII:</strong> If active, telemetry only shares platform crash logs and hardware capability statistics (e.g., CPU model, RAM amount, Docker daemon version).</li>
-              <li><strong>No Secrets:</strong> Our collection engine filters out all environment values, domain names, application names, and user passwords before reporting.</li>
+              <li><strong>Optional:</strong> You can disable telemetry during setup or anytime via CLI using <code>aero telemetry disable</code>.</li>
+              <li><strong>Zero PII / No Application Data:</strong> Diagnostic reports filter out environment values, secret keys, user passwords, domain names, and database payloads.</li>
             </ul>
           </section>
 
           <section className="legal-section">
-            <h2>6. Changes to this Policy</h2>
+            <h2>6. User Rights &amp; Data Control</h2>
             <p>
-              We reserve the right to update this Privacy Policy as our platform evolves. Any changes will be published here with an updated revision date.
+              Depending on your jurisdiction, you have specific rights regarding your personal information:
             </p>
+            <ul>
+              <li><strong>Access &amp; Rectification:</strong> Right to review and update your account details through your dashboard profile settings.</li>
+              <li><strong>Account Deletion:</strong> Right to request the permanent deletion of your Aero user account and associated transaction history.</li>
+              <li><strong>Telemetry Control:</strong> Right to toggle diagnostic telemetry settings on your self-hosted instances at any time.</li>
+            </ul>
           </section>
 
           <section className="legal-section">
-            <h2>7. Contact Information</h2>
+            <h2>7. Policy Updates &amp; Contact</h2>
             <p>
-              For privacy-related questions, data access requests, or self-hosted compliance queries, please reach out to us at <strong>miskovyg@gmail.com</strong>.
+              We may update this Privacy Policy to reflect platform improvements or payment processing updates. Any revisions will be published on this page with an updated revision date.
+            </p>
+            <p>
+              For privacy inquiries, data deletion requests, or compliance questions, please contact us at <strong>miskovyg@gmail.com</strong>.
             </p>
           </section>
         </div>

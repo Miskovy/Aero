@@ -86,6 +86,8 @@ describe('AuthService', () => {
         email: 'new@example.com',
         password: 'Password123!',
         name: 'New User',
+        agreed_to_terms: true,
+        agreed_to_privacy: true,
       });
 
       expect(userService.user).toHaveBeenCalledWith({
@@ -105,6 +107,8 @@ describe('AuthService', () => {
           email: 'test@example.com',
           password: 'Password123!',
           name: 'Test User',
+          agreed_to_terms: true,
+          agreed_to_privacy: true,
         }),
       ).rejects.toThrow(ConflictException);
     });

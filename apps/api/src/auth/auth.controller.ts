@@ -66,18 +66,27 @@ export class AuthController {
   @ApiOperation({ summary: 'Login and receive tokens' })
   @ApiResponse({
     status: 200,
-    description: 'Access token in body, refresh token in HttpOnly cookie.',
+    description: 'Access token and user profile in body, refresh token in HttpOnly cookie.',
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials.' })
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { access_token, refresh_token } =
+    const { access_token, refresh_token, user } =
       await this.authService.login(loginDto);
 
     this.setRefreshCookie(res, refresh_token);
-    return { access_token };
+    return {
+      access_token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        agreed_to_terms: user.agreed_to_terms,
+        agreed_to_privacy: user.agreed_to_privacy,
+      },
+    };
   }
 
   @HttpCode(HttpStatus.OK)

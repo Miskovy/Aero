@@ -7,6 +7,8 @@ import AeroLogo from './AeroLogo';
 import { getApiUrl } from '@/lib/api-config';
 import { WorkspaceProvider } from '@/context/WorkspaceContext';
 
+import TermsAcceptanceModal from './TermsAcceptanceModal';
+
 interface DashboardLayoutWrapperProps {
   children: React.ReactNode;
 }
@@ -14,6 +16,7 @@ interface DashboardLayoutWrapperProps {
 export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrapperProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [needsLegalAgreement, setNeedsLegalAgreement] = useState(false);
   const router = useRouter();
 
   // Helper to extract session cookies in client-side context
@@ -44,7 +47,7 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
         console.error('Failed to parse active user token', e);
       }
 
-      // Fetch live user info from the database (including avatar_url)
+      // Fetch live user info from the database (including avatar_url and agreement status)
       const fetchLiveUser = async () => {
         try {
           const res = await fetch('/api/users/me', {
@@ -55,6 +58,9 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
             if (data.name) setUserName(data.name);
             if (data.email) setUserEmail(data.email);
             if (data.avatar_url) setAvatarUrl(data.avatar_url);
+            if (data.agreed_to_terms === false || data.agreed_to_privacy === false) {
+              setNeedsLegalAgreement(true);
+            }
           }
         } catch (err) {
           console.error('Failed to fetch live user details:', err);
@@ -412,6 +418,11 @@ export default function DashboardLayoutWrapper({ children }: DashboardLayoutWrap
           </WorkspaceProvider>
         </main>
       </div>
+
+      <TermsAcceptanceModal
+        isOpen={needsLegalAgreement}
+        onAccepted={() => setNeedsLegalAgreement(false)}
+      />
     </div>
   );
 }

@@ -7,9 +7,16 @@ import {
 } from '../../../test/utils/mock-factory';
 import { NotFoundException } from '@nestjs/common';
 
+import { DockerService } from '../docker/docker.service';
+
 describe('BackupsService', () => {
   let service: BackupsService;
   let prisma: MockPrismaServiceType;
+
+  const mockDockerService = {
+    createVolumeBackup: jest.fn().mockResolvedValue('/backups/svc-1/backup-test-service-123.tar.gz'),
+    removeBackupFile: jest.fn().mockResolvedValue(true),
+  };
 
   const mockServiceObj = {
     id: 'svc-1',
@@ -34,6 +41,7 @@ describe('BackupsService', () => {
       providers: [
         BackupsService,
         { provide: PrismaService, useFactory: mockPrismaService },
+        { provide: DockerService, useValue: mockDockerService },
       ],
     }).compile();
 

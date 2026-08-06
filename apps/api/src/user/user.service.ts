@@ -10,7 +10,7 @@ import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class UserService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async user(
     userWhereUniqueInput: Prisma.UserWhereUniqueInput,
@@ -99,6 +99,21 @@ export class UserService {
     await this.updateUser({
       where: { id: userId },
       data: { password_hash: hashedPassword },
+    });
+  }
+
+  async agreeToLegal(userId: string): Promise<User> {
+    const user = await this.user({ id: userId });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return await this.updateUser({
+      where: { id: userId },
+      data: {
+        agreed_to_terms: true,
+        agreed_to_privacy: true,
+      },
     });
   }
 }

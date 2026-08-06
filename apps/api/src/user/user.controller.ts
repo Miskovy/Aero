@@ -102,6 +102,18 @@ export class UserController {
     return { message: 'Password updated successfully' };
   }
 
+  @Patch('me/agree-terms')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Agree to Terms of Service and Privacy Policy' })
+  @ApiResponse({ status: 200, description: 'User legal acceptance updated successfully.' })
+  async agreeToTerms(@Req() req: AuthenticatedRequest) {
+    const userId = req.user?.id;
+    if (!userId) throw new NotFoundException('User not authenticated');
+    const updatedUser = await this.userService.agreeToLegal(userId);
+    return this.sanitizeUser(updatedUser);
+  }
+
   @Get()
   @ApiOperation({ summary: 'Get all users with optional pagination' })
   @ApiResponse({ status: 200, description: 'List of users.' })

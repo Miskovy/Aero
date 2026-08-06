@@ -132,11 +132,6 @@ export default function LandingHero() {
         <Hero3DBackground />
 
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-          {/* Announcement */}
-          <div className="announcement" id="announcement">
-            <span className="announcement-dot" />
-            <span>Now in Public Beta — Free for Individuals</span>
-          </div>
 
           {/* Headline */}
           <h1 className="hero-headline">
@@ -151,7 +146,7 @@ export default function LandingHero() {
 
           {/* CTA */}
           <div className="hero-actions">
-            <a href="/login" className="btn-primary" id="cta-get-started">Get Started</a>
+            <a href="https://dashboard.aerodeploy.app" className="btn-primary" id="cta-get-started">Get Started</a>
             <button
               className="install-cmd"
               id="cta-install"

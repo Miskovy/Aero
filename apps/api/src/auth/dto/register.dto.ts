@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -33,4 +34,14 @@ export class RegisterDto {
   @IsNotEmpty()
   @IsEnum(['web', 'CLI', 'desktop', 'github'])
   auth_provider?: string;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  @IsNotEmpty()
+  agreed_to_terms: boolean;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  @IsNotEmpty()
+  agreed_to_privacy: boolean;
 }

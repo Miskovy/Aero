@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import GitHubIcon from '@/components/GitHubIcon';
 import AeroLogo from '@/components/AeroLogo';
 import { getApiUrl } from '@/lib/api-config';
+import { Checkbox } from '@/components/ui/Checkbox';
 
 const Hero3DBackground = dynamic(
   () => import('@/components/Hero3DBackground'),
@@ -18,11 +19,19 @@ export default function SignUpPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [agreedToLegal, setAgreedToLegal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const isFormValid = agreedToLegal;
+
   const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isFormValid) {
+      setError("You must accept the Terms of Service and Privacy Policy to continue.");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -41,7 +50,9 @@ export default function SignUpPage() {
         body: JSON.stringify({
           name,
           email,
-          password
+          password,
+          agreed_to_terms: agreedToLegal,
+          agreed_to_privacy: agreedToLegal,
         })
       });
 
@@ -90,7 +101,50 @@ export default function SignUpPage() {
             onChange={e => setPassword(e.target.value)}
             required
           />
-          <button type="submit" disabled={isLoading}>
+
+          {/* Terms & Privacy Agreement Checkbox */}
+          <div className="my-1 py-1">
+            <Checkbox
+              id="agree-legal"
+              checked={agreedToLegal}
+              onChange={(e) => setAgreedToLegal(e.target.checked)}
+              label={
+                <span>
+                  I agree to the{' '}
+                  <a
+                    href="https://aerodeploy.app/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-cyan-400 hover:underline font-semibold"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Terms of Service
+                  </a>{' '}
+                  and{' '}
+                  <a
+                    href="https://aerodeploy.app/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-cyan-400 hover:underline font-semibold"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Privacy Policy
+                  </a>
+                  .
+                </span>
+              }
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading || !isFormValid}
+            style={{
+              opacity: isLoading || !isFormValid ? 0.5 : 1,
+              cursor: isLoading || !isFormValid ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+          >
             {isLoading ? 'Creating account...' : 'Sign Up'}
           </button>
 
@@ -106,6 +160,7 @@ export default function SignUpPage() {
             <GitHubIcon size={18} />
             Continue With GitHub
           </button>
+          <p style={{ fontSize: '13px', color: 'var(--text-dim)', textAlign: 'center', }}>By continuing, you agree to our Terms of Service and Privacy Policy.</p>
 
           <div style={{ display: 'flex', alignItems: 'center', margin: '8px 0', color: 'var(--border-glass)' }}>
             <div style={{ flex: 1, height: '1px', backgroundColor: 'currentColor' }} />
