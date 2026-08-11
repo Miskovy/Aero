@@ -1,12 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginatedResponse } from '../common/interfaces/paginated-response';
-import { Organization, Prisma } from '../../generated/prisma/client';
+import { Organization, Prisma, OrgRole, TeamRole } from '../../generated/prisma/client';
+import { PlansService } from '../plans/plans.service';
+import { TeamsService } from '../teams/teams.service';
+import { TeamMembersService } from '../teams/teamMembers.service';
 
 @Injectable()
 export class OrganizationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly plansService: PlansService,
+    private readonly teamsService: TeamsService,
+    private readonly teamMembersService: TeamMembersService,
+  ) {}
 
   async listOrganizations(
     pagination: PaginationDto,
@@ -41,35 +49,58 @@ export class OrganizationsService {
     return { data: items, meta: { cursor: nextCursor, hasMore } };
   }
 
-  async createOrganization(name: string, userId?: string) {
+  async createOrganization(name: string, userId?: string): Promise<Organization> {
     const slug =
       name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() +
       '-' +
       Math.random().toString(36).substring(2, 6);
 
     if (!userId) {
-      // Ideally handled by guards, but just in case
-      return this.prisma.organization.create({
+      throw new UnauthorizedException('Invalid User');
+    }
+
+    const plan = await this.plansService.getPlanbyName('FREE');
+
+    if (!plan) {
+      throw new BadRequestException('Invalid Plan');
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      const organization = await tx.organization.create({
         data: {
           name,
           slug,
-          owner_id: '00000000-0000-0000-0000-000000000000', // fallback uuid
-        },
-      });
-    }
-
-    return this.prisma.organization.create({
-      data: {
-        name,
-        slug,
-        owner_id: userId,
-        members: {
-          create: {
-            user_id: userId,
-            role: 'owner',
+          owner_id: userId,
+          plan_id: plan.id,
+          plan: plan.name,
+          members: {
+            create: {
+              user_id: userId,
+              role: OrgRole.owner,
+            },
           },
         },
-      },
+      });
+
+      const team = await this.teamsService.createTeam(
+        {
+          name: `${name} Team`,
+          organization_id: organization.id,
+        },
+        tx,
+      );
+
+      await this.teamMembersService.createTeamMember(
+        {
+          team_id: team.id,
+          user_id: userId,
+          role: TeamRole.lead,
+        },
+        tx,
+      );
+
+      return organization;
     });
   }
 }
+

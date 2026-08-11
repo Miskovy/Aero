@@ -35,6 +35,8 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { RedisModule } from './redis/redis.module';
 import { MailModule } from './mail/mail.module';
+import { PlansModule } from './plans/plans.module';
+import { TeamsModule } from './teams/teams.module';
 
 @Module({
   imports: [
@@ -112,6 +114,8 @@ import { MailModule } from './mail/mail.module';
     BackupsModule,
     VolumesModule,
     EventEmitterModule.forRoot(),
+    PlansModule,
+    TeamsModule,
   ],
   controllers: [AppController],
   providers: [
