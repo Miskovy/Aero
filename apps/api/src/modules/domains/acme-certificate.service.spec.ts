@@ -8,7 +8,7 @@ jest.mock('fs/promises');
 
 describe('AcmeCertificateService', () => {
   let service: AcmeCertificateService;
-  let prisma: any;
+  let prisma: typeof mockPrismaService;
 
   const mockPrismaService = {
     serviceDomain: {
@@ -33,7 +33,7 @@ describe('AcmeCertificateService', () => {
     }).compile();
 
     service = module.get<AcmeCertificateService>(AcmeCertificateService);
-    prisma = module.get<PrismaService>(PrismaService);
+    prisma = module.get(PrismaService);
   });
 
   it('should be defined', () => {
@@ -61,10 +61,10 @@ describe('AcmeCertificateService', () => {
       expect(prisma.serviceDomain.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'dom-1' },
-          data: expect.objectContaining({ ssl_enabled: true }),
+          data: expect.objectContaining({ ssl_enabled: true }) as unknown,
         }),
       );
-      expect(result.ssl_enabled).toBe(true);
+      expect((result as Record<string, unknown>).ssl_enabled).toBe(true);
     });
 
     it('should throw NotFoundException if domain is missing', async () => {

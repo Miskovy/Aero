@@ -8,7 +8,7 @@ export class RedisIoAdapter extends IoAdapter {
   private readonly logger = new Logger(RedisIoAdapter.name);
   private adapterConstructor?: ReturnType<typeof createAdapter>;
 
-  async connectToRedis(): Promise<void> {
+  connectToRedis(): void {
     const upstashUrl = process.env.UPSTASH_REDIS_URL;
     const redisUrl = process.env.REDIS_URL;
     const urlStr = upstashUrl || redisUrl;
@@ -50,15 +50,18 @@ export class RedisIoAdapter extends IoAdapter {
       this.logger.log(
         'Redis Pub/Sub WebSocket Adapter initialized successfully.',
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       this.logger.warn(
-        `Failed to initialize Redis Adapter (${err.message}). Falling back to default in-memory WebSocket adapter.`,
+        `Failed to initialize Redis Adapter (${error.message}). Falling back to default in-memory WebSocket adapter.`,
       );
     }
   }
 
-  override createIOServer(port: number, options?: ServerOptions): any {
-    const server = super.createIOServer(port, options);
+  override createIOServer(port: number, options?: ServerOptions): unknown {
+    const server = super.createIOServer(port, options) as {
+      adapter: (adapter: unknown) => void;
+    };
     if (this.adapterConstructor) {
       server.adapter(this.adapterConstructor);
     }

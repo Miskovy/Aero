@@ -117,8 +117,10 @@ export class NodesService {
       const bServices = b.services.length;
       if (aServices !== bServices) return aServices - bServices;
 
-      const aCpu = (a.resource_usage as any)?.cpu_usage_pct ?? 0;
-      const bCpu = (b.resource_usage as any)?.cpu_usage_pct ?? 0;
+      const aCpu =
+        (a.resource_usage as Record<string, number> | null)?.cpu_usage_pct ?? 0;
+      const bCpu =
+        (b.resource_usage as Record<string, number> | null)?.cpu_usage_pct ?? 0;
       return aCpu - bCpu;
     });
 

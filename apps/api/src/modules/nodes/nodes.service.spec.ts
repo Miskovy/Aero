@@ -5,7 +5,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 describe('NodesService', () => {
   let service: NodesService;
-  let prisma: any;
+  let prisma: typeof mockPrismaService;
 
   const mockPrismaService = {
     organization: {
@@ -33,7 +33,7 @@ describe('NodesService', () => {
     }).compile();
 
     service = module.get<NodesService>(NodesService);
-    prisma = module.get<PrismaService>(PrismaService);
+    prisma = module.get(PrismaService);
   });
 
   it('should be defined', () => {
@@ -53,7 +53,7 @@ describe('NodesService', () => {
       const result = await service.listNodes('org-1', { limit: 20 }, 'user-1');
 
       expect(result.data).toHaveLength(1);
-      expect(result.data[0].id).toBe('node-1');
+      expect((result.data[0] as Record<string, unknown>).id).toBe('node-1');
     });
 
     it('should throw ForbiddenException if user is not a member', async () => {
@@ -92,7 +92,7 @@ describe('NodesService', () => {
           where: { id: 'node-1' },
           data: expect.objectContaining({
             status: 'online',
-          }),
+          }) as unknown,
         }),
       );
       expect(result.status).toBe('online');
@@ -117,7 +117,7 @@ describe('NodesService', () => {
         where: {
           status: 'online',
           OR: [
-            { last_heartbeat_at: { lt: expect.any(Date) } },
+            { last_heartbeat_at: { lt: expect.any(Date) as unknown as Date } },
             { last_heartbeat_at: null },
           ],
         },

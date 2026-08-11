@@ -44,14 +44,20 @@ describe('OrganizationsService', () => {
       findMany: jest.fn().mockResolvedValue([mockOrg]),
       create: jest.fn().mockResolvedValue(mockOrg),
     },
-    $transaction: jest.fn().mockImplementation(async (cb) => {
-      const txMock = {
-        organization: {
-          create: jest.fn().mockResolvedValue(mockOrg),
+    $transaction: jest
+      .fn()
+      .mockImplementation(
+        async (
+          cb: (tx: { organization: { create: jest.Mock } }) => Promise<unknown>,
+        ) => {
+          const txMock = {
+            organization: {
+              create: jest.fn().mockResolvedValue(mockOrg),
+            },
+          };
+          return (await cb(txMock)) as typeof mockOrg;
         },
-      };
-      return await cb(txMock);
-    }),
+      ),
   };
 
   const mockPlansService = {
