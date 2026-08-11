@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import Link from 'next/link'
 import AeroLogo from '../components/AeroLogo'
 
 export default function PrivacyPolicy() {
@@ -8,25 +8,25 @@ export default function PrivacyPolicy() {
     <div className="bg-background min-h-screen text-foreground font-sans">
       {/* Navigation Header */}
       <header className="nav">
-        <a href="/" className="nav-logo">
+        <Link href="/" className="nav-logo">
           <AeroLogo size={20} />
           <span>AERO</span>
-        </a>
-        <a href="/" className="btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem', textDecoration: 'none' }}>
+        </Link>
+        <Link href="/" className="btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem', textDecoration: 'none' }}>
           Back to Home
-        </a>
+        </Link>
       </header>
 
       {/* Main Content */}
       <main className="legal-container">
         <div className="legal-header">
-          <a href="/" className="legal-back">
+          <Link href="/" className="legal-back">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
             Back to home
-          </a>
+          </Link>
           <h1 className="legal-title">Privacy Policy</h1>
           <p className="legal-meta">Last updated: August 6, 2026</p>
         </div>

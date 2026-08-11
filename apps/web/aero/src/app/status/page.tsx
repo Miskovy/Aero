@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import AeroLogo from '../components/AeroLogo'
 
 interface ComponentState {
@@ -11,47 +12,46 @@ interface ComponentState {
   incidents: { [key: number]: string } // maps negative day (e.g. -15) to outage reason
 }
 
+const SYSTEM_COMPONENTS: ComponentState[] = [
+  {
+    name: 'Aero API (Control Plane)',
+    description: 'Central API service managing project builds, deployments, and databases.',
+    status: 'operational',
+    uptimePercent: 99.98,
+    incidents: {}
+  },
+  {
+    name: 'DNS Wildcard Routing (*.aerodeploy.app)',
+    description: 'Edge proxy routing public traffic to self-hosted instances via secure tunnels.',
+    status: 'operational',
+    uptimePercent: 99.93,
+    incidents: {
+      15: 'Edge Gateway TLS certificate renewal lock. Ingress Traefik router experienced a 9-minute delay resolving new subdomains. Uptime affected: 99.37%.'
+    }
+  },
+  {
+    name: 'CLI Distribution (npm package)',
+    description: 'NPM package registry and binary downloads for the Aero CLI companion tool.',
+    status: 'operational',
+    uptimePercent: 100.0,
+    incidents: {}
+  },
+  {
+    name: 'Documentation Portal (docs.aerodeploy.app)',
+    description: 'Technical manuals, CLI reference sheets, and getting started guides.',
+    status: 'operational',
+    uptimePercent: 100.0,
+    incidents: {}
+  }
+]
+
 export default function StatusPage() {
   const [isSubscribeOpen, setIsSubscribeOpen] = useState(false)
   const [email, setEmail] = useState('')
   const [subscribed, setSubscribed] = useState(false)
   const [apiLatency, setApiLatency] = useState<number>(47)
-  const [apiStatus, setApiStatus] = useState<'operational' | 'partial'>('operational')
+  const [, setApiStatus] = useState<'operational' | 'partial'>('operational')
   const [isLoadingApi, setIsLoadingApi] = useState(true)
-
-  // Core Status Board components
-  const [components, setComponents] = useState<ComponentState[]>([
-    {
-      name: 'Aero API (Control Plane)',
-      description: 'Central API service managing project builds, deployments, and databases.',
-      status: 'operational',
-      uptimePercent: 99.98,
-      incidents: {}
-    },
-    {
-      name: 'DNS Wildcard Routing (*.aerodeploy.app)',
-      description: 'Edge proxy routing public traffic to self-hosted instances via secure tunnels.',
-      status: 'operational',
-      uptimePercent: 99.93,
-      incidents: {
-        15: 'Edge Gateway TLS certificate renewal lock. Ingress Traefik router experienced a 9-minute delay resolving new subdomains. Uptime affected: 99.37%.'
-      }
-    },
-    {
-      name: 'CLI Distribution (npm package)',
-      description: 'NPM package registry and binary downloads for the Aero CLI companion tool.',
-      status: 'operational',
-      uptimePercent: 100.0,
-      incidents: {}
-    },
-    {
-      name: 'Documentation Portal (docs.aerodeploy.app)',
-      description: 'Technical manuals, CLI reference sheets, and getting started guides.',
-      status: 'operational',
-      uptimePercent: 100.0,
-      incidents: {}
-    }
-  ])
 
   // Try to ping the local backend API or central API to make it real
   useEffect(() => {
@@ -71,7 +71,7 @@ export default function StatusPage() {
           // Statically operational fallback if server returns non-200
           setApiLatency(48)
         }
-      } catch (err) {
+      } catch {
         // Safe mock fallback for static compilation when server is offline
         setApiLatency(52)
       } finally {
@@ -161,13 +161,13 @@ export default function StatusPage() {
     <div className="bg-background min-h-screen text-foreground font-sans">
       {/* Navigation Header */}
       <header className="nav">
-        <a href="/" className="nav-logo">
+        <Link href="/" className="nav-logo">
           <AeroLogo size={20} />
           <span>AERO</span>
-        </a>
-        <a href="/" className="btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}>
+        </Link>
+        <Link href="/" className="btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}>
           Back to Home
-        </a>
+        </Link>
       </header>
 
       {/* Main Container */}
@@ -175,10 +175,10 @@ export default function StatusPage() {
         {/* Title and Subscribe Action */}
         <div className="status-header-section">
           <div>
-            <a href="/" className="status-brand">
+            <Link href="/" className="status-brand">
               <AeroLogo className="status-logo-icon" size={24} monochrome />
               <span>AERO STATUS</span>
-            </a>
+            </Link>
           </div>
 
           {/* Subscribe Panel Trigger */}
@@ -237,7 +237,7 @@ export default function StatusPage() {
 
         {/* Core Systems Board */}
         <section className="status-board">
-          {components.map((comp) => (
+          {SYSTEM_COMPONENTS.map((comp) => (
             <div key={comp.name} className="status-component-item">
               <div className="status-component-meta">
                 <span className="status-component-name">{comp.name}</span>

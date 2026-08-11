@@ -28,19 +28,20 @@ function WavyTerrain() {
 
     timeRef.current += delta * 0.12 // Accumulate delta instead of using state.clock
     const time = timeRef.current
+    const posAttr = meshRef.current.geometry.attributes.position as THREE.BufferAttribute
 
-    for (let i = 0; i < positions.count; i++) {
-      const x = positions.getX(i)
-      const y = positions.getY(i)
+    for (let i = 0; i < posAttr.count; i++) {
+      const x = posAttr.getX(i)
+      const y = posAttr.getY(i)
 
       const waveX = Math.sin(x * 0.4 + time) * 0.6
       const waveY = Math.sin(y * 0.4 + time * 0.8) * 0.6
       const waveXY = Math.sin((x + y) * 0.2 - time) * 0.5
 
-      positions.setZ(i, initialZ[i] + waveX + waveY + waveXY)
+      posAttr.setZ(i, initialZ[i] + waveX + waveY + waveXY)
     }
 
-    positions.needsUpdate = true
+    posAttr.needsUpdate = true
     meshRef.current.rotation.z = time * 0.03
   })
 

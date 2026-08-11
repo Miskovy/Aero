@@ -25,7 +25,9 @@ export class AcmeCertificateService {
     }
 
     const domainName = domainRecord.domain;
-    this.logger.log(`Provisioning ACME SSL certificate for domain: ${domainName}`);
+    this.logger.log(
+      `Provisioning ACME SSL certificate for domain: ${domainName}`,
+    );
 
     const domainCertDir = path.join(this.certsBaseDir, domainName);
 

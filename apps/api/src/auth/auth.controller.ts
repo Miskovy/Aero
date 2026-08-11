@@ -66,7 +66,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Login and receive tokens' })
   @ApiResponse({
     status: 200,
-    description: 'Access token and user profile in body, refresh token in HttpOnly cookie.',
+    description:
+      'Access token and user profile in body, refresh token in HttpOnly cookie.',
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials.' })
   async login(
@@ -230,7 +231,10 @@ export class AuthController {
       process.env.AERO_DASHBOARD_URL ||
       process.env.DASHBOARD_URL;
 
-    const headers = req.headers as unknown as Record<string, string | undefined>;
+    const headers = req.headers as unknown as Record<
+      string,
+      string | undefined
+    >;
     const referer = headers?.['referer'] || headers?.['referrer'];
 
     if (!frontendUrl && referer) {
@@ -290,9 +294,7 @@ export class AuthController {
     const tokens = await this.authService.generateTokenPair(user);
     this.setRefreshCookie(res, tokens.refresh_token);
 
-    return res.redirect(
-      `${frontendUrl}/login?token=${tokens.access_token}`,
-    );
+    return res.redirect(`${frontendUrl}/login?token=${tokens.access_token}`);
   }
 
   @HttpCode(HttpStatus.OK)

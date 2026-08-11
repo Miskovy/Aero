@@ -47,7 +47,9 @@ export class RedisIoAdapter extends IoAdapter {
       });
 
       this.adapterConstructor = createAdapter(pubClient, subClient);
-      this.logger.log('Redis Pub/Sub WebSocket Adapter initialized successfully.');
+      this.logger.log(
+        'Redis Pub/Sub WebSocket Adapter initialized successfully.',
+      );
     } catch (err: any) {
       this.logger.warn(
         `Failed to initialize Redis Adapter (${err.message}). Falling back to default in-memory WebSocket adapter.`,

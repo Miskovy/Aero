@@ -10,7 +10,10 @@ export class TeamsService {
     return tx ?? this.prisma;
   }
 
-  async listOrgTeams(orgId: string, tx?: Prisma.TransactionClient): Promise<Team[]> {
+  async listOrgTeams(
+    orgId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Team[]> {
     if (!orgId) {
       throw new BadRequestException('Invalid Organization ID');
     }
@@ -21,7 +24,10 @@ export class TeamsService {
     });
   }
 
-  async getTeambyId(teamId: string, tx?: Prisma.TransactionClient): Promise<Team> {
+  async getTeambyId(
+    teamId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Team> {
     if (!teamId) {
       throw new BadRequestException('Invalid Team ID');
     }
@@ -56,7 +62,9 @@ export class TeamsService {
     try {
       return await this.db(tx).team.delete({ where: { id: teamId } });
     } catch {
-      throw new BadRequestException('Error occurred while deleting team, There Exists Members');
+      throw new BadRequestException(
+        'Error occurred while deleting team, There Exists Members',
+      );
     }
   }
 }

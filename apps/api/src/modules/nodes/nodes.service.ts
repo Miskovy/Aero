@@ -82,9 +82,10 @@ export class NodesService {
       data: {
         status: 'online',
         last_heartbeat_at: new Date(),
-        resource_usage: resourceUsage as Prisma.InputJsonValue,
+        resource_usage: resourceUsage,
         ip_address: metrics.ipAddress || node.ip_address,
-        system_info: (metrics.systemInfo || node.system_info) as Prisma.InputJsonValue,
+        system_info: (metrics.systemInfo ||
+          node.system_info) as Prisma.InputJsonValue,
       },
     });
   }

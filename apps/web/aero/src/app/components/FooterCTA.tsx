@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import AeroLogo from './AeroLogo'
 
 export default function FooterCTA() {
@@ -23,10 +24,10 @@ export default function FooterCTA() {
           <div className="footer-grid">
             {/* Brand Info */}
             <div className="footer-brand-col">
-              <a href="/" className="footer-logo">
+              <Link href="/" className="footer-logo">
                 <AeroLogo className="footer-logo-icon" size={20} monochrome />
                 <span>AERO</span>
-              </a>
+              </Link>
               <p className="footer-desc">
                 High-performance self-hosted PaaS. Turn any machine into your private, secure cloud.
               </p>
@@ -83,8 +84,8 @@ export default function FooterCTA() {
             <div className="footer-col">
               <h4>Legal</h4>
               <ul>
-                <li><a href="/privacy">Privacy Policy</a></li>
-                <li><a href="/terms">Terms of Service</a></li>
+                <li><Link href="/privacy">Privacy Policy</Link></li>
+                <li><Link href="/terms">Terms of Service</Link></li>
               </ul>
             </div>
           </div>

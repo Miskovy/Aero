@@ -108,7 +108,10 @@ export class ContainerService {
         if (containerInfo.Id !== newContainerId) {
           try {
             // Gracefully stop predecessor container to allow in-flight connections to drain
-            await this.dockerService.stopContainer(containerInfo.Id, drainTimeout);
+            await this.dockerService.stopContainer(
+              containerInfo.Id,
+              drainTimeout,
+            );
           } catch (e) {
             console.warn(
               `Graceful stop on predecessor container ${containerInfo.Id} finished or already stopped`,

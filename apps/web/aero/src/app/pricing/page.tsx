@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import AeroLogo from '../components/AeroLogo'
 
 const PRICING_PLANS = [
@@ -69,14 +70,14 @@ export default function PricingPage() {
     <div className="bg-background min-h-screen text-foreground font-sans">
       {/* Navigation Header */}
       <header className="nav">
-        <a href="/" className="nav-logo">
+        <Link href="/" className="nav-logo">
           <AeroLogo size={20} />
           <span>AERO</span>
-        </a>
+        </Link>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <a href="/" className="nav-link">
+          <Link href="/" className="nav-link">
             Home
-          </a>
+          </Link>
           <a href="https://dashboard.aerodeploy.app" className="btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem', textDecoration: 'none' }}>
             Go to Dashboard &rarr;
           </a>
@@ -86,13 +87,13 @@ export default function PricingPage() {
       {/* Main Content */}
       <main className="legal-container" style={{ maxWidth: '1140px', padding: '6rem 2rem' }}>
         <div className="legal-header" style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-          <a href="/" className="legal-back" style={{ justifyContent: 'center', marginBottom: '1.5rem' }}>
+          <Link href="/" className="legal-back" style={{ justifyContent: 'center', marginBottom: '1.5rem' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
             Back to home
-          </a>
+          </Link>
           <h1 className="legal-title" style={{ fontSize: '2.8rem', fontFamily: 'var(--font-serif)' }}>
             Unlock your potential with Aero
           </h1>

@@ -10,7 +10,10 @@ export class TeamMembersService {
     return tx ?? this.prisma;
   }
 
-  async listTeamMembers(teamId: string, tx?: Prisma.TransactionClient): Promise<TeamMember[]> {
+  async listTeamMembers(
+    teamId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<TeamMember[]> {
     if (!teamId) {
       throw new BadRequestException('Invalid Team ID');
     }
@@ -38,7 +41,11 @@ export class TeamMembersService {
     return await this.db(tx).teamMember.create({ data });
   }
 
-  async deleteTeamMember(teamId: string, userId: string, tx?: Prisma.TransactionClient) {
+  async deleteTeamMember(
+    teamId: string,
+    userId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
     return await this.db(tx).teamMember.delete({
       where: {
         team_id_user_id: {
@@ -66,7 +73,11 @@ export class TeamMembersService {
     });
   }
 
-  async getTeamMemberbyId(teamId: string, userId: string, tx?: Prisma.TransactionClient) {
+  async getTeamMemberbyId(
+    teamId: string,
+    userId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
     return await this.db(tx).teamMember.findUnique({
       where: {
         team_id_user_id: {

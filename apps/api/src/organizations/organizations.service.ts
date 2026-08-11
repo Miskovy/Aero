@@ -1,8 +1,17 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginatedResponse } from '../common/interfaces/paginated-response';
-import { Organization, Prisma, OrgRole, TeamRole } from '../../generated/prisma/client';
+import {
+  Organization,
+  Prisma,
+  OrgRole,
+  TeamRole,
+} from '../../generated/prisma/client';
 import { PlansService } from '../plans/plans.service';
 import { TeamsService } from '../teams/teams.service';
 import { TeamMembersService } from '../teams/teamMembers.service';
@@ -49,7 +58,10 @@ export class OrganizationsService {
     return { data: items, meta: { cursor: nextCursor, hasMore } };
   }
 
-  async createOrganization(name: string, userId?: string): Promise<Organization> {
+  async createOrganization(
+    name: string,
+    userId?: string,
+  ): Promise<Organization> {
     const slug =
       name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() +
       '-' +
@@ -103,4 +115,3 @@ export class OrganizationsService {
     });
   }
 }
-

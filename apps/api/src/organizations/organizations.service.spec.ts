@@ -98,15 +98,17 @@ describe('OrganizationsService', () => {
 
   describe('createOrganization', () => {
     it('should throw UnauthorizedException if userId is not provided', async () => {
-      await expect(service.createOrganization('Acme Corp')).rejects.toThrow(UnauthorizedException);
+      await expect(service.createOrganization('Acme Corp')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw BadRequestException if plan is not found', async () => {
       mockPlansService.getPlanbyName.mockResolvedValue(null);
 
-      await expect(service.createOrganization('Acme Corp', 'user-1')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.createOrganization('Acme Corp', 'user-1'),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should create an organization, team, and member within transaction', async () => {

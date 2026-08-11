@@ -14,11 +14,18 @@ export class PlansService {
     return await this.db(tx).plan.findMany();
   }
 
-  async createPlan(data: Prisma.PlanCreateInput, tx?: Prisma.TransactionClient) {
+  async createPlan(
+    data: Prisma.PlanCreateInput,
+    tx?: Prisma.TransactionClient,
+  ) {
     return await this.db(tx).plan.create({ data });
   }
 
-  async updatePlan(id: string, data: Prisma.PlanUpdateInput, tx?: Prisma.TransactionClient) {
+  async updatePlan(
+    id: string,
+    data: Prisma.PlanUpdateInput,
+    tx?: Prisma.TransactionClient,
+  ) {
     return await this.db(tx).plan.update({ where: { id }, data });
   }
 
@@ -26,7 +33,9 @@ export class PlansService {
     try {
       return await this.db(tx).plan.delete({ where: { id } });
     } catch {
-      throw new BadRequestException('Failed to delete plan, There exists an organization using this plan');
+      throw new BadRequestException(
+        'Failed to delete plan, There exists an organization using this plan',
+      );
     }
   }
 
@@ -41,7 +50,10 @@ export class PlansService {
     return plan;
   }
 
-  async getPlanbyName(name: string, tx?: Prisma.TransactionClient): Promise<Plan | null> {
+  async getPlanbyName(
+    name: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Plan | null> {
     if (!name) {
       throw new BadRequestException('Invalid Plan Name');
     }

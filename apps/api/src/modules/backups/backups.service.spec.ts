@@ -14,7 +14,9 @@ describe('BackupsService', () => {
   let prisma: MockPrismaServiceType;
 
   const mockDockerService = {
-    createVolumeBackup: jest.fn().mockResolvedValue('/backups/svc-1/backup-test-service-123.tar.gz'),
+    createVolumeBackup: jest
+      .fn()
+      .mockResolvedValue('/backups/svc-1/backup-test-service-123.tar.gz'),
     removeBackupFile: jest.fn().mockResolvedValue(true),
   };
 

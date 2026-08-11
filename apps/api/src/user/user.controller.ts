@@ -106,7 +106,10 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Agree to Terms of Service and Privacy Policy' })
-  @ApiResponse({ status: 200, description: 'User legal acceptance updated successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'User legal acceptance updated successfully.',
+  })
   async agreeToTerms(@Req() req: AuthenticatedRequest) {
     const userId = req.user?.id;
     if (!userId) throw new NotFoundException('User not authenticated');

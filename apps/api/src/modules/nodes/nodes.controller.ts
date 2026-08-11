@@ -27,7 +27,9 @@ export class NodesController {
   constructor(private readonly nodesService: NodesService) {}
 
   @Get('optimal')
-  @ApiOperation({ summary: 'Get optimal placement node for service scheduling' })
+  @ApiOperation({
+    summary: 'Get optimal placement node for service scheduling',
+  })
   async selectOptimalNode(@Param('orgId') orgId: string) {
     return this.nodesService.selectOptimalNode(orgId);
   }

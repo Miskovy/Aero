@@ -33,7 +33,7 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly redisService: RedisService,
     private readonly mailService: MailService,
-  ) { }
+  ) {}
 
   /**
    * Register a new user, store a verification token in Redis, and send verification email.
@@ -85,7 +85,11 @@ export class AuthService {
    * Authenticate with email + password, update last_login_at,
    * check email verification status, and return a fresh token pair.
    */
-  async login(loginDto: LoginDto): Promise<TokenPair & { user: Omit<User, 'password_hash' | 'two_factor_secret'> }> {
+  async login(
+    loginDto: LoginDto,
+  ): Promise<
+    TokenPair & { user: Omit<User, 'password_hash' | 'two_factor_secret'> }
+  > {
     const user = await this.userService.user({ email: loginDto.email });
 
     if (!user || !user.password_hash) {

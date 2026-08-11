@@ -63,24 +63,34 @@ describe('TeamMembersService', () => {
     });
 
     it('should throw BadRequestException if teamId is empty', async () => {
-      await expect(service.listTeamMembers('')).rejects.toThrow(BadRequestException);
+      await expect(service.listTeamMembers('')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException if team is not found', async () => {
       mockPrismaService.team.findUnique.mockResolvedValue(null);
 
-      await expect(service.listTeamMembers('invalid-id')).rejects.toThrow(BadRequestException);
+      await expect(service.listTeamMembers('invalid-id')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('createTeamMember', () => {
     it('should create and return a team member', async () => {
-      const data = { team_id: 'team-1', user_id: 'user-1', role: TeamRole.member };
+      const data = {
+        team_id: 'team-1',
+        user_id: 'user-1',
+        role: TeamRole.member,
+      };
       mockPrismaService.teamMember.create.mockResolvedValue(mockTeamMember);
 
       const result = await service.createTeamMember(data);
       expect(result).toEqual(mockTeamMember);
-      expect(mockPrismaService.teamMember.create).toHaveBeenCalledWith({ data });
+      expect(mockPrismaService.teamMember.create).toHaveBeenCalledWith({
+        data,
+      });
     });
   });
 

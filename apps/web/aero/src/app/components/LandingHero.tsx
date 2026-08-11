@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import AeroLogo from './AeroLogo'
 
 const Hero3DBackground = dynamic(() => import('./Hero3DBackground'), { ssr: false })
@@ -100,10 +101,10 @@ export default function LandingHero() {
     <>
       {/* ── Navigation ── */}
       <nav className="nav" id="nav">
-        <a href="/" className="nav-logo" id="nav-logo">
+        <Link href="/" className="nav-logo" id="nav-logo">
           <AeroLogo className="nav-logo-icon" monochrome />
           <span>AERO</span>
-        </a>
+        </Link>
         <ul className="nav-links">
           <li><a href="#features" className="nav-link" id="nav-features">Features</a></li>
           <li><a href="#pricing" className="nav-link" id="nav-pricing">Pricing</a></li>

@@ -61,18 +61,26 @@ describe('PlansService', () => {
   describe('createPlan', () => {
     it('should create and return a plan', async () => {
       const createData = { name: 'PRO', price: 29 };
-      mockPrismaService.plan.create.mockResolvedValue({ ...mockPlan, name: 'PRO' });
+      mockPrismaService.plan.create.mockResolvedValue({
+        ...mockPlan,
+        name: 'PRO',
+      });
 
       const result = await service.createPlan(createData);
       expect(result.name).toEqual('PRO');
-      expect(mockPrismaService.plan.create).toHaveBeenCalledWith({ data: createData });
+      expect(mockPrismaService.plan.create).toHaveBeenCalledWith({
+        data: createData,
+      });
     });
   });
 
   describe('updatePlan', () => {
     it('should update and return a plan', async () => {
       const updateData = { name: 'ENTERPRISE' };
-      mockPrismaService.plan.update.mockResolvedValue({ ...mockPlan, name: 'ENTERPRISE' });
+      mockPrismaService.plan.update.mockResolvedValue({
+        ...mockPlan,
+        name: 'ENTERPRISE',
+      });
 
       const result = await service.updatePlan('plan-1', updateData);
       expect(result.name).toEqual('ENTERPRISE');
@@ -89,13 +97,19 @@ describe('PlansService', () => {
 
       const result = await service.deletePlan('plan-1');
       expect(result).toEqual(mockPlan);
-      expect(mockPrismaService.plan.delete).toHaveBeenCalledWith({ where: { id: 'plan-1' } });
+      expect(mockPrismaService.plan.delete).toHaveBeenCalledWith({
+        where: { id: 'plan-1' },
+      });
     });
 
     it('should throw BadRequestException if delete fails', async () => {
-      mockPrismaService.plan.delete.mockRejectedValue(new Error('Foreign key constraint'));
+      mockPrismaService.plan.delete.mockRejectedValue(
+        new Error('Foreign key constraint'),
+      );
 
-      await expect(service.deletePlan('plan-1')).rejects.toThrow(BadRequestException);
+      await expect(service.deletePlan('plan-1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -114,7 +128,9 @@ describe('PlansService', () => {
     it('should throw BadRequestException if plan is not found', async () => {
       mockPrismaService.plan.findUnique.mockResolvedValue(null);
 
-      await expect(service.getPlan('invalid-id')).rejects.toThrow(BadRequestException);
+      await expect(service.getPlan('invalid-id')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -127,7 +143,9 @@ describe('PlansService', () => {
     });
 
     it('should throw BadRequestException if name is empty', async () => {
-      await expect(service.getPlanbyName('')).rejects.toThrow(BadRequestException);
+      await expect(service.getPlanbyName('')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });
