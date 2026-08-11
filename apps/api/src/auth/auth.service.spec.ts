@@ -140,6 +140,13 @@ describe('AuthService', () => {
         access_token: 'acc-token',
         refresh_token: 'ref-token',
         expires_in: 900,
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+          name: 'Test User',
+          auth_provider: 'local',
+          is_email_verified: true,
+        },
       });
     });
 
