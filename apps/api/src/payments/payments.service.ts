@@ -8,8 +8,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { XPayService } from './xpay.service';
 import { InitiateCheckoutDto } from './dto/Init-checkout.dto';
 
-
-
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -17,7 +15,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly xpayService: XPayService,
-  ) { }
+  ) {}
 
   /**
    * Return XPay public status & configuration.
@@ -140,20 +138,31 @@ export class PaymentsService {
   /**
    * Process XPay Webhook Event.
    */
-  async handleWebhook(rawBody: string | Buffer, signatureHeader?: string, payloadBody?: any) {
+  async handleWebhook(
+    rawBody: string | Buffer,
+    signatureHeader?: string,
+    payloadBody?: Record<string, unknown>,
+  ) {
     // 1. Verify signature
-    const isValid = this.xpayService.verifyWebhookSignature(rawBody, signatureHeader);
+    const isValid = this.xpayService.verifyWebhookSignature(
+      rawBody,
+      signatureHeader,
+    );
     if (!isValid) {
       this.logger.warn('Invalid XPay webhook signature received');
       throw new BadRequestException('Invalid XPay webhook signature');
     }
 
     // 2. Parse payload
-    const body = payloadBody || (typeof rawBody === 'string' ? JSON.parse(rawBody) : JSON.parse(rawBody.toString('utf8')));
+    const body: Record<string, unknown> =
+      payloadBody ??
+      (typeof rawBody === 'string'
+        ? (JSON.parse(rawBody) as Record<string, unknown>)
+        : (JSON.parse(rawBody.toString('utf8')) as Record<string, unknown>));
     const parsed = this.xpayService.parseWebhookPayload(body);
 
     this.logger.log(
-      `XPay webhook event ${parsed.eventType} for session ${parsed.sessionId}`,
+      `XPay webhook event ${parsed.eventType} for session ${parsed.sessionId || ''}`,
     );
 
     if (!parsed.sessionId) {
@@ -171,7 +180,8 @@ export class PaymentsService {
         where: { id: transaction.id },
         data: {
           status: parsed.status,
-          xpay_payment_intent: parsed.paymentIntentId || transaction.xpay_payment_intent,
+          xpay_payment_intent:
+            parsed.paymentIntentId || transaction.xpay_payment_intent,
           payment_method: parsed.paymentMethod || transaction.payment_method,
           updated_at: new Date(),
         },
@@ -198,7 +208,9 @@ export class PaymentsService {
         }
       }
     } else {
-      this.logger.warn(`No transaction found for session ${parsed.sessionId}`);
+      this.logger.warn(
+        `No transaction found for session ${parsed.sessionId || ''}`,
+      );
     }
 
     return { received: true, status: parsed.status };
@@ -230,13 +242,19 @@ export class PaymentsService {
     );
 
     if (refundRes.success) {
+      const existingMetadata =
+        typeof transaction.metadata === 'object' &&
+        transaction.metadata !== null
+          ? (transaction.metadata as Record<string, unknown>)
+          : {};
+
       const updated = await this.prisma.paymentTransaction.update({
         where: { id: transactionId },
         data: {
           status: 'refunded',
           updated_at: new Date(),
           metadata: {
-            ...((transaction.metadata as Record<string, any>) || {}),
+            ...existingMetadata,
             refundId: refundRes.refundId,
             refundedAt: new Date().toISOString(),
           },

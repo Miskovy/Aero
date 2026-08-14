@@ -10,10 +10,21 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
+import { Request } from 'express';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../common/interfaces/Authenticated.interface';
 import { InitiateCheckoutDto } from './dto/Init-checkout.dto';
+
+interface RawBodyRequest extends Request {
+  rawBody?: string | Buffer;
+}
 
 @ApiTags('payments')
 @Controller('payments')
@@ -33,9 +44,9 @@ export class PaymentsController {
   @ApiResponse({ status: 201, description: 'Checkout session created' })
   createCheckoutSession(
     @Body() dto: InitiateCheckoutDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
-    const userId = req.user?.id || req.user?.sub;
+    const userId = req.user?.id;
     return this.paymentsService.createCheckoutSession({
       ...dto,
       userId: dto.userId || userId,
@@ -45,7 +56,9 @@ export class PaymentsController {
   @Get('history/:organizationId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get payment transaction history for an organization' })
+  @ApiOperation({
+    summary: 'Get payment transaction history for an organization',
+  })
   getOrganizationHistory(@Param('organizationId') organizationId: string) {
     return this.paymentsService.getOrganizationHistory(organizationId);
   }
@@ -54,13 +67,13 @@ export class PaymentsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Process incoming XPay webhooks' })
   async handleWebhook(
-    @Req() req: any,
+    @Req() req: RawBodyRequest,
     @Headers('x-xpay-signature') xpaySignature?: string,
     @Headers('x-signature') signature?: string,
-    @Body() body?: any,
+    @Body() body?: Record<string, unknown>,
   ) {
     const sig = xpaySignature || signature;
-    const rawBody = req.rawBody || JSON.stringify(body || {});
+    const rawBody = req.rawBody ?? JSON.stringify(body ?? {});
     return this.paymentsService.handleWebhook(rawBody, sig, body);
   }
 

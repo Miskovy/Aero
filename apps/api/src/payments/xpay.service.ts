@@ -1,24 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
-
-export interface CreateCheckoutSessionDto {
-  organizationId: string;
-  planId?: string;
-  planName: string;
-  amount: number; // In main unit (EGP) or piasters
-  currency?: string;
-  customerEmail: string;
-  successUrl: string;
-  cancelUrl: string;
-  userId?: string;
+import {
+  CreateCheckoutSessionDto,
+  CheckoutSessionResult,
+  XPayCheckoutSessionResponse,
+  XPayRefundResponse,
+  XPayDataObject,
+  XPayWebhookPayload,
+  ParsedWebhookEvent
 }
-
-export interface CheckoutSessionResult {
-  sessionId: string;
-  checkoutUrl: string;
-  paymentIntentId?: string;
-}
+from './interfaces/xpay.interface';
 
 @Injectable()
 export class XPayService {
@@ -30,18 +22,15 @@ export class XPayService {
 
   constructor(private readonly configService: ConfigService) {
     this.baseUrl =
-      this.configService.get<string>('XPAY_API_URL') ||
-      'https://api.xpay.app';
+      this.configService.get<string>('XPAY_API_URL') || 'https://api.xpay.app';
     this.secretKey =
       this.configService.get<string>('XPAY_SECRET_KEY') ||
       this.configService.get<string>('XPAY_API_KEY') ||
       'sk_test_demo';
     this.publishableKey =
-      this.configService.get<string>('XPAY_PUBLISHABLE_KEY') ||
-      'pk_test_demo';
+      this.configService.get<string>('XPAY_PUBLISHABLE_KEY') || 'pk_test_demo';
     this.webhookSecret =
-      this.configService.get<string>('XPAY_WEBHOOK_SECRET') ||
-      'whsec_demo';
+      this.configService.get<string>('XPAY_WEBHOOK_SECRET') || 'whsec_demo';
   }
 
   getPublishableKey(): string {
@@ -86,7 +75,9 @@ export class XPayService {
     };
 
     try {
-      this.logger.log(`Creating XPay checkout session for org ${dto.organizationId}`);
+      this.logger.log(
+        `Creating XPay checkout session for org ${dto.organizationId}`,
+      );
 
       if (this.isConfigured()) {
         const response = await fetch(`${this.baseUrl}/checkout/sessions`, {
@@ -100,15 +91,25 @@ export class XPayService {
 
         if (!response.ok) {
           const errorText = await response.text();
-          this.logger.error(`XPay API checkout error (${response.status}): ${errorText}`);
+          this.logger.error(
+            `XPay API checkout error (${response.status}): ${errorText}`,
+          );
           throw new Error(`XPay Checkout error: ${response.statusText}`);
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as XPayCheckoutSessionResponse;
+        const sessionId =
+          data.id || data.session_id || `xpay_sess_${Date.now()}`;
+        const checkoutUrl =
+          data.url ||
+          data.checkout_url ||
+          `${dto.successUrl}?session_id=${data.id || ''}`;
+        const paymentIntentId = data.payment_intent || data.payment_intent_id;
+
         return {
-          sessionId: data.id || data.session_id || `xpay_sess_${Date.now()}`,
-          checkoutUrl: data.url || data.checkout_url || `${dto.successUrl}?session_id=${data.id}`,
-          paymentIntentId: data.payment_intent || data.payment_intent_id,
+          sessionId,
+          checkoutUrl,
+          paymentIntentId,
         };
       } else {
         // Dev/Mock fallback for local sandbox testing
@@ -122,8 +123,13 @@ export class XPayService {
           paymentIntentId: `pi_mock_${Date.now()}`,
         };
       }
-    } catch (err: any) {
-      this.logger.error(`Failed to create XPay session: ${err.message}`, err.stack);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorStack = err instanceof Error ? err.stack : undefined;
+      this.logger.error(
+        `Failed to create XPay session: ${errorMessage}`,
+        errorStack,
+      );
       // Fallback mock to allow dashboard demo/testing even if XPay network is unreachable
       const mockSessionId = `xpay_sess_mock_${Date.now()}`;
       return {
@@ -145,7 +151,8 @@ export class XPayService {
     }
 
     try {
-      const bodyStr = typeof rawBody === 'string' ? rawBody : rawBody.toString('utf8');
+      const bodyStr =
+        typeof rawBody === 'string' ? rawBody : rawBody.toString('utf8');
       const expectedSignature = crypto
         .createHmac('sha256', this.webhookSecret)
         .update(bodyStr)
@@ -159,7 +166,7 @@ export class XPayService {
         ) || cleanHeader === expectedSignature
       );
     } catch (err) {
-      this.logger.warn(`Signature verification exception: ${err}`);
+      this.logger.warn(`Signature verification exception: ${String(err)}`);
       return false;
     }
   }
@@ -167,33 +174,36 @@ export class XPayService {
   /**
    * Parse XPay webhook payload.
    */
-  parseWebhookPayload(body: any): {
-    eventType: string;
-    sessionId?: string;
-    paymentIntentId?: string;
-    status: string;
-    metadata?: Record<string, any>;
-    amount?: number;
-    currency?: string;
-    paymentMethod?: string;
-  } {
-    const eventType = body.type || body.event || 'checkout.session.completed';
-    const dataObj = body.data?.object || body.data || body;
+  parseWebhookPayload(body: XPayWebhookPayload): ParsedWebhookEvent {
+    const eventType = body.type ?? body.event ?? 'checkout.session.completed';
+    const dataObj: XPayDataObject = body.data?.object ?? body.data ?? body;
+
+    const rawCurrency = dataObj.currency;
+    const currencyStr =
+      typeof rawCurrency === 'string' ? rawCurrency.toUpperCase() : 'EGP';
+
+    const paymentMethodTypes = dataObj.payment_method_types;
+    const firstPaymentMethod =
+      Array.isArray(paymentMethodTypes) &&
+      typeof paymentMethodTypes[0] === 'string'
+        ? paymentMethodTypes[0]
+        : 'card';
 
     return {
       eventType,
-      sessionId: dataObj.id || dataObj.session_id,
-      paymentIntentId: dataObj.payment_intent || dataObj.payment_intent_id,
+      sessionId: dataObj.id ?? dataObj.session_id,
+      paymentIntentId: dataObj.payment_intent ?? dataObj.payment_intent_id,
       status:
         eventType === 'checkout.session.completed' ||
         eventType === 'payment_intent.succeeded' ||
         eventType === 'charge.succeeded'
           ? 'succeeded'
           : 'failed',
-      metadata: dataObj.metadata || {},
-      amount: dataObj.amount ? dataObj.amount / 100 : undefined,
-      currency: dataObj.currency?.toUpperCase() || 'EGP',
-      paymentMethod: dataObj.payment_method_types?.[0] || 'card',
+      metadata: dataObj.metadata ?? {},
+      amount:
+        typeof dataObj.amount === 'number' ? dataObj.amount / 100 : undefined,
+      currency: currencyStr,
+      paymentMethod: firstPaymentMethod,
     };
   }
 
@@ -220,11 +230,12 @@ export class XPayService {
         });
 
         if (response.ok) {
-          const res = await response.json();
+          const res = (await response.json()) as XPayRefundResponse;
           return { success: true, refundId: res.id || `ref_${Date.now()}` };
         }
-      } catch (err: any) {
-        this.logger.error(`XPay refund failed: ${err.message}`);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        this.logger.error(`XPay refund failed: ${errorMessage}`);
       }
     }
 
