@@ -8,9 +8,8 @@ import {
   XPayRefundResponse,
   XPayDataObject,
   XPayWebhookPayload,
-  ParsedWebhookEvent
-}
-from './interfaces/xpay.interface';
+  ParsedWebhookEvent,
+} from './interfaces/xpay.interface';
 
 @Injectable()
 export class XPayService {
