@@ -37,6 +37,7 @@ import { RedisModule } from './redis/redis.module';
 import { MailModule } from './mail/mail.module';
 import { PlansModule } from './plans/plans.module';
 import { TeamsModule } from './teams/teams.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -116,6 +117,7 @@ import { TeamsModule } from './teams/teams.module';
     EventEmitterModule.forRoot(),
     PlansModule,
     TeamsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -29,7 +29,10 @@ async function bootstrap() {
   const corsOrigins = process.env.AERO_CORS_ORIGINS
     ? process.env.AERO_CORS_ORIGINS.split(',').map((o) => o.trim())
     : [
-        'http://localhost:3001', // Web dashboard
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:3001',
         'http://localhost:8080', // CLI callback
       ];
 
