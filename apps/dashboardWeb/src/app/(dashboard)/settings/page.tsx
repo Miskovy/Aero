@@ -1,8 +1,13 @@
 'use client';
 
 import { getApiBaseUrl } from '@/lib/api-config';
-
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 
 interface ApiKeyItem {
   id: string;
@@ -65,24 +70,25 @@ export default function SettingsPage() {
     try {
       const res = await fetch(`${API_BASE}/users/api-keys`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newKeyName }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ name: newKeyName.trim() }),
       });
       if (res.ok) {
         const data = await res.json();
-        setCreatedKey(data.key);
+        setCreatedKey(data.raw_key);
         setNewKeyName('');
+        setShowCreate(false);
         await fetchKeys();
       }
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to create API key');
-    } finally {
-      setCreating(false);
-    }
+    } catch { /* ignore */ }
+    finally { setCreating(false); }
   };
 
   const handleDelete = async (keyId: string) => {
-    if (!confirm('Revoke this API key? Any integrations using it will stop working.')) return;
+    if (!confirm('Are you sure you want to revoke this API key? Any applications using it will immediately lose access.')) return;
     try {
       await fetch(`${API_BASE}/users/api-keys/${keyId}`, {
         method: 'DELETE',
@@ -109,73 +115,152 @@ export default function SettingsPage() {
   };
 
   return (
-    <div style={{ animation: 'fadeIn 0.4s ease', maxWidth: '800px' }}>
-      <h1 style={{ fontSize: '22px', fontWeight: 600, letterSpacing: '-0.5px', marginBottom: '6px' }}>Settings</h1>
-      <p style={{ fontSize: '13px', color: 'var(--text-dim)', marginBottom: '32px' }}>Manage API keys for CI/CD integrations and programmatic access.</p>
-
-      {/* API Keys Section */}
-      <div className="metric-card" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-glass)', padding: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <div>
-            <h2 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>API KEYS</h2>
-            <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Use API keys to authenticate from CI/CD pipelines, scripts, or third-party tools.</p>
-          </div>
-          <button onClick={() => { setShowCreate(true); setCreatedKey(null); }} style={{ padding: '8px 16px', fontSize: '11px', background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)', color: 'var(--accent-cyan)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, width: 'auto' }}>
-            + NEW KEY
-          </button>
-        </div>
-
-        {/* Created Key Banner */}
-        {createdKey && (
-          <div style={{ background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '6px', padding: '16px', marginBottom: '20px' }}>
-            <p style={{ fontSize: '12px', color: '#22c55e', fontWeight: 600, marginBottom: '8px' }}>✓ API KEY CREATED — COPY IT NOW (it will not be shown again)</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <code style={{ flex: 1, fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', background: 'var(--bg-tertiary)', padding: '8px 12px', borderRadius: '4px', wordBreak: 'break-all' }}>{createdKey}</code>
-              <button onClick={() => handleCopy(createdKey)} style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-glass)', color: copied ? '#22c55e' : 'var(--text-primary)', borderRadius: '4px', cursor: 'pointer', width: 'auto', fontWeight: 500 }}>
-                {copied ? '✓ COPIED' : 'COPY'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Create Form */}
-        {showCreate && !createdKey && (
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', alignItems: 'center' }}>
-            <input value={newKeyName} onChange={e => setNewKeyName(e.target.value)} placeholder="Key name (e.g. GitHub Actions)" style={{ flex: 1, padding: '10px 14px', fontSize: '13px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-glass)', borderRadius: '6px', color: 'var(--text-primary)', outline: 'none' }} onKeyDown={e => e.key === 'Enter' && handleCreate()} />
-            <button onClick={handleCreate} disabled={creating || !newKeyName.trim()} style={{ padding: '10px 16px', fontSize: '11px', background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)', color: 'var(--accent-cyan)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, width: 'auto' }}>
-              {creating ? '...' : 'CREATE'}
-            </button>
-            <button onClick={() => setShowCreate(false)} style={{ padding: '10px 12px', fontSize: '11px', background: 'transparent', border: '1px solid var(--border-glass)', color: 'var(--text-dim)', borderRadius: '6px', cursor: 'pointer', width: 'auto' }}>CANCEL</button>
-          </div>
-        )}
-
-        {/* Keys List */}
-        {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-            <style>{`@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}.throbber{width:28px;height:28px;border:3px solid rgba(56,189,248,0.1);border-top:3px solid var(--accent-cyan,#38bdf8);border-radius:50%;animation:spin .8s linear infinite}`}</style>
-            <div className="throbber" />
-          </div>
-        ) : apiKeys.length === 0 ? (
-          <p style={{ color: 'var(--text-dim)', fontSize: '13px', textAlign: 'center', padding: '30px' }}>No API keys created yet.</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {apiKeys.map(key => (
-              <div key={key.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderRadius: '6px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-glass)' }}>
-                <div>
-                  <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>{key.name}</span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-dim)', marginLeft: '10px', fontFamily: 'var(--font-mono)' }}>{key.key_prefix}...</span>
-                  {key.organization && <span style={{ fontSize: '10px', marginLeft: '10px', padding: '2px 6px', borderRadius: '3px', background: 'rgba(168,85,247,0.1)', color: '#a855f7' }}>{key.organization.name}</span>}
-                  <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px' }}>
-                    Created {relTime(key.created_at)} · Last used {relTime(key.last_used_at)}
-                    {key.expires_at && <span> · Expires {new Date(key.expires_at).toLocaleDateString()}</span>}
-                  </div>
-                </div>
-                <button onClick={() => handleDelete(key.id)} style={{ padding: '5px 12px', fontSize: '11px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, width: 'auto' }}>REVOKE</button>
-              </div>
-            ))}
-          </div>
-        )}
+    <div className="max-w-4xl space-y-6 animate-in fade-in duration-300">
+      {/* Settings Sub-Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-white/[0.08] pb-3">
+        <Link
+          href="/settings"
+          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-[#38bdf8]/15 text-[#38bdf8] border border-[#38bdf8]/30 shadow-xs"
+        >
+          API Keys
+        </Link>
+        <Link
+          href="/settings/webhooks"
+          className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-[#88909c] hover:text-[#f3f0ea] hover:bg-[#161a22] transition-colors"
+        >
+          Webhooks
+        </Link>
+        <Link
+          href="/settings/subscriptions"
+          className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-[#88909c] hover:text-[#f3f0ea] hover:bg-[#161a22] transition-colors"
+        >
+          Subscriptions &amp; XPay
+        </Link>
       </div>
+
+      <PageHeader
+        title="API Keys &amp; Integrations"
+        description="Manage API access tokens for continuous integration, CLI automation, and programmatic deployment."
+      />
+
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Programmatic API Keys</CardTitle>
+            <p className="text-xs text-[#88909c] mt-1">Use these tokens to securely authenticate GitHub Actions, Docker daemons, or custom CI runners.</p>
+          </div>
+          {!showCreate && (
+            <Button
+              onClick={() => { setShowCreate(true); setCreatedKey(null); }}
+              variant="primary"
+              size="sm"
+            >
+              + New API Key
+            </Button>
+          )}
+        </CardHeader>
+
+        <CardBody className="space-y-4">
+          {/* Created Key Banner */}
+          {createdKey && (
+            <div className="p-4 rounded-xl bg-[#38bdf8]/10 border border-[#38bdf8]/30 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#38bdf8] uppercase tracking-wider font-mono">
+                  New API Key Generated — Copy Now
+                </span>
+                <button
+                  onClick={() => handleCopy(createdKey)}
+                  className="text-xs text-[#38bdf8] hover:text-white font-medium flex items-center gap-1 cursor-pointer"
+                >
+                  {copied ? '✓ Copied' : 'Copy'}
+                </button>
+              </div>
+              <p className="text-xs text-[#88909c]">This key will never be shown again. Store it securely in your secrets manager.</p>
+              <div className="p-2.5 rounded-lg bg-[#0b0d11] font-mono text-xs text-[#38bdf8] break-all border border-white/[0.08] select-all">
+                {createdKey}
+              </div>
+            </div>
+          )}
+
+          {/* Create Form Inline */}
+          {showCreate && (
+            <div className="p-4 rounded-xl bg-[#161a22]/60 border border-white/[0.08] space-y-3">
+              <span className="text-xs font-semibold text-[#f3f0ea]">Generate New API Key</span>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Key description (e.g. GitHub Actions Staging Deployer)"
+                  value={newKeyName}
+                  onChange={e => setNewKeyName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleCreate(); }}
+                  className="flex-1 px-3 py-2 text-xs bg-[#11141a] border border-white/[0.08] rounded-lg text-[#f3f0ea] focus:outline-none focus:border-[#38bdf8]"
+                  autoFocus
+                />
+                <Button
+                  onClick={handleCreate}
+                  disabled={creating || !newKeyName.trim()}
+                  isLoading={creating}
+                  variant="primary"
+                  size="sm"
+                >
+                  Generate
+                </Button>
+                <Button
+                  onClick={() => { setShowCreate(false); setNewKeyName(''); }}
+                  variant="ghost"
+                  size="sm"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Keys List */}
+          {loading ? (
+            <LoadingSkeleton count={3} height="h-16" />
+          ) : apiKeys.length === 0 ? (
+            <div className="text-center py-10 text-[#88909c] text-sm">
+              No API keys created yet. Generate one to integrate with CI/CD tools.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {apiKeys.map(key => (
+                <div
+                  key={key.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-[#161a22]/50 border border-white/[0.06] hover:border-white/[0.12] transition-colors gap-3"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-[#f3f0ea]">{key.name}</span>
+                      <span className="text-xs text-[#38bdf8] font-mono bg-[#38bdf8]/12 px-2 py-0.5 rounded border border-[#38bdf8]/25">
+                        {key.key_prefix}...
+                      </span>
+                      {key.organization && (
+                        <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded bg-[#38bdf8]/15 text-[#38bdf8] border border-[#38bdf8]/30 font-mono">
+                          {key.organization.name}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-[#88909c]">
+                      Created {relTime(key.created_at)} · Last used {relTime(key.last_used_at)}
+                      {key.expires_at && <span> · Expires {new Date(key.expires_at).toLocaleDateString()}</span>}
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={() => handleDelete(key.id)}
+                    variant="danger"
+                    size="sm"
+                  >
+                    Revoke
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardBody>
+      </Card>
     </div>
   );
 }

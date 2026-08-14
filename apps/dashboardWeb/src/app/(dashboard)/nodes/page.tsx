@@ -167,35 +167,35 @@ export default function NodesPage() {
                 </div>
 
                 {/* Metrics */}
-                <div className="space-y-2 pt-2 border-t border-slate-800/60 text-xs">
+                <div className="space-y-2 pt-2 border-t border-white/[0.06] text-xs">
                   <div>
-                    <div className="flex justify-between text-slate-400 mb-1">
+                    <div className="flex justify-between text-[#88909c] mb-1">
                       <span>CPU Utilization</span>
-                      <span className="font-mono text-slate-200">{node.resource_usage?.cpu || 0}%</span>
+                      <span className="font-mono text-[#ccc8be]">{node.resource_usage?.cpu || 0}%</span>
                     </div>
-                    <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div className="w-full bg-[#161a22] h-1.5 rounded-full overflow-hidden">
                       <div
-                        className="bg-cyan-500 h-full rounded-full transition-all"
+                        className="bg-gradient-to-r from-[#0284c7] to-[#38bdf8] h-full rounded-full transition-all"
                         style={{ width: `${Math.min(node.resource_usage?.cpu || 0, 100)}%` }}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <div className="flex justify-between text-slate-400 mb-1">
+                    <div className="flex justify-between text-[#88909c] mb-1">
                       <span>Memory RAM</span>
-                      <span className="font-mono text-slate-200">{node.resource_usage?.memory || 0}%</span>
+                      <span className="font-mono text-[#ccc8be]">{node.resource_usage?.memory || 0}%</span>
                     </div>
-                    <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div className="w-full bg-[#161a22] h-1.5 rounded-full overflow-hidden">
                       <div
-                        className="bg-indigo-500 h-full rounded-full transition-all"
+                        className="bg-gradient-to-r from-[#38bdf8] to-[#7dd3fc] h-full rounded-full transition-all"
                         style={{ width: `${Math.min(node.resource_usage?.memory || 0, 100)}%` }}
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800/60">
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.06]">
                   <Button size="sm" variant="ghost" onClick={() => router.push(`/nodes/${node.id}`)}>
                     Terminal SSH
                   </Button>
@@ -218,30 +218,30 @@ export default function NodesPage() {
       >
         <form onSubmit={handleRegisterNode} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Node Name</label>
+            <label className="block text-xs font-medium text-[#ccc8be] mb-1.5">Node Name</label>
             <input
               type="text"
               required
               placeholder="e.g. Frankfurt Worker Node 01"
               value={nodeName}
               onChange={(e) => setNodeName(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
+              className="w-full px-3.5 py-2.5 bg-[#161a22] border border-white/[0.08] rounded-lg text-sm text-[#f3f0ea] focus:outline-none focus:border-[#38bdf8]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">IP Address or Hostname</label>
+            <label className="block text-xs font-medium text-[#ccc8be] mb-1.5">IP Address or Hostname</label>
             <input
               type="text"
               required
               placeholder="e.g. 192.168.1.100"
               value={nodeIp}
               onChange={(e) => setNodeIp(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
+              className="w-full px-3.5 py-2.5 bg-[#161a22] border border-white/[0.08] rounded-lg text-sm text-[#f3f0ea] focus:outline-none focus:border-[#38bdf8]"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/[0.06]">
             <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>

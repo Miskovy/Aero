@@ -142,15 +142,15 @@ export default function ProjectsPage() {
             <Card key={proj.id} hoverable>
               <CardBody className="space-y-3">
                 <div className="flex items-start justify-between">
-                  <h3 className="text-lg font-semibold text-white tracking-tight">{proj.name}</h3>
-                  <span className="text-xs font-medium px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                  <h3 className="text-base font-semibold text-[#f3f0ea] tracking-tight font-title">{proj.name}</h3>
+                  <span className="text-[10.5px] font-medium px-2 py-0.5 rounded bg-[#38bdf8]/12 text-[#38bdf8] border border-[#38bdf8]/25 font-mono">
                     {proj.services_count ?? 0} Services
                   </span>
                 </div>
                 {proj.description && (
-                  <p className="text-xs text-slate-400 line-clamp-2">{proj.description}</p>
+                  <p className="text-xs text-[#88909c] line-clamp-2">{proj.description}</p>
                 )}
-                <div className="flex items-center justify-between pt-3 border-t border-slate-800/60 text-xs text-slate-500">
+                <div className="flex items-center justify-between pt-3 border-t border-white/[0.06] text-xs text-[#88909c]">
                   <span>Created {new Date(proj.created_at || '2026-01-01').toLocaleDateString()}</span>
                   <Button size="sm" variant="ghost" onClick={() => handleDeleteProject(proj.id)}>
                     Delete
@@ -171,25 +171,25 @@ export default function ProjectsPage() {
       >
         <form onSubmit={handleCreateProject} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Project Name</label>
+            <label className="block text-xs font-medium text-[#ccc8be] mb-1.5">Project Name</label>
             <input
               type="text"
               required
               placeholder="e.g. E-Commerce Core API"
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
+              className="w-full px-3.5 py-2.5 bg-[#161a22] border border-white/[0.08] rounded-lg text-sm text-[#f3f0ea] focus:outline-none focus:border-[#38bdf8]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Description (Optional)</label>
+            <label className="block text-xs font-medium text-[#ccc8be] mb-1.5">Description (Optional)</label>
             <textarea
               rows={3}
               placeholder="Brief summary of the services inside this project..."
               value={newProjectDesc}
               onChange={(e) => setNewProjectDesc(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
+              className="w-full px-3.5 py-2.5 bg-[#161a22] border border-white/[0.08] rounded-lg text-sm text-[#f3f0ea] focus:outline-none focus:border-[#38bdf8]"
             />
           </div>
 

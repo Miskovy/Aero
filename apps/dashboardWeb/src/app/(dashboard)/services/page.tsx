@@ -138,14 +138,14 @@ export default function ServicesPage() {
       />
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-[#111625]/90 border border-slate-800 rounded-xl">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-[#11141a]/90 border border-white/[0.07] rounded-xl">
         <div className="w-full sm:w-80">
           <input
             type="text"
             placeholder="Search services by name or slug..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-3.5 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-cyan-500"
+            className="w-full px-3.5 py-2 bg-[#161a22] border border-white/[0.08] rounded-lg text-sm text-[#f3f0ea] focus:outline-none focus:border-[#38bdf8]"
           />
         </div>
 
@@ -156,8 +156,8 @@ export default function ServicesPage() {
               onClick={() => setFilterType(type)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all cursor-pointer ${
                 filterType === type
-                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
-                  : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200'
+                  ? 'bg-[#38bdf8]/18 text-[#38bdf8] border border-[#38bdf8]/35 shadow-xs'
+                  : 'bg-[#161a22] text-[#88909c] border border-white/[0.06] hover:text-[#ccc8be]'
               }`}
             >
               {type}

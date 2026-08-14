@@ -17,8 +17,10 @@ export interface PaginatedResponse<T> {
 export interface Organization {
   id: string;
   name: string;
-  tier: 'Developer Tier' | 'Standard Tier' | 'Enterprise Tier';
-  membersCount: number;
+  tier?: string;
+  plan?: string;
+  plan_id?: string;
+  membersCount?: number;
   projectsCount?: number;
   status: 'Active' | 'Inactive' | 'Suspended';
   created_at?: string;

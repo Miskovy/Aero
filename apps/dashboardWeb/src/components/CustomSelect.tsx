@@ -39,19 +39,22 @@ export default function CustomSelect({ value, onChange, options, placeholder, di
         onClick={() => !disabled && setIsOpen(!isOpen)}
         style={{
           width: '100%',
-          backgroundColor: 'var(--bg-tertiary)',
-          border: '1px solid var(--border-glass)',
-          borderRadius: '6px',
-          padding: '8px 32px 8px 12px',
-          fontSize: '13px',
-          color: value ? 'var(--text-primary)' : 'var(--text-dim)',
+          backgroundColor: 'rgba(22, 26, 34, 0.9)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '10px',
+          padding: '7px 32px 7px 12px',
+          fontSize: '12.5px',
+          fontWeight: 500,
+          color: value ? '#f3f0ea' : '#88909c',
           outline: 'none',
           cursor: disabled ? 'not-allowed' : 'pointer',
           textAlign: 'left',
           fontFamily: 'var(--font-sans)',
           opacity: disabled ? 0.5 : 1,
-          transition: 'border-color 0.2s ease',
+          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
           position: 'relative',
+          boxShadow: isOpen ? '0 0 0 3px rgba(56, 189, 248, 0.14)' : 'none',
+          borderColor: isOpen ? '#38bdf8' : 'rgba(255, 255, 255, 0.08)',
         }}
       >
         <span style={{ 
@@ -67,16 +70,16 @@ export default function CustomSelect({ value, onChange, options, placeholder, di
           height="12"
           viewBox="0 0 24 24"
           fill="none"
-          stroke="var(--text-dim)"
+          stroke="#88909c"
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
           style={{
             position: 'absolute',
-            right: '12px',
+            right: '10px',
             top: '50%',
             transform: `translateY(-50%) rotate(${isOpen ? '180deg' : '0deg'})`,
-            transition: 'transform 0.2s ease',
+            transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             pointerEvents: 'none',
           }}
         >
@@ -88,17 +91,20 @@ export default function CustomSelect({ value, onChange, options, placeholder, di
         <div
           style={{
             position: 'absolute',
-            top: 'calc(100% + 4px)',
+            top: 'calc(100% + 6px)',
             left: 0,
             right: 0,
-            backgroundColor: 'var(--bg-secondary)',
-            border: '1px solid var(--border-glass)',
-            borderRadius: '6px',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+            backgroundColor: 'rgba(22, 26, 34, 0.98)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '12px',
+            boxShadow: '0 16px 36px -4px rgba(0, 0, 0, 0.65), 0 0 1px 1px rgba(255, 255, 255, 0.04)',
             zIndex: 999,
-            maxHeight: '200px',
+            maxHeight: '220px',
             overflowY: 'auto',
-            padding: '4px',
+            padding: '5px',
+            animation: 'fadeIn 0.15s ease',
           }}
         >
           {options.map((opt) => (
@@ -111,28 +117,38 @@ export default function CustomSelect({ value, onChange, options, placeholder, di
               }}
               style={{
                 width: '100%',
-                padding: '8px 12px',
-                fontSize: '13px',
+                padding: '7.5px 12px',
+                fontSize: '12.5px',
+                fontWeight: opt.value === value ? 600 : 400,
                 fontFamily: 'var(--font-sans)',
-                color: opt.value === value ? 'var(--accent-cyan)' : 'var(--text-primary)',
-                backgroundColor: opt.value === value ? 'rgba(56, 189, 248, 0.06)' : 'transparent',
+                color: opt.value === value ? '#38bdf8' : '#ccc8be',
+                backgroundColor: opt.value === value ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
                 border: 'none',
-                borderRadius: '4px',
+                borderRadius: '8px',
                 cursor: 'pointer',
                 textAlign: 'left',
-                transition: 'background-color 0.15s ease',
-                display: 'block',
+                transition: 'all 0.15s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
               }}
               onMouseEnter={(e) => {
                 if (opt.value !== value) {
                   e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.04)';
+                  e.currentTarget.style.color = '#f3f0ea';
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = opt.value === value ? 'rgba(56, 189, 248, 0.06)' : 'transparent';
+                e.currentTarget.style.backgroundColor = opt.value === value ? 'rgba(56, 189, 248, 0.12)' : 'transparent';
+                e.currentTarget.style.color = opt.value === value ? '#38bdf8' : '#ccc8be';
               }}
             >
-              {opt.label}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt.label}</span>
+              {opt.value === value && (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: '8px' }}>
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
             </button>
           ))}
         </div>

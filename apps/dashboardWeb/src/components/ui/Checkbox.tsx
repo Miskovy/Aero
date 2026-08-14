@@ -32,15 +32,15 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
             />
             {/* Custom Checkbox Box */}
             <div
-              className={`w-4 h-4 rounded border transition-all duration-150 flex items-center justify-center
-                bg-slate-900/90 border-slate-700/80
-                peer-focus-visible:ring-2 peer-focus-visible:ring-cyan-500/40 peer-focus-visible:border-cyan-500
-                peer-checked:bg-cyan-500 peer-checked:border-cyan-500 peer-checked:text-slate-950
-                group-hover:border-slate-500 peer-checked:group-hover:border-cyan-400
-                ${error ? 'border-rose-500/80' : ''} ${className}`}
+              className={`w-4 h-4 rounded-md border transition-all duration-200 flex items-center justify-center
+                bg-[#161a22] border-white/15
+                peer-focus-visible:ring-2 peer-focus-visible:ring-[#38bdf8]/35 peer-focus-visible:border-[#38bdf8]
+                peer-checked:bg-gradient-to-r peer-checked:from-[#38bdf8] peer-checked:to-[#0284c7] peer-checked:border-[#38bdf8] peer-checked:text-[#081018]
+                group-hover:border-white/30 peer-checked:group-hover:border-[#7dd3fc] shadow-2xs
+                ${error ? 'border-[#ef4444]/80' : ''} ${className}`}
             >
               <svg
-                className={`w-3 h-3 transition-transform duration-150 stroke-current ${
+                className={`w-3 h-3 transition-transform duration-150 stroke-current text-[#081018] ${
                   checked ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
                 }`}
                 viewBox="0 0 14 14"
@@ -49,7 +49,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
               >
                 <path
                   d="M2.5 7L5.5 10L11.5 4"
-                  strokeWidth="2.2"
+                  strokeWidth="2.4"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
@@ -58,16 +58,16 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
           </div>
           {label && (
             <div className="flex flex-col text-xs leading-normal">
-              <span className="text-slate-300 font-medium group-hover:text-slate-200 transition-colors">
+              <span className="text-[#ccc8be] font-medium group-hover:text-[#f3f0ea] transition-colors">
                 {label}
               </span>
               {description && (
-                <span className="text-slate-500 text-[11px] mt-0.5">{description}</span>
+                <span className="text-[#88909c] text-[11px] mt-0.5">{description}</span>
               )}
             </div>
           )}
         </label>
-        {error && <span className="text-rose-400 text-[11px] ml-6.5">{error}</span>}
+        {error && <span className="text-[#f87171] text-[11px] ml-6.5">{error}</span>}
       </div>
     );
   }

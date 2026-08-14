@@ -1,12 +1,30 @@
 import React from 'react';
 
-export type BadgeStatus = 'running' | 'active' | 'online' | 'success' | 'stopped' | 'offline' | 'inactive' | 'failed' | 'error' | 'degraded' | 'warning' | 'deploying' | 'building' | 'pending' | 'neutral' | 'draining' | 'maintenance';
+export type BadgeStatus =
+  | 'running'
+  | 'active'
+  | 'online'
+  | 'success'
+  | 'stopped'
+  | 'offline'
+  | 'inactive'
+  | 'failed'
+  | 'error'
+  | 'degraded'
+  | 'warning'
+  | 'deploying'
+  | 'building'
+  | 'pending'
+  | 'neutral'
+  | 'draining'
+  | 'maintenance';
 
 export interface BadgeProps {
   status?: BadgeStatus;
   label?: string;
   showPulse?: boolean;
   className?: string;
+  size?: 'sm' | 'md';
 }
 
 export const Badge: React.FC<BadgeProps> = ({
@@ -14,46 +32,49 @@ export const Badge: React.FC<BadgeProps> = ({
   label,
   showPulse = false,
   className = '',
+  size = 'md',
 }) => {
   const displayLabel = label || status.charAt(0).toUpperCase() + status.slice(1);
 
   const statusColors: Record<BadgeStatus, { bg: string; text: string; border: string; pulse: string }> = {
-    running: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30', pulse: 'bg-emerald-400' },
-    active: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30', pulse: 'bg-emerald-400' },
-    online: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30', pulse: 'bg-emerald-400' },
-    success: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30', pulse: 'bg-emerald-400' },
-    
-    stopped: { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/30', pulse: 'bg-slate-400' },
-    offline: { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/30', pulse: 'bg-slate-400' },
-    inactive: { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/30', pulse: 'bg-slate-400' },
-    neutral: { bg: 'bg-slate-500/10', text: 'text-slate-300', border: 'border-slate-500/30', pulse: 'bg-slate-400' },
+    running: { bg: 'bg-[#10b981]/12', text: 'text-[#34d399]', border: 'border-[#10b981]/30', pulse: 'bg-[#10b981]' },
+    active: { bg: 'bg-[#10b981]/12', text: 'text-[#34d399]', border: 'border-[#10b981]/30', pulse: 'bg-[#10b981]' },
+    online: { bg: 'bg-[#10b981]/12', text: 'text-[#34d399]', border: 'border-[#10b981]/30', pulse: 'bg-[#10b981]' },
+    success: { bg: 'bg-[#10b981]/12', text: 'text-[#34d399]', border: 'border-[#10b981]/30', pulse: 'bg-[#10b981]' },
 
-    failed: { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/30', pulse: 'bg-rose-400' },
-    error: { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/30', pulse: 'bg-rose-400' },
+    stopped: { bg: 'bg-[#565f6c]/12', text: 'text-[#a2aab5]', border: 'border-[#565f6c]/25', pulse: 'bg-[#88909c]' },
+    offline: { bg: 'bg-[#565f6c]/12', text: 'text-[#a2aab5]', border: 'border-[#565f6c]/25', pulse: 'bg-[#88909c]' },
+    inactive: { bg: 'bg-[#565f6c]/12', text: 'text-[#a2aab5]', border: 'border-[#565f6c]/25', pulse: 'bg-[#88909c]' },
+    neutral: { bg: 'bg-[#565f6c]/12', text: 'text-[#ccc8be]', border: 'border-[#565f6c]/25', pulse: 'bg-[#88909c]' },
 
-    degraded: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30', pulse: 'bg-amber-400' },
-    warning: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30', pulse: 'bg-amber-400' },
-    draining: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30', pulse: 'bg-amber-400' },
-    maintenance: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30', pulse: 'bg-amber-400' },
+    failed: { bg: 'bg-[#ef4444]/12', text: 'text-[#f87171]', border: 'border-[#ef4444]/30', pulse: 'bg-[#ef4444]' },
+    error: { bg: 'bg-[#ef4444]/12', text: 'text-[#f87171]', border: 'border-[#ef4444]/30', pulse: 'bg-[#ef4444]' },
 
-    deploying: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/30', pulse: 'bg-cyan-400' },
-    building: { bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/30', pulse: 'bg-indigo-400' },
-    pending: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/30', pulse: 'bg-cyan-400' },
+    degraded: { bg: 'bg-[#f59e0b]/12', text: 'text-[#fbbf24]', border: 'border-[#f59e0b]/30', pulse: 'bg-[#f59e0b]' },
+    warning: { bg: 'bg-[#f59e0b]/12', text: 'text-[#fbbf24]', border: 'border-[#f59e0b]/30', pulse: 'bg-[#f59e0b]' },
+    draining: { bg: 'bg-[#f59e0b]/12', text: 'text-[#fbbf24]', border: 'border-[#f59e0b]/30', pulse: 'bg-[#f59e0b]' },
+    maintenance: { bg: 'bg-[#f59e0b]/12', text: 'text-[#fbbf24]', border: 'border-[#f59e0b]/30', pulse: 'bg-[#f59e0b]' },
+
+    deploying: { bg: 'bg-[#38bdf8]/12', text: 'text-[#38bdf8]', border: 'border-[#38bdf8]/30', pulse: 'bg-[#38bdf8]' },
+    building: { bg: 'bg-[#0ea5e9]/12', text: 'text-[#38bdf8]', border: 'border-[#0ea5e9]/30', pulse: 'bg-[#0ea5e9]' },
+    pending: { bg: 'bg-[#38bdf8]/12', text: 'text-[#38bdf8]', border: 'border-[#38bdf8]/30', pulse: 'bg-[#38bdf8]' },
   };
 
   const style = statusColors[status] || statusColors.neutral;
+  const isPulseActive = showPulse || ['running', 'active', 'online', 'deploying', 'building'].includes(status);
+  const sizeClass = size === 'sm' ? 'px-2 py-0.5 text-[10.5px]' : 'px-2.5 py-0.5 text-xs';
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${style.bg} ${style.text} ${style.border} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full font-medium border backdrop-blur-xs shadow-2xs ${style.bg} ${style.text} ${style.border} ${sizeClass} ${className}`}
     >
-      {(showPulse || ['running', 'active', 'online', 'deploying', 'building'].includes(status)) && (
-        <span className="relative flex h-1.5 w-1.5">
-          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${style.pulse}`} />
+      {isPulseActive && (
+        <span className="relative flex h-1.5 w-1.5 shrink-0">
+          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-70 ${style.pulse}`} />
           <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${style.pulse}`} />
         </span>
       )}
-      {displayLabel}
+      <span>{displayLabel}</span>
     </span>
   );
 };

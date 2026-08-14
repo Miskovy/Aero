@@ -39,16 +39,16 @@ export const Radio = React.forwardRef<HTMLInputElement, RadioProps>(
             />
             {/* Custom Radio Circle */}
             <div
-              className={`w-4 h-4 rounded-full border transition-all duration-150 flex items-center justify-center
-                bg-slate-900/90 border-slate-700/80
-                peer-focus-visible:ring-2 peer-focus-visible:ring-cyan-500/40 peer-focus-visible:border-cyan-500
-                peer-checked:border-cyan-500
-                group-hover:border-slate-500 peer-checked:group-hover:border-cyan-400
-                ${error ? 'border-rose-500/80' : ''} ${className}`}
+              className={`w-4 h-4 rounded-full border transition-all duration-200 flex items-center justify-center
+                bg-[#161a22] border-white/15
+                peer-focus-visible:ring-2 peer-focus-visible:ring-[#38bdf8]/35 peer-focus-visible:border-[#38bdf8]
+                peer-checked:border-[#38bdf8] peer-checked:bg-[#38bdf8]/10
+                group-hover:border-white/30 peer-checked:group-hover:border-[#7dd3fc]
+                ${error ? 'border-[#ef4444]/80' : ''} ${className}`}
             >
               {/* Inner Dot */}
               <div
-                className={`w-1.5 h-1.5 rounded-full bg-cyan-400 transition-transform duration-150 ${
+                className={`w-2 h-2 rounded-full bg-[#38bdf8] transition-transform duration-150 shadow-2xs ${
                   checked ? 'scale-100 opacity-100' : 'scale-0 opacity-0'
                 }`}
               />
@@ -56,16 +56,16 @@ export const Radio = React.forwardRef<HTMLInputElement, RadioProps>(
           </div>
           {label && (
             <div className="flex flex-col text-xs leading-normal">
-              <span className="text-slate-300 font-medium group-hover:text-slate-200 transition-colors">
+              <span className="text-[#ccc8be] font-medium group-hover:text-[#f3f0ea] transition-colors">
                 {label}
               </span>
               {description && (
-                <span className="text-slate-500 text-[11px] mt-0.5">{description}</span>
+                <span className="text-[#88909c] text-[11px] mt-0.5">{description}</span>
               )}
             </div>
           )}
         </label>
-        {error && <span className="text-rose-400 text-[11px] ml-6.5">{error}</span>}
+        {error && <span className="text-[#f87171] text-[11px] ml-6.5">{error}</span>}
       </div>
     );
   }
@@ -104,7 +104,7 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
           description={option.description}
         />
       ))}
-      {error && <span className="text-rose-400 text-xs">{error}</span>}
+      {error && <span className="text-[#f87171] text-xs">{error}</span>}
     </div>
   );
 };

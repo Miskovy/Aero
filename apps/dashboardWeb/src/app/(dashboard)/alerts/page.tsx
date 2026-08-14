@@ -168,24 +168,24 @@ export default function AlertsPage() {
             <Card key={rule.id} hoverable>
               <CardBody className="space-y-4">
                 <div className="flex items-start justify-between">
-                  <h3 className="text-base font-semibold text-white tracking-tight">{rule.name}</h3>
+                  <h3 className="text-base font-semibold text-[#f3f0ea] tracking-tight font-title">{rule.name}</h3>
                   <Badge status={rule.enabled ? 'active' : 'inactive'} label={rule.enabled ? 'Enabled' : 'Disabled'} />
                 </div>
 
-                <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/80 space-y-1.5 text-xs">
-                  <div className="flex justify-between text-slate-400">
+                <div className="p-3 bg-[#161a22]/70 rounded-lg border border-white/[0.06] space-y-1.5 text-xs">
+                  <div className="flex justify-between text-[#88909c]">
                     <span>Metric Threshold:</span>
-                    <span className="font-mono text-cyan-400 font-semibold">
+                    <span className="font-mono text-[#38bdf8] font-semibold">
                       {rule.metric} {rule.operator} {rule.threshold}%
                     </span>
                   </div>
-                  <div className="flex justify-between text-slate-400">
+                  <div className="flex justify-between text-[#88909c]">
                     <span>Notification Channel:</span>
-                    <span className="font-medium text-slate-200 capitalize">{rule.channel}</span>
+                    <span className="font-medium text-[#ccc8be] capitalize">{rule.channel}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 text-xs text-slate-500">
+                <div className="flex items-center justify-between pt-2 border-t border-white/[0.06] text-xs text-[#88909c]">
                   <span>Duration: {rule.duration_seconds}s</span>
                   <Button size="sm" variant="danger" onClick={() => handleDeleteRule(rule.id)}>
                     Delete Rule
@@ -206,20 +206,20 @@ export default function AlertsPage() {
       >
         <form onSubmit={handleCreateRule} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Rule Name</label>
+            <label className="block text-xs font-medium text-[#ccc8be] mb-1.5">Rule Name</label>
             <input
               type="text"
               required
               placeholder="e.g. High CPU Spike Warning"
               value={ruleName}
               onChange={(e) => setRuleName(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
+              className="w-full px-3.5 py-2.5 bg-[#161a22] border border-white/[0.08] rounded-lg text-sm text-[#f3f0ea] focus:outline-none focus:border-[#38bdf8]"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Target Metric</label>
+              <label className="block text-xs font-medium text-[#ccc8be] mb-1.5">Target Metric</label>
               <CustomSelect
                 value={metric}
                 onChange={(val) => setMetric(val as AlertMetric)}
@@ -232,7 +232,7 @@ export default function AlertsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Condition Operator</label>
+              <label className="block text-xs font-medium text-[#ccc8be] mb-1.5">Condition Operator</label>
               <CustomSelect
                 value={operator}
                 onChange={(val) => setOperator(val as AlertOperator)}
@@ -247,23 +247,23 @@ export default function AlertsPage() {
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Threshold (%)</label>
+              <label className="block text-xs font-medium text-[#ccc8be] mb-1.5">Threshold (%)</label>
               <input
                 type="number"
                 required
                 value={threshold}
                 onChange={(e) => setThreshold(Number(e.target.value))}
-                className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
+                className="w-full px-3.5 py-2.5 bg-[#161a22] border border-white/[0.08] rounded-lg text-sm text-[#f3f0ea] focus:outline-none focus:border-[#38bdf8]"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Duration (Sec)</label>
+              <label className="block text-xs font-medium text-[#ccc8be] mb-1.5">Duration (Sec)</label>
               <input
                 type="number"
                 required
                 value={duration}
                 onChange={(e) => setDuration(Number(e.target.value))}
-                className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
+                className="w-full px-3.5 py-2.5 bg-[#161a22] border border-white/[0.08] rounded-lg text-sm text-[#f3f0ea] focus:outline-none focus:border-[#38bdf8]"
               />
             </div>
             <div>

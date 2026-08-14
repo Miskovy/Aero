@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import AeroLogo from './AeroLogo';
 import { Checkbox } from './ui/Checkbox';
+import { Button } from './ui/Button';
 import { getApiUrl } from '@/lib/api-config';
 
 interface TermsAcceptanceModalProps {
@@ -55,71 +56,39 @@ export default function TermsAcceptanceModal({ isOpen, onAccepted, token }: Term
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 99999,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
-        backdropFilter: 'blur(12px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-    >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '480px',
-          backgroundColor: '#0c0d10',
-          border: '1px solid var(--border-glass, rgba(255, 255, 255, 0.12))',
-          borderRadius: '16px',
-          padding: '32px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-        }}
-      >
-        <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <AeroLogo size={32} />
-          <span style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
+    <div className="fixed inset-0 z-[99999] bg-[#0b0d11]/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md bg-[#11141a]/98 backdrop-blur-2xl border border-white/[0.08] rounded-2xl p-8 shadow-2xl shadow-black/80 flex flex-col items-center text-center overflow-hidden">
+        
+        {/* Soft Ambient Light Glow */}
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-24 bg-[#38bdf8]/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="mb-5 flex items-center gap-3 relative z-1">
+          <AeroLogo size={30} />
+          <span className="text-2xl font-bold tracking-tight text-[#f3f0ea] font-title">
             AERO
           </span>
         </div>
 
-        <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
-          Terms &amp; Privacy Policy Update
+        <h2 className="text-lg font-semibold text-[#f3f0ea] mb-2 tracking-tight relative z-1 font-title">
+          Terms &amp; Privacy Update
         </h2>
-        <p style={{ fontSize: '13px', color: 'var(--text-dim, #94a3b8)', lineHeight: '1.6', marginBottom: '24px' }}>
-          To continue using Aero services and manage your cloud infrastructure, please review and accept our Terms of Service and Privacy Policy.
+        <p className="text-xs text-[#88909c] leading-relaxed mb-6 relative z-1">
+          To manage your cloud infrastructure and node clusters, please review and accept our Terms of Service and Privacy Policy.
         </p>
 
-        <div
-          style={{
-            width: '100%',
-            backgroundColor: 'rgba(15, 23, 42, 0.6)',
-            border: '1px solid rgba(51, 65, 85, 0.5)',
-            borderRadius: '10px',
-            padding: '16px',
-            marginBottom: '24px',
-            textAlign: 'left',
-          }}
-        >
+        <div className="w-full bg-[#161a22]/70 border border-white/[0.08] rounded-xl p-4 mb-6 text-left relative z-1">
           <Checkbox
             id="modal-agree-legal"
             checked={agreed}
             onChange={(e) => setAgreed(e.target.checked)}
             label={
-              <span>
+              <span className="text-xs text-[#ccc8be]">
                 I agree to the{' '}
                 <a
                   href="https://aerodeploy.app/terms"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-cyan-400 hover:underline font-semibold"
+                  className="text-[#38bdf8] hover:underline font-medium"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Terms of Service
@@ -129,7 +98,7 @@ export default function TermsAcceptanceModal({ isOpen, onAccepted, token }: Term
                   href="https://aerodeploy.app/privacy"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-cyan-400 hover:underline font-semibold"
+                  className="text-[#38bdf8] hover:underline font-medium"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Privacy Policy
@@ -141,41 +110,20 @@ export default function TermsAcceptanceModal({ isOpen, onAccepted, token }: Term
         </div>
 
         {error && (
-          <div
-            style={{
-              width: '100%',
-              padding: '10px',
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              color: '#f87171',
-              borderRadius: '6px',
-              fontSize: '13px',
-              marginBottom: '16px',
-            }}
-          >
+          <div className="w-full p-3 bg-[#ef4444]/10 border border-[#ef4444]/25 text-[#f87171] rounded-xl text-xs mb-4 text-left">
             {error}
           </div>
         )}
 
-        <button
-          type="button"
+        <Button
           onClick={handleAccept}
           disabled={!agreed || isSubmitting}
-          style={{
-            width: '100%',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            fontWeight: 600,
-            fontSize: '14px',
-            color: '#09090b',
-            backgroundColor: '#38bdf8',
-            border: 'none',
-            cursor: agreed && !isSubmitting ? 'pointer' : 'not-allowed',
-            opacity: agreed && !isSubmitting ? 1 : 0.4,
-            transition: 'all 0.2s ease',
-          }}
+          isLoading={isSubmitting}
+          variant="primary"
+          className="w-full"
         >
           {isSubmitting ? 'Accepting...' : 'Accept & Continue'}
-        </button>
+        </Button>
       </div>
     </div>
   );

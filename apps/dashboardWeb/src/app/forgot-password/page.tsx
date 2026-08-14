@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
 import AeroLogo from '@/components/AeroLogo';
-
 import { getApiUrl } from '@/lib/api-config';
 
 const Hero3DBackground = dynamic(
@@ -150,61 +149,54 @@ export default function ForgotPasswordPage() {
   return (
     <div className="login-container">
       <div className="login-box">
-        <div style={{ marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <AeroLogo size={34} />
-          <span style={{ fontSize: '34px', fontWeight: 'bold', color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>AERO</span>
+        <div style={{ marginBottom: '28px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <AeroLogo size={30} />
+          <span style={{ fontSize: '26px', fontWeight: 'bold', color: 'var(--text-primary)', letterSpacing: '-0.02em', fontFamily: 'var(--font-title)' }}>
+            AERO
+          </span>
         </div>
 
         {/* --- STEP 1: Email Form --- */}
         {step === 1 && (
-          <form onSubmit={handleRequestPin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', margin: '0 0 4px 0' }}>Reset Password</h2>
-            <p style={{ fontSize: '13px', color: '#a1a1aa', margin: '0 0 8px 0', lineHeight: '1.5' }}>
-              Enter your email address below and we will send you a 6-digit confirmation PIN code to authenticate your request.
+          <form onSubmit={handleRequestPin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0', fontFamily: 'var(--font-title)' }}>
+              Reset Credentials
+            </h2>
+            <p style={{ fontSize: '13px', color: 'var(--text-dim)', margin: '0 0 8px 0', lineHeight: '1.5' }}>
+              Enter your registered node email address to receive an ephemeral 6-digit authentication PIN.
             </p>
 
-            <input
-              type="email"
-              placeholder="Email Address"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: '#09090b',
-                border: '1px solid #27272a',
-                borderRadius: '6px',
-                color: '#ffffff',
-                fontSize: '14px'
-              }}
-            />
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block' }}>
+                Email Address
+              </label>
+              <input
+                type="email"
+                placeholder="developer@node.domain"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
+            </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '6px',
-                border: 'none',
-                background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
-                color: '#ffffff',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
+              style={{ marginTop: '4px' }}
             >
-              {isLoading ? 'Requesting...' : 'Send Reset PIN'}
+              {isLoading ? 'Transmitting PIN...' : 'Send Authentication PIN'}
             </button>
           </form>
         )}
 
         {/* --- STEP 2: PIN Verification Form --- */}
         {step === 2 && (
-          <form onSubmit={handleVerifyPin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', margin: '0 0 4px 0' }}>Enter Security PIN</h2>
-            <p style={{ fontSize: '13px', color: '#a1a1aa', margin: '0 0 8px 0', lineHeight: '1.5' }}>
-              We sent a 6-digit code to <strong>{email}</strong>. Enter the PIN code below to confirm authorization:
+          <form onSubmit={handleVerifyPin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0', fontFamily: 'var(--font-title)' }}>
+              Enter Security PIN
+            </h2>
+            <p style={{ fontSize: '13px', color: 'var(--text-dim)', margin: '0 0 8px 0', lineHeight: '1.5' }}>
+              We sent a 6-digit code to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>. Enter the PIN below:
             </p>
 
             <input
@@ -215,33 +207,17 @@ export default function ForgotPasswordPage() {
               onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
               required
               style={{
-                width: '100%',
-                padding: '12px',
-                background: '#09090b',
-                border: '1px solid #27272a',
-                borderRadius: '6px',
-                color: '#ffffff',
-                fontSize: '20px',
                 textAlign: 'center',
-                letterSpacing: '0.5em',
+                letterSpacing: '0.4em',
                 fontWeight: 'bold',
-                fontFamily: 'monospace'
+                fontFamily: 'var(--font-mono)',
+                fontSize: '18px',
               }}
             />
 
             <button
               type="submit"
               disabled={isLoading}
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '6px',
-                border: 'none',
-                background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
-                color: '#ffffff',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
             >
               {isLoading ? 'Validating PIN...' : 'Verify Code'}
             </button>
@@ -252,8 +228,8 @@ export default function ForgotPasswordPage() {
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: '#71717a',
-                fontSize: '13px',
+                color: 'var(--text-dim)',
+                fontSize: '12.5px',
                 cursor: 'pointer',
                 textAlign: 'center'
               }}
@@ -265,80 +241,65 @@ export default function ForgotPasswordPage() {
 
         {/* --- STEP 3: Configure New Password Form --- */}
         {step === 3 && (
-          <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', margin: '0 0 4px 0' }}>Configure Password</h2>
-            <p style={{ fontSize: '13px', color: '#a1a1aa', margin: '0 0 8px 0', lineHeight: '1.5' }}>
-              Please enter your new password configuration details.
+          <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0', fontFamily: 'var(--font-title)' }}>
+              Configure New Password
+            </h2>
+            <p style={{ fontSize: '13px', color: 'var(--text-dim)', margin: '0 0 8px 0', lineHeight: '1.5' }}>
+              Please configure your refreshed credentials.
             </p>
 
-            <input
-              type="password"
-              placeholder="New Password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: '#09090b',
-                border: '1px solid #27272a',
-                borderRadius: '6px',
-                color: '#ffffff',
-                fontSize: '14px'
-              }}
-            />
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block' }}>
+                New Password
+              </label>
+              <input
+                type="password"
+                placeholder="New Password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+              />
+            </div>
 
-            <input
-              type="password"
-              placeholder="Confirm New Password"
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: '#09090b',
-                border: '1px solid #27272a',
-                borderRadius: '6px',
-                color: '#ffffff',
-                fontSize: '14px'
-              }}
-            />
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block' }}>
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                placeholder="Confirm New Password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '6px',
-                border: 'none',
-                background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
-                color: '#ffffff',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
+              style={{ marginTop: '4px' }}
             >
-              {isLoading ? 'Configuring...' : 'Configure New Password'}
+              {isLoading ? 'Updating credentials...' : 'Save New Password'}
             </button>
           </form>
         )}
 
-        <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* Status/Success Messages */}
           {successMessage && !error && (
             <div style={{
-              padding: '12px',
+              padding: '10px 14px',
               borderRadius: '6px',
-              fontSize: '13px',
-              backgroundColor: 'rgba(34, 197, 94, 0.1)',
-              color: '#22c55e',
-              border: '1px solid rgba(34, 197, 94, 0.2)',
+              fontSize: '12.5px',
+              backgroundColor: 'rgba(16, 185, 129, 0.12)',
+              color: '#34d399',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
               display: 'flex',
               gap: '8px',
               alignItems: 'center'
             }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
               <span>{successMessage}</span>
@@ -347,10 +308,7 @@ export default function ForgotPasswordPage() {
 
           {/* Error Message */}
           {error && (
-            <div className="error-alert-box">
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7.49997 0.833313C3.81807 0.833313 0.833302 3.81808 0.833302 7.50001C0.833302 11.1819 3.81807 14.1667 7.49997 14.1667C11.1819 14.1667 14.1666 11.1819 14.1666 7.50001C14.1666 3.81808 11.1819 0.833313 7.49997 0.833313ZM8.12497 4.37501V8.12501H6.87497V4.37501H8.12497ZM8.12497 9.37501V10.625H6.87497V9.37501H8.12497Z" fill="currentColor" />
-              </svg>
+            <div style={{ padding: '10px 14px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '6px', fontSize: '12.5px' }}>
               <span>{error}</span>
             </div>
           )}
@@ -362,13 +320,13 @@ export default function ForgotPasswordPage() {
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: '#a1a1aa',
+                color: 'var(--text-dim)',
                 fontSize: '13px',
                 cursor: 'pointer',
                 textAlign: 'center'
               }}
             >
-              Back to Sign In
+              ← Back to Sign In
             </button>
           )}
         </div>
@@ -376,11 +334,14 @@ export default function ForgotPasswordPage() {
 
       <div className="login-banner">
         <Hero3DBackground />
-        <div style={{ textAlign: 'center', zIndex: 10, padding: '0 40px', width: '100%' }}>
-          <h1 style={{ fontSize: '48px', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '16px' }}>
-            Aero Gatekeeper
+        <div style={{ textAlign: 'center', zIndex: 10, padding: '0 40px', width: '100%', maxWidth: '540px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '4px 12px', borderRadius: '9999px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.25)', color: '#38bdf8', fontSize: '12px', marginBottom: '20px' }}>
+            <span>Cryptographic Gatekeeper</span>
+          </div>
+          <h1 style={{ fontSize: '42px', fontWeight: 700, letterSpacing: '-0.025em', marginBottom: '14px', color: '#f3f0ea', fontFamily: 'var(--font-title)', lineHeight: '1.15' }}>
+            Aero <em style={{ fontStyle: 'italic', color: '#38bdf8' }}>Gatekeeper</em>
           </h1>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: '420px', fontSize: '15px', lineHeight: '1.6', margin: '0 auto' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14.5px', lineHeight: '1.65', margin: '0 auto', maxWidth: '420px' }}>
             Secure cryptographically validated password recovery pathways utilizing volatile memory storage for zero persistent footprint.
           </p>
         </div>

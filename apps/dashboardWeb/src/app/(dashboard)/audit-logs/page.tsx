@@ -77,21 +77,21 @@ export default function AuditLogsPage() {
       />
 
       {/* Filter Toolbar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-[#111625]/90 border border-slate-800 rounded-xl">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-[#11141a]/90 border border-white/[0.07] rounded-xl">
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <input
             type="text"
             placeholder="Filter by action (e.g. login)..."
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
-            className="px-3.5 py-2 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-cyan-500 w-52"
+            className="px-3.5 py-2 bg-[#161a22] border border-white/[0.08] rounded-lg text-xs text-[#f3f0ea] focus:outline-none focus:border-[#38bdf8] w-52"
           />
           <input
             type="text"
             placeholder="Filter by resource type..."
             value={resourceTypeFilter}
             onChange={(e) => setResourceTypeFilter(e.target.value)}
-            className="px-3.5 py-2 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-cyan-500 w-52"
+            className="px-3.5 py-2 bg-[#161a22] border border-white/[0.08] rounded-lg text-xs text-[#f3f0ea] focus:outline-none focus:border-[#38bdf8] w-52"
           />
         </div>
 
@@ -105,7 +105,7 @@ export default function AuditLogsPage() {
       </div>
 
       {error && (
-        <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-sm">
+        <div className="p-4 bg-[#ef4444]/12 border border-[#ef4444]/30 rounded-xl text-[#f87171] text-sm">
           {error}
         </div>
       )}
@@ -123,7 +123,7 @@ export default function AuditLogsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-900/80 border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider font-semibold">
+                  <tr className="bg-[#161a22] border-b border-white/[0.06] text-[#88909c] text-xs uppercase tracking-wider font-semibold">
                     <th className="py-3.5 px-5">Timestamp</th>
                     <th className="py-3.5 px-5">Action Event</th>
                     <th className="py-3.5 px-5">Resource Type</th>
@@ -131,22 +131,22 @@ export default function AuditLogsPage() {
                     <th className="py-3.5 px-5">IP Address</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60 text-xs">
+                <tbody className="divide-y divide-white/[0.05] text-xs">
                   {logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="py-3.5 px-5 font-mono text-slate-400">
+                    <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="py-3.5 px-5 font-mono text-[#88909c]">
                         {new Date(log.created_at).toLocaleString()}
                       </td>
                       <td className="py-3.5 px-5">
-                        <span className="font-semibold text-cyan-400 font-mono">{log.action}</span>
+                        <span className="font-semibold text-[#38bdf8] font-mono">{log.action}</span>
                       </td>
                       <td className="py-3.5 px-5">
                         <Badge status="neutral" label={log.resource_type} />
                       </td>
-                      <td className="py-3.5 px-5 text-slate-200">
+                      <td className="py-3.5 px-5 text-[#ccc8be]">
                         {log.user_email || 'System Agent'}
                       </td>
-                      <td className="py-3.5 px-5 font-mono text-slate-400">
+                      <td className="py-3.5 px-5 font-mono text-[#88909c]">
                         {log.ip_address || '127.0.0.1'}
                       </td>
                     </tr>

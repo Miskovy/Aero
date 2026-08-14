@@ -1,8 +1,8 @@
 'use client';
 
 import { getApiBaseUrl } from '@/lib/api-config';
-
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import WebhooksManager from '@/components/WebhooksManager';
 import CustomSelect from '@/components/CustomSelect';
 
@@ -58,23 +58,49 @@ export default function WebhooksPage() {
   }));
 
   return (
-    <div style={{ animation: 'fadeIn 0.4s ease', maxWidth: '800px' }}>
-      <h1 style={{ fontSize: '22px', fontWeight: 600, letterSpacing: '-0.5px', marginBottom: '6px' }}>Webhooks</h1>
-      <p style={{ fontSize: '13px', color: 'var(--text-dim)', marginBottom: '32px' }}>
-        Configure webhook endpoints to receive real-time event notifications from your deployments.
-      </p>
+    <div className="space-y-6" style={{ animation: 'fadeIn 0.4s ease', maxWidth: '840px' }}>
+      {/* Settings Sub-Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-white/[0.08] pb-3">
+        <Link
+          href="/settings"
+          className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-[#88909c] hover:text-[#f3f0ea] hover:bg-[#161a22] transition-colors"
+        >
+          API Keys
+        </Link>
+        <Link
+          href="/settings/webhooks"
+          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-[#38bdf8]/15 text-[#38bdf8] border border-[#38bdf8]/30 shadow-xs"
+        >
+          Webhooks
+        </Link>
+        <Link
+          href="/settings/subscriptions"
+          className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-[#88909c] hover:text-[#f3f0ea] hover:bg-[#161a22] transition-colors"
+        >
+          Subscriptions &amp; XPay
+        </Link>
+      </div>
+
+      <div>
+        <h1 style={{ fontSize: '22px', fontWeight: 600, letterSpacing: '-0.5px', marginBottom: '6px', color: 'var(--text-primary)', fontFamily: 'var(--font-title)' }}>
+          Deployment Webhooks
+        </h1>
+        <p style={{ fontSize: '13px', color: 'var(--text-dim)', marginBottom: '24px' }}>
+          Configure webhook endpoints to receive real-time event notifications from your service deployments.
+        </p>
+      </div>
 
       {loading ? (
-        <div className="metric-card" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-glass)', padding: '48px', display: 'flex', justifyContent: 'center' }}>
+        <div className="metric-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-glass)', padding: '48px', display: 'flex', justifyContent: 'center' }}>
           <div className="throbber" />
         </div>
       ) : error ? (
-        <div className="metric-card" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-glass)', padding: '24px', color: '#f87171' }}>
+        <div className="metric-card" style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '24px', color: '#f87171' }}>
           <p>Failed to load services: {error}</p>
         </div>
       ) : services.length === 0 ? (
-        <div className="metric-card" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-glass)', padding: '48px', textAlign: 'center' }}>
-          <svg style={{ color: 'var(--text-dim)', marginBottom: '16px' }} width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+        <div className="metric-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-glass)', padding: '48px', textAlign: 'center' }}>
+          <svg style={{ color: 'var(--text-dim)', margin: '0 auto 16px auto' }} width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
@@ -85,12 +111,11 @@ export default function WebhooksPage() {
           </p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Service Selector */}
-          <div className="metric-card" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-glass)', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+          <div className="metric-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-glass)', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
             <div>
-              <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Select Service</h3>
+              <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-dim)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Select Service</h3>
               <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>Choose which service to manage webhooks for.</p>
             </div>
             
@@ -104,11 +129,10 @@ export default function WebhooksPage() {
 
           {/* Webhooks Manager */}
           {selectedServiceId && (
-            <div className="metric-card" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-glass)', padding: '24px' }}>
+            <div className="metric-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-glass)', padding: '24px' }}>
               <WebhooksManager serviceId={selectedServiceId} />
             </div>
           )}
-
         </div>
       )}
     </div>

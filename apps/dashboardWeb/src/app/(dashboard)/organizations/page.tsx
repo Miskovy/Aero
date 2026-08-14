@@ -1,61 +1,44 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { orgsService } from '@/services/api/orgs.service';
-import { Organization } from '@/types';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Card, CardBody } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
-import { PageHeader } from '@/components/ui/PageHeader';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
-import { EmptyState } from '@/components/ui/EmptyState';
-import CustomSelect from '@/components/CustomSelect';
-
-const DEFAULT_ORGS: Organization[] = [
-  { id: 'org-1', name: 'Core Infrastructure Org', tier: 'Enterprise Tier', membersCount: 8, projectsCount: 12, status: 'Active' },
-  { id: 'org-2', name: 'Aero Dev Labs Team', tier: 'Developer Tier', membersCount: 3, projectsCount: 4, status: 'Active' }
-];
+import StickFigureMeetingIllustration from '@/components/StickFigureMeetingIllustration';
+import { Organization } from '@/types';
+import { orgsService } from '@/services/api/orgs.service';
 
 export default function OrganizationsPage() {
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Form Modal state
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+
+  // Form State (No Plan selection in modal; plan upgrades are in Subscriptions page)
+  const [orgName, setOrgName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Form inputs
-  const [orgName, setOrgName] = useState('');
-  const [orgTier, setOrgTier] = useState<Organization['tier']>('Developer Tier');
-
-  const fetchOrganizations = useCallback(async () => {
+  const fetchOrganizations = async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await orgsService.list();
-      if (data && data.length > 0) {
-        setOrgs(data);
-      } else {
-        const localData = localStorage.getItem('aero_local_orgs');
-        if (localData) {
-          setOrgs(JSON.parse(localData));
-        } else {
-          setOrgs(DEFAULT_ORGS);
-          localStorage.setItem('aero_local_orgs', JSON.stringify(DEFAULT_ORGS));
-        }
-      }
+      setOrgs(data);
     } catch (err: unknown) {
-      console.warn('Backend org list warning:', err);
-      const localData = localStorage.getItem('aero_local_orgs');
-      setOrgs(localData ? JSON.parse(localData) : DEFAULT_ORGS);
+      console.warn('Failed to fetch organizations:', err);
+      setOrgs([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     let active = true;
@@ -63,26 +46,26 @@ export default function OrganizationsPage() {
       if (active) fetchOrganizations();
     });
     return () => { active = false; };
-  }, [fetchOrganizations]);
+  }, []);
 
   const openCreateModal = () => {
     setModalMode('create');
-    setOrgName('');
-    setOrgTier('Developer Tier');
     setSelectedOrgId(null);
+    setOrgName('');
     setIsModalOpen(true);
   };
 
   const openEditModal = (org: Organization) => {
     setModalMode('edit');
-    setOrgName(org.name);
-    setOrgTier(org.tier);
     setSelectedOrgId(org.id);
+    setOrgName(org.name);
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
+    setSelectedOrgId(null);
+    setOrgName('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,20 +75,14 @@ export default function OrganizationsPage() {
     setSubmitting(true);
     try {
       if (modalMode === 'create') {
-        await orgsService.create({ name: orgName, tier: orgTier, membersCount: 1, status: 'Active' });
+        await orgsService.create({ name: orgName.trim() });
       } else if (selectedOrgId) {
-        await orgsService.update(selectedOrgId, { name: orgName, tier: orgTier });
+        await orgsService.update(selectedOrgId, { name: orgName.trim() });
       }
       fetchOrganizations();
       closeModal();
-    } catch {
-      // Local fallback in demo mode
-      const updated = modalMode === 'create'
-        ? [...orgs, { id: `org-${Date.now()}`, name: orgName, tier: orgTier, membersCount: 1, projectsCount: 0, status: 'Active' as const }]
-        : orgs.map(o => o.id === selectedOrgId ? { ...o, name: orgName, tier: orgTier } : o);
-      setOrgs(updated);
-      localStorage.setItem('aero_local_orgs', JSON.stringify(updated));
-      closeModal();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save organization');
     } finally {
       setSubmitting(false);
     }
@@ -117,10 +94,8 @@ export default function OrganizationsPage() {
     try {
       await orgsService.delete(id);
       fetchOrganizations();
-    } catch {
-      const updated = orgs.filter(o => o.id !== id);
-      setOrgs(updated);
-      localStorage.setItem('aero_local_orgs', JSON.stringify(updated));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete organization');
     }
   };
 
@@ -137,7 +112,7 @@ export default function OrganizationsPage() {
       />
 
       {error && (
-        <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-sm">
+        <div className="p-4 bg-[#ef4444]/10 border border-[#ef4444]/25 rounded-xl text-[#f87171] text-sm">
           {error}
         </div>
       )}
@@ -145,12 +120,24 @@ export default function OrganizationsPage() {
       {loading ? (
         <LoadingSkeleton count={3} height="h-28" />
       ) : orgs.length === 0 ? (
-        <EmptyState
-          title="No Organizations Found"
-          description="Create your first organization to start managing teams and deploying cloud services."
-          actionLabel="Create Organization"
-          onAction={openCreateModal}
-        />
+        <Card className="flex flex-col items-center justify-center text-center p-8 sm:p-14 space-y-6">
+          <div className="flex justify-center w-full max-w-lg mx-auto">
+            <StickFigureMeetingIllustration width="100%" height={230} />
+          </div>
+
+          <div className="space-y-2 max-w-md mx-auto">
+            <h2 className="text-lg sm:text-xl font-bold text-[#f3f0ea] tracking-tight font-title">
+              No Organizations Found
+            </h2>
+            <p className="text-xs sm:text-sm text-[#88909c] leading-relaxed">
+              Create your first organization to establish teams, provision hypervisor nodes, and deploy cloud services.
+            </p>
+          </div>
+
+          <Button onClick={openCreateModal} variant="primary" size="md">
+            + Create Organization
+          </Button>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {orgs.map((org) => (
@@ -158,30 +145,43 @@ export default function OrganizationsPage() {
               <CardBody className="space-y-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-white tracking-tight">{org.name}</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">{org.tier}</p>
+                    <h3 className="text-lg font-semibold text-[#f3f0ea] tracking-tight font-title">{org.name}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-[#38bdf8] font-medium font-mono">
+                        {org.plan || org.tier || 'Developer Tier'}
+                      </span>
+                    </div>
                   </div>
                   <Badge status={org.status === 'Active' ? 'active' : 'inactive'} />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 p-3 bg-slate-900/60 rounded-lg border border-slate-800/80 text-xs">
+                <div className="grid grid-cols-2 gap-3 p-3 bg-[#161a22] rounded-lg border border-white/[0.06] text-xs">
                   <div>
-                    <span className="text-slate-500 block">Members</span>
-                    <span className="text-slate-200 font-semibold">{org.membersCount} Users</span>
+                    <span className="text-[#88909c] block">Members</span>
+                    <span className="text-[#f3f0ea] font-semibold">{org.membersCount || 1} Users</span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Projects</span>
-                    <span className="text-slate-200 font-semibold">{org.projectsCount || 0} Apps</span>
+                    <span className="text-[#88909c] block">Projects</span>
+                    <span className="text-[#f3f0ea] font-semibold">{org.projectsCount || 0} Apps</span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800/60">
-                  <Button size="sm" variant="ghost" onClick={() => openEditModal(org)}>
-                    Edit
-                  </Button>
-                  <Button size="sm" variant="danger" onClick={() => handleDelete(org.id)}>
-                    Delete
-                  </Button>
+                <div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
+                  <Link
+                    href={`/settings/subscriptions?orgId=${org.id}`}
+                    className="text-xs font-semibold text-[#38bdf8] hover:text-[#7dd3fc] transition-colors"
+                  >
+                    Upgrade Plan →
+                  </Link>
+
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => openEditModal(org)}>
+                      Edit
+                    </Button>
+                    <Button size="sm" variant="danger" onClick={() => handleDelete(org.id)}>
+                      Delete
+                    </Button>
+                  </div>
                 </div>
               </CardBody>
             </Card>
@@ -189,45 +189,43 @@ export default function OrganizationsPage() {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal: Only organization name is entered here; plan upgrades occur in Subscriptions */}
       <Modal
         isOpen={isModalOpen}
         onClose={closeModal}
         title={modalMode === 'create' ? 'Create Organization' : 'Edit Organization'}
-        subtitle="Organizations group teams, projects, and permissions under a single billing tier."
+        subtitle="Organizations group teams, projects, and permissions. You can manage or upgrade subscription tiers anytime in Subscriptions."
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Organization Name</label>
+            <label className="block text-xs font-medium text-[#ccc8be] mb-1.5">
+              Organization Name <span className="text-[#38bdf8]">*</span>
+            </label>
             <input
               type="text"
               required
-              placeholder="e.g. Acme Dev Team"
+              placeholder="e.g. Acme Cloud Systems"
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
+              className="w-full px-3.5 py-2.5 bg-[#161a22] border border-white/[0.08] rounded-lg text-sm text-[#f3f0ea] placeholder-[#565f6c] focus:outline-none focus:border-[#38bdf8]"
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Access Tier</label>
-            <CustomSelect
-              value={orgTier}
-              onChange={(val) => setOrgTier(val as Organization['tier'])}
-              options={[
-                { value: 'Developer Tier', label: 'Developer Tier (Basic limits)' },
-                { value: 'Standard Tier', label: 'Standard Tier (Team features)' },
-                { value: 'Enterprise Tier', label: 'Enterprise Tier (Unlimited & Priority)' }
-              ]}
-            />
+          <div className="p-3 bg-[#161a22]/60 rounded-xl border border-white/[0.06] text-xs text-[#88909c] flex items-start gap-2.5">
+            <svg className="w-4 h-4 text-[#38bdf8] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>
+              New organizations start on the <strong>Developer Tier (Free)</strong>. You can upgrade to higher compute quotas or team tiers in the Subscriptions page.
+            </span>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/[0.06]">
             <Button type="button" variant="ghost" onClick={closeModal}>
               Cancel
             </Button>
             <Button type="submit" variant="primary" isLoading={submitting}>
-              {modalMode === 'create' ? 'Create' : 'Save Changes'}
+              {modalMode === 'create' ? 'Create Organization' : 'Save Changes'}
             </Button>
           </div>
         </form>

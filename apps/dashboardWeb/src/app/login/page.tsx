@@ -95,24 +95,58 @@ export default function LoginPage() {
   return (
     <div className="login-container">
       <div className="login-box">
-        <div style={{ marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <AeroLogo size={34} />
-          <span style={{ fontSize: '34px', fontWeight: 'bold', color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>AERO</span>
+        <div style={{ marginBottom: '28px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <AeroLogo size={30} />
+          <span style={{ fontSize: '26px', fontWeight: 'bold', color: 'var(--text-primary)', letterSpacing: '-0.02em', fontFamily: 'var(--font-title)' }}>
+            AERO
+          </span>
         </div>
 
-        <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            required
-          />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px', fontFamily: 'var(--font-title)' }}>
+            Sign In to Console
+          </h2>
+          <p style={{ fontSize: '13px', color: 'var(--text-dim)', lineHeight: '1.5' }}>
+            Access cluster nodes, distributed containers, and workload metrics.
+          </p>
+        </div>
+
+        <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block' }}>
+              Email Address
+            </label>
+            <input
+              type="email"
+              placeholder="developer@node.domain"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Password
+              </label>
+              <Link
+                href="/forgot-password"
+                style={{
+                  color: 'var(--accent-cyan)',
+                  fontSize: '12px',
+                  textDecoration: 'none',
+                  transition: 'color 0.2s',
+                  fontWeight: 500,
+                }}
+              >
+                Forgot?
+              </Link>
+            </div>
             <div style={{ position: 'relative', width: '100%' }}>
               <input
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Password"
+                placeholder="••••••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 style={{ paddingRight: '40px' }}
@@ -134,29 +168,17 @@ export default function LoginPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  fontSize: '12px',
                   width: 'auto',
                 }}
               >
                 {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Link
-                href="/forgot-password"
-                style={{
-                  color: 'var(--text-dim)',
-                  fontSize: '12px',
-                  textDecoration: 'none',
-                  transition: 'color 0.2s',
-                  fontWeight: 500,
-                }}
-              >
-                Forgot Password?
-              </Link>
-            </div>
           </div>
-          <button type="submit" disabled={isLoading}>
-            {isLoading ? 'Connecting...' : 'Login'}
+
+          <button type="submit" disabled={isLoading} style={{ marginTop: '4px' }}>
+            {isLoading ? 'Connecting...' : 'Sign In'}
           </button>
 
           <button
@@ -168,13 +190,13 @@ export default function LoginPage() {
               );
             }}
           >
-            <GitHubIcon size={18} />
-            Continue With GitHub
+            <GitHubIcon size={16} />
+            Continue with GitHub
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', margin: '8px 0', color: 'var(--border-glass)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', margin: '6px 0', color: 'var(--border-glass)' }}>
             <div style={{ flex: 1, height: '1px', backgroundColor: 'currentColor' }} />
-            <span style={{ padding: '0 8px', fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>New to Aero?</span>
+            <span style={{ padding: '0 8px', fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>New to Aero?</span>
             <div style={{ flex: 1, height: '1px', backgroundColor: 'currentColor' }} />
           </div>
 
@@ -183,12 +205,13 @@ export default function LoginPage() {
             onClick={() => router.push('/signup')}
             style={{
               width: '100%',
-              padding: '12px 24px',
+              padding: '10px 20px',
               borderRadius: 'var(--border-radius-sm)',
               fontWeight: 600,
+              fontSize: '13px',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
-              color: 'var(--text-primary)',
+              color: 'var(--text-secondary)',
               background: 'transparent',
               border: '1px solid var(--border-glass)',
               display: 'flex',
@@ -200,10 +223,8 @@ export default function LoginPage() {
           </button>
 
           {error && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div className="error-alert-box" style={{ padding: '10px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#f87171', borderRadius: '6px', fontSize: '13px' }}>
-                <span>{error}</span>
-              </div>
+            <div style={{ padding: '10px 14px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '6px', fontSize: '12.5px' }}>
+              <span>{error}</span>
             </div>
           )}
         </form>
@@ -211,12 +232,15 @@ export default function LoginPage() {
 
       <div className="login-banner">
         <Hero3DBackground />
-        <div style={{ textAlign: 'center', zIndex: 10, padding: '0 40px', width: '100%' }}>
-          <h1 style={{ fontSize: '48px', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '16px' }}>
-            Self-Hosted <em>Cloud</em>
+        <div style={{ textAlign: 'center', zIndex: 10, padding: '0 40px', width: '100%', maxWidth: '540px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '4px 12px', borderRadius: '9999px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.25)', color: '#38bdf8', fontSize: '12px', marginBottom: '20px' }}>
+            <span>Arcadian Cloud Architecture</span>
+          </div>
+          <h1 style={{ fontSize: '42px', fontWeight: 700, letterSpacing: '-0.025em', marginBottom: '14px', color: '#f3f0ea', fontFamily: 'var(--font-title)', lineHeight: '1.15' }}>
+            Self-Hosted <em style={{ fontStyle: 'italic', color: '#38bdf8' }}>Cloud</em>
           </h1>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: '420px', fontSize: '15px', lineHeight: '1.6', margin: '0 auto' }}>
-            Turn your local machines and developer hardware into high-performance servers instantly.
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14.5px', lineHeight: '1.65', margin: '0 auto', maxWidth: '420px' }}>
+            Turn developer hardware and bare-metal nodes into an architectural, resilient cloud mesh with calm precision.
           </p>
         </div>
       </div>

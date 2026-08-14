@@ -216,7 +216,7 @@ export default function ProfilePage() {
           .throbber {
             width: 36px;
             height: 36px;
-            border: 3px solid rgba(56, 189, 248, 0.1);
+            border: 3px solid rgba(56, 189, 248, 0.15);
             border-top: 3px solid var(--accent-cyan, #38bdf8);
             border-radius: 50%;
             animation: spin 0.8s linear infinite;

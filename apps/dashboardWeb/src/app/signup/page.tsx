@@ -71,51 +71,76 @@ export default function SignUpPage() {
   return (
     <div className="login-container">
       <div className="login-box">
-        <div style={{ marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <AeroLogo size={34} />
-          <span style={{ fontSize: '34px', fontWeight: 'bold', color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>AERO</span>
+        <div style={{ marginBottom: '28px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <AeroLogo size={30} />
+          <span style={{ fontSize: '26px', fontWeight: 'bold', color: 'var(--text-primary)', letterSpacing: '-0.02em', fontFamily: 'var(--font-title)' }}>
+            AERO
+          </span>
         </div>
 
-        <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>Create your account</h2>
-        <p style={{ fontSize: '13px', color: 'var(--text-dim)', marginBottom: '24px' }}>Get started with your self-hosted cloud today.</p>
+        <div style={{ marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px', fontFamily: 'var(--font-title)' }}>
+            Create Developer Account
+          </h2>
+          <p style={{ fontSize: '13px', color: 'var(--text-dim)', lineHeight: '1.5' }}>
+            Initialize your self-hosted cloud mesh and cluster nodes today.
+          </p>
+        </div>
 
-        <form onSubmit={handleSignUpSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <input
-            type="text"
-            placeholder="Full Name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            required
-          />
-          <input
-            type="email"
-            placeholder="Email Address"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password (Min. 6 characters)"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-          />
+        <form onSubmit={handleSignUpSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block' }}>
+              Full Name
+            </label>
+            <input
+              type="text"
+              placeholder="Hypatia of Alexandria"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block' }}>
+              Email Address
+            </label>
+            <input
+              type="email"
+              placeholder="developer@node.domain"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block' }}>
+              Password
+            </label>
+            <input
+              type="password"
+              placeholder="Min. 6 characters"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+            />
+          </div>
 
           {/* Terms & Privacy Agreement Checkbox */}
-          <div className="my-1 py-1">
+          <div className="my-0.5 py-1">
             <Checkbox
               id="agree-legal"
               checked={agreedToLegal}
               onChange={(e) => setAgreedToLegal(e.target.checked)}
               label={
-                <span>
+                <span className="text-xs text-[#ccc8be]">
                   I agree to the{' '}
                   <a
                     href="https://aerodeploy.app/terms"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-cyan-400 hover:underline font-semibold"
+                    className="text-[#38bdf8] hover:underline font-medium"
                     onClick={(e) => e.stopPropagation()}
                   >
                     Terms of Service
@@ -125,7 +150,7 @@ export default function SignUpPage() {
                     href="https://aerodeploy.app/privacy"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-cyan-400 hover:underline font-semibold"
+                    className="text-[#38bdf8] hover:underline font-medium"
                     onClick={(e) => e.stopPropagation()}
                   >
                     Privacy Policy
@@ -142,10 +167,10 @@ export default function SignUpPage() {
             style={{
               opacity: isLoading || !isFormValid ? 0.5 : 1,
               cursor: isLoading || !isFormValid ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s ease',
+              marginTop: '4px',
             }}
           >
-            {isLoading ? 'Creating account...' : 'Sign Up'}
+            {isLoading ? 'Creating account...' : 'Create Account'}
           </button>
 
           <button
@@ -157,14 +182,13 @@ export default function SignUpPage() {
               );
             }}
           >
-            <GitHubIcon size={18} />
-            Continue With GitHub
+            <GitHubIcon size={16} />
+            Continue with GitHub
           </button>
-          <p style={{ fontSize: '13px', color: 'var(--text-dim)', textAlign: 'center', }}>By continuing, you agree to our Terms of Service and Privacy Policy.</p>
 
-          <div style={{ display: 'flex', alignItems: 'center', margin: '8px 0', color: 'var(--border-glass)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', margin: '6px 0', color: 'var(--border-glass)' }}>
             <div style={{ flex: 1, height: '1px', backgroundColor: 'currentColor' }} />
-            <span style={{ padding: '0 8px', fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Already have an account?</span>
+            <span style={{ padding: '0 8px', fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Already registered?</span>
             <div style={{ flex: 1, height: '1px', backgroundColor: 'currentColor' }} />
           </div>
 
@@ -172,25 +196,25 @@ export default function SignUpPage() {
             href="/login"
             style={{
               width: '100%',
-              padding: '12px 24px',
+              padding: '10px 20px',
               borderRadius: 'var(--border-radius-sm)',
               fontWeight: 600,
+              fontSize: '13px',
               cursor: 'pointer',
-              color: 'var(--text-primary)',
+              color: 'var(--text-secondary)',
               background: 'transparent',
               border: '1px solid var(--border-glass)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               textDecoration: 'none',
-              fontSize: '14px',
             }}
           >
-            Log In
+            Sign In
           </Link>
 
           {error && (
-            <div style={{ padding: '10px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#f87171', borderRadius: '6px', fontSize: '13px' }}>
+            <div style={{ padding: '10px 14px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '6px', fontSize: '12.5px' }}>
               <span>{error}</span>
             </div>
           )}
@@ -199,12 +223,15 @@ export default function SignUpPage() {
 
       <div className="login-banner">
         <Hero3DBackground />
-        <div style={{ textAlign: 'center', zIndex: 10, padding: '0 40px', width: '100%' }}>
-          <h1 style={{ fontSize: '48px', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '16px' }}>
-            Self-Hosted <em>Cloud</em>
+        <div style={{ textAlign: 'center', zIndex: 10, padding: '0 40px', width: '100%', maxWidth: '540px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '4px 12px', borderRadius: '9999px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.25)', color: '#38bdf8', fontSize: '12px', marginBottom: '20px' }}>
+            <span>Bare-Metal Container Orchestration</span>
+          </div>
+          <h1 style={{ fontSize: '42px', fontWeight: 700, letterSpacing: '-0.025em', marginBottom: '14px', color: '#f3f0ea', fontFamily: 'var(--font-title)', lineHeight: '1.15' }}>
+            Autonomous <em style={{ fontStyle: 'italic', color: '#38bdf8' }}>Compute</em>
           </h1>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: '420px', fontSize: '15px', lineHeight: '1.6', margin: '0 auto' }}>
-            Deploy apps, databases, and microservices on your own infrastructure.
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14.5px', lineHeight: '1.65', margin: '0 auto', maxWidth: '420px' }}>
+            Deploy apps, databases, and microservices on your own infrastructure without vendor lock-in.
           </p>
         </div>
       </div>
