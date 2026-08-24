@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ServicesService } from './services.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanQuotaService } from '../../plans/plan-quota.service';
 import { VaultService } from '../vault/vault.service';
 import { CloudflareService } from '../cloudflare/cloudflare.service';
 import { DockerService } from '../docker/docker.service';
@@ -17,6 +18,11 @@ describe('ServicesService', () => {
   let prisma: MockPrismaServiceType;
   let dockerService: Record<string, jest.Mock>;
   let cloudflareService: Record<string, jest.Mock>;
+
+  const mockPlanQuotaService = {
+    validateServiceQuota: jest.fn().mockResolvedValue(undefined),
+    validateCustomDomainAllowed: jest.fn().mockResolvedValue(undefined),
+  };
 
   const mockService = {
     id: 'svc-1',
@@ -47,6 +53,7 @@ describe('ServicesService', () => {
       providers: [
         ServicesService,
         { provide: PrismaService, useFactory: mockPrismaService },
+        { provide: PlanQuotaService, useValue: mockPlanQuotaService },
         { provide: VaultService, useValue: { encrypt: jest.fn() } },
         { provide: CloudflareService, useValue: cloudflareService },
         { provide: DockerService, useValue: dockerService },

@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanQuotaService } from '../../plans/plan-quota.service';
 import { CreateWebhookDto } from './dto/create-webhook.dto';
 import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
 import { DeploymentsService } from '../deployments/deployment.service';
@@ -19,6 +20,7 @@ export class WebhooksService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly planQuotaService: PlanQuotaService,
     private readonly deploymentsService: DeploymentsService,
   ) {}
 
@@ -32,6 +34,7 @@ export class WebhooksService {
     dto: CreateWebhookDto,
   ) {
     await this.validateServiceOwnership(serviceId, userId);
+    await this.planQuotaService.validateWebhookQuota(serviceId);
 
     const secretToken = randomBytes(32).toString('hex');
 

@@ -8,6 +8,7 @@ import {
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanQuotaService } from '../../plans/plan-quota.service';
 import {
   Deployment,
   DeploymentLog,
@@ -21,6 +22,7 @@ export class DeploymentsService implements OnApplicationBootstrap {
   private readonly logger = new Logger(DeploymentsService.name);
   constructor(
     private readonly prisma: PrismaService,
+    private readonly planQuotaService: PlanQuotaService,
     @InjectQueue('deployments') private readonly deploymentsQueue: Queue,
   ) {}
 
@@ -60,6 +62,8 @@ export class DeploymentsService implements OnApplicationBootstrap {
     if (!service) {
       throw new NotFoundException('Service not found');
     }
+
+    await this.planQuotaService.validateDeploymentQuota(serviceId);
 
     const deployment = await this.prisma.deployment.create({
       data: {

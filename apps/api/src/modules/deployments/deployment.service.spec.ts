@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DeploymentsService } from './deployment.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanQuotaService } from '../../plans/plan-quota.service';
 import { getQueueToken } from '@nestjs/bullmq';
 import {
   mockPrismaService,
@@ -12,6 +13,10 @@ describe('DeploymentsService', () => {
   let service: DeploymentsService;
   let prisma: MockPrismaServiceType;
   let deploymentsQueue: Record<string, jest.Mock>;
+
+  const mockPlanQuotaService = {
+    validateDeploymentQuota: jest.fn().mockResolvedValue(undefined),
+  };
 
   const mockDeployment = {
     id: 'dep-1',
@@ -39,6 +44,7 @@ describe('DeploymentsService', () => {
       providers: [
         DeploymentsService,
         { provide: PrismaService, useFactory: mockPrismaService },
+        { provide: PlanQuotaService, useValue: mockPlanQuotaService },
         { provide: getQueueToken('deployments'), useValue: deploymentsQueue },
       ],
     }).compile();

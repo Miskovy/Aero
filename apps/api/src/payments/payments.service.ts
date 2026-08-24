@@ -5,6 +5,11 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  PaymentStatus,
+  SubscriptionStatus,
+  BillingCycle,
+} from '../../generated/prisma/client';
 import { XPayService } from './xpay.service';
 import { InitiateCheckoutDto } from './dto/Init-checkout.dto';
 
@@ -36,6 +41,7 @@ export class PaymentsService {
   async createCheckoutSession(dto: InitiateCheckoutDto) {
     const org = await this.prisma.organization.findUnique({
       where: { id: dto.organizationId },
+      include: { subscription: true },
     });
 
     if (!org) {
@@ -81,13 +87,14 @@ export class PaymentsService {
     const transaction = await this.prisma.paymentTransaction.create({
       data: {
         organization_id: org.id,
+        subscription_id: org.subscription?.id || null,
         plan_id: plan.id,
         user_id: dto.userId || null,
         xpay_session_id: sessionResult.sessionId,
         xpay_payment_intent: sessionResult.paymentIntentId || null,
         amount: plan.price || 499,
         currency: 'EGP',
-        status: 'pending',
+        status: PaymentStatus.pending,
         checkout_url: sessionResult.checkoutUrl,
         payment_method: 'card',
         metadata: {
@@ -136,6 +143,54 @@ export class PaymentsService {
   }
 
   /**
+   * Get subscription details for an organization.
+   */
+  async getSubscription(organizationId: string) {
+    const subscription = await this.prisma.organizationSubscription.findUnique({
+      where: { organization_id: organizationId },
+      include: {
+        plan: true,
+        payments: {
+          orderBy: { created_at: 'desc' },
+          take: 10,
+        },
+      },
+    });
+
+    if (!subscription) {
+      throw new NotFoundException(
+        'Subscription not found for this organization',
+      );
+    }
+
+    return subscription;
+  }
+
+  /**
+   * Cancel subscription at period end.
+   */
+  async cancelSubscription(organizationId: string) {
+    const subscription = await this.prisma.organizationSubscription.findUnique({
+      where: { organization_id: organizationId },
+    });
+
+    if (!subscription) {
+      throw new NotFoundException(
+        'Subscription not found for this organization',
+      );
+    }
+
+    return await this.prisma.organizationSubscription.update({
+      where: { organization_id: organizationId },
+      data: {
+        cancel_at_period_end: true,
+        canceled_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+  }
+
+  /**
    * Process XPay Webhook Event.
    */
   async handleWebhook(
@@ -179,7 +234,7 @@ export class PaymentsService {
       await this.prisma.paymentTransaction.update({
         where: { id: transaction.id },
         data: {
-          status: parsed.status,
+          status: parsed.status as PaymentStatus,
           xpay_payment_intent:
             parsed.paymentIntentId || transaction.xpay_payment_intent,
           payment_method: parsed.paymentMethod || transaction.payment_method,
@@ -187,23 +242,56 @@ export class PaymentsService {
         },
       });
 
-      // If succeeded, upgrade organization plan!
+      // If succeeded, upgrade organization plan & subscription!
       if (parsed.status === 'succeeded' && transaction.plan_id) {
         const plan = await this.prisma.plan.findUnique({
           where: { id: transaction.plan_id },
         });
 
         if (plan) {
+          const now = new Date();
+          const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+          const updatedSub = await this.prisma.organizationSubscription.upsert({
+            where: { organization_id: transaction.organization_id },
+            create: {
+              organization_id: transaction.organization_id,
+              plan_id: plan.id,
+              status: SubscriptionStatus.active,
+              billing_cycle: BillingCycle.monthly,
+              current_period_start: now,
+              current_period_end: periodEnd,
+            },
+            update: {
+              plan_id: plan.id,
+              status: SubscriptionStatus.active,
+              current_period_start: now,
+              current_period_end: periodEnd,
+              cancel_at_period_end: false,
+              canceled_at: null,
+              updated_at: now,
+            },
+          });
+
+          // Link subscription to payment transaction if not already set
+          if (!transaction.subscription_id) {
+            await this.prisma.paymentTransaction.update({
+              where: { id: transaction.id },
+              data: { subscription_id: updatedSub.id },
+            });
+          }
+
           await this.prisma.organization.update({
             where: { id: transaction.organization_id },
             data: {
               plan_id: plan.id,
               plan: plan.name.toLowerCase(),
-              updated_at: new Date(),
+              updated_at: now,
             },
           });
+
           this.logger.log(
-            `Successfully upgraded org ${transaction.organization_id} to plan ${plan.name}`,
+            `Successfully upgraded org ${transaction.organization_id} to plan ${plan.name} and updated subscription`,
           );
         }
       }

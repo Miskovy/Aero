@@ -1,11 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NodesService } from './nodes.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanQuotaService } from '../../plans/plan-quota.service';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 describe('NodesService', () => {
   let service: NodesService;
   let prisma: typeof mockPrismaService;
+
+  const mockPlanQuotaService = {
+    validateNodeQuota: jest.fn().mockResolvedValue(undefined),
+  };
 
   const mockPrismaService = {
     organization: {
@@ -29,6 +34,7 @@ describe('NodesService', () => {
       providers: [
         NodesService,
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: PlanQuotaService, useValue: mockPlanQuotaService },
       ],
     }).compile();
 

@@ -4,6 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanQuotaService } from '../../plans/plan-quota.service';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { randomBytes, createHash } from 'crypto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -12,7 +13,10 @@ import { Prisma } from '../../../generated/prisma/client';
 
 @Injectable()
 export class ApiKeysService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly planQuotaService: PlanQuotaService,
+  ) {}
 
   /**
    * Generate a new API key for a user.
@@ -24,7 +28,7 @@ export class ApiKeysService {
     const keyPrefix = rawKey.substring(0, 10);
     const keyHash = this.hashKey(rawKey);
 
-    // If org is specified, verify user has membership
+    // If org is specified, verify user has membership & check plan quota
     if (dto.organizationId) {
       const membership = await this.prisma.organizationMember.findUnique({
         where: {
@@ -39,6 +43,8 @@ export class ApiKeysService {
           'You are not a member of this organization',
         );
       }
+
+      await this.planQuotaService.validateApiKeyQuota(dto.organizationId);
     }
 
     const apiKey = await this.prisma.apiKey.create({

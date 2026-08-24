@@ -1,12 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PlanQuotaService } from '../plans/plan-quota.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginatedResponse } from '../common/interfaces/paginated-response';
 import { Project, Prisma } from '../../generated/prisma/client';
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly planQuotaService: PlanQuotaService,
+  ) {}
 
   async listProjects(
     orgId: string,
@@ -59,6 +63,8 @@ export class ProjectsService {
   }
 
   async createProject(orgId: string, name: string) {
+    await this.planQuotaService.validateProjectQuota(orgId);
+
     const slug =
       name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() +
       '-' +

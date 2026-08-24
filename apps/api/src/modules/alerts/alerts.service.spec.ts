@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AlertsService } from './alerts.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanQuotaService } from '../../plans/plan-quota.service';
 import {
   mockPrismaService,
   MockPrismaServiceType,
@@ -15,6 +16,10 @@ import {
 describe('AlertsService', () => {
   let service: AlertsService;
   let prisma: MockPrismaServiceType;
+
+  const mockPlanQuotaService = {
+    validateAlertQuota: jest.fn().mockResolvedValue(undefined),
+  };
 
   const mockRule = {
     id: 'rule-1',
@@ -33,6 +38,7 @@ describe('AlertsService', () => {
       providers: [
         AlertsService,
         { provide: PrismaService, useFactory: mockPrismaService },
+        { provide: PlanQuotaService, useValue: mockPlanQuotaService },
       ],
     }).compile();
 

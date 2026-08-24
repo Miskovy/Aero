@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -11,6 +12,8 @@ import {
   Prisma,
   OrgRole,
   TeamRole,
+  SubscriptionStatus,
+  BillingCycle,
 } from '../../generated/prisma/client';
 import { PlansService } from '../plans/plans.service';
 import { TeamsService } from '../teams/teams.service';
@@ -94,6 +97,16 @@ export class OrganizationsService {
         },
       });
 
+      await tx.organizationSubscription.create({
+        data: {
+          organization_id: organization.id,
+          plan_id: plan.id,
+          status: SubscriptionStatus.active,
+          billing_cycle: BillingCycle.monthly,
+          current_period_start: new Date(),
+        },
+      });
+
       const team = await this.teamsService.createTeam(
         {
           name: `${name} Team`,
@@ -113,5 +126,26 @@ export class OrganizationsService {
 
       return organization;
     });
+  }
+
+  async getOrganizationSubscription(organizationId: string) {
+    const subscription = await this.prisma.organizationSubscription.findUnique({
+      where: { organization_id: organizationId },
+      include: {
+        plan: true,
+        payments: {
+          orderBy: { created_at: 'desc' },
+          take: 10,
+        },
+      },
+    });
+
+    if (!subscription) {
+      throw new NotFoundException(
+        'Subscription not found for this organization',
+      );
+    }
+
+    return subscription;
   }
 }

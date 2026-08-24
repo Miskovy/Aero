@@ -1,14 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanQuotaService } from '../../plans/plan-quota.service';
 import { CreateAlertRuleDto } from './dto/create-alert-rule.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { Prisma } from '../../../generated/prisma/client';
 
 @Injectable()
 export class AlertsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly planQuotaService: PlanQuotaService,
+  ) {}
 
   async createRule(orgId: string, dto: CreateAlertRuleDto) {
+    await this.planQuotaService.validateAlertQuota(orgId);
+
     return this.prisma.alertRule.create({
       data: {
         organization_id: orgId,

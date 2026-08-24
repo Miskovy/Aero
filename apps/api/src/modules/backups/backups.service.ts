@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanQuotaService } from '../../plans/plan-quota.service';
 import { DockerService } from '../docker/docker.service';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { Prisma } from '../../../generated/prisma/client';
@@ -10,6 +11,7 @@ export class BackupsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly planQuotaService: PlanQuotaService,
     private readonly dockerService: DockerService,
   ) {}
 
@@ -20,6 +22,8 @@ export class BackupsService {
     if (!service) {
       throw new NotFoundException('Service not found');
     }
+
+    await this.planQuotaService.validateBackupQuota(serviceId);
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const sType = String(service.type);

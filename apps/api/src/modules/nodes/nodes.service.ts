@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanQuotaService } from '../../plans/plan-quota.service';
 import * as crypto from 'crypto';
 import { UpdateNodeDto } from './dto/updateNode.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -17,7 +18,10 @@ import { Prisma } from '../../../generated/prisma/client';
 export class NodesService {
   private readonly logger = new Logger(NodesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly planQuotaService: PlanQuotaService,
+  ) {}
 
   /**
    * Background health checker loop running every 30 seconds.
@@ -194,6 +198,8 @@ export class NodesService {
       const isMember = org.members.some((m) => m.user_id === userId);
       if (!isMember) throw new ForbiddenException('Access denied');
     }
+
+    await this.planQuotaService.validateNodeQuota(orgId);
 
     // Generate secure token (64 character hex string)
     const token = crypto.randomBytes(32).toString('hex');

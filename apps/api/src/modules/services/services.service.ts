@@ -6,6 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanQuotaService } from '../../plans/plan-quota.service';
 import { VaultService } from '../vault/vault.service';
 import { CloudflareService } from '../cloudflare/cloudflare.service';
 import { DockerService } from '../docker/docker.service';
@@ -23,6 +24,7 @@ export class ServicesService implements OnApplicationBootstrap {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly planQuotaService: PlanQuotaService,
     private readonly vaultService: VaultService,
     private readonly cloudflareService: CloudflareService,
     private readonly dockerService: DockerService,
@@ -349,6 +351,8 @@ export class ServicesService implements OnApplicationBootstrap {
       );
       if (!isMember) throw new ForbiddenException('Access denied');
     }
+
+    await this.planQuotaService.validateServiceQuota(projectId);
 
     if (sourceType === 'git' && (!repo || !branch)) {
       throw new BadRequestException(

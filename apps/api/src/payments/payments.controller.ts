@@ -77,6 +77,24 @@ export class PaymentsController {
     return this.paymentsService.handleWebhook(rawBody, sig, body);
   }
 
+  @Get('subscription/:organizationId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get subscription details for an organization',
+  })
+  getSubscription(@Param('organizationId') organizationId: string) {
+    return this.paymentsService.getSubscription(organizationId);
+  }
+
+  @Post('subscription/:organizationId/cancel')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cancel organization subscription at period end' })
+  cancelSubscription(@Param('organizationId') organizationId: string) {
+    return this.paymentsService.cancelSubscription(organizationId);
+  }
+
   @Post(':transactionId/refund')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

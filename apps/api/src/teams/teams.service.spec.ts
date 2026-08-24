@@ -2,9 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { TeamsService } from './teams.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PlanQuotaService } from '../plans/plan-quota.service';
 
 describe('TeamsService', () => {
   let service: TeamsService;
+
+  const mockPlanQuotaService = {
+    validateTeamQuota: jest.fn().mockResolvedValue(undefined),
+  };
 
   const mockTeam = {
     id: 'team-1',
@@ -29,6 +34,7 @@ describe('TeamsService', () => {
       providers: [
         TeamsService,
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: PlanQuotaService, useValue: mockPlanQuotaService },
       ],
     }).compile();
 

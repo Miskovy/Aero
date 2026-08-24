@@ -6,6 +6,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanQuotaService } from '../../plans/plan-quota.service';
 import * as dns from 'dns/promises';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { PaginatedResponse } from '../../common/interfaces/paginated-response';
@@ -19,8 +20,9 @@ export class DomainsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly planQuotaService: PlanQuotaService,
     private readonly acmeCertificateService: AcmeCertificateService,
-  ) {}
+  ) { }
 
   async getPrimaryDomain(serviceId: string): Promise<string> {
     const service = await this.prisma.serviceDomain.findFirst({
@@ -71,14 +73,10 @@ export class DomainsService {
 
     if (!service) throw new NotFoundException('Service not found');
 
-    // 1. Verify Pro Subscription via License Key
-    // Instead of trusting the local database, we check the environment for a valid cryptographic license key
+    // 1. Verify Pro/Max Subscription
     const licenseKey = process.env.AERO_LICENSE_KEY;
     if (!licenseKey || licenseKey.length < 10) {
-      // In a real scenario, you'd cryptographically verify the signature of `licenseKey` here.
-      throw new ForbiddenException(
-        'Custom domains are an Aero Pro feature. Please provide a valid AERO_LICENSE_KEY in your environment to continue.',
-      );
+      await this.planQuotaService.validateCustomDomainAllowed(serviceId);
     }
 
     const existing = await this.prisma.serviceDomain.findUnique({

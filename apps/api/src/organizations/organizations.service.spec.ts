@@ -48,11 +48,17 @@ describe('OrganizationsService', () => {
       .fn()
       .mockImplementation(
         async (
-          cb: (tx: { organization: { create: jest.Mock } }) => Promise<unknown>,
+          cb: (tx: {
+            organization: { create: jest.Mock };
+            organizationSubscription: { create: jest.Mock };
+          }) => Promise<unknown>,
         ) => {
           const txMock = {
             organization: {
               create: jest.fn().mockResolvedValue(mockOrg),
+            },
+            organizationSubscription: {
+              create: jest.fn().mockResolvedValue({ id: 'sub-1' }),
             },
           };
           return (await cb(txMock)) as typeof mockOrg;

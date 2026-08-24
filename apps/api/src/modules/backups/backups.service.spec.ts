@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BackupsService } from './backups.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanQuotaService } from '../../plans/plan-quota.service';
 import {
   mockPrismaService,
   MockPrismaServiceType,
@@ -12,6 +13,10 @@ import { DockerService } from '../docker/docker.service';
 describe('BackupsService', () => {
   let service: BackupsService;
   let prisma: MockPrismaServiceType;
+
+  const mockPlanQuotaService = {
+    validateBackupQuota: jest.fn().mockResolvedValue(undefined),
+  };
 
   const mockDockerService = {
     createVolumeBackup: jest
@@ -43,6 +48,7 @@ describe('BackupsService', () => {
       providers: [
         BackupsService,
         { provide: PrismaService, useFactory: mockPrismaService },
+        { provide: PlanQuotaService, useValue: mockPlanQuotaService },
         { provide: DockerService, useValue: mockDockerService },
       ],
     }).compile();

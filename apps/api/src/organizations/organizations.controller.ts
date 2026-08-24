@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Body,
+  Param,
   UseGuards,
   Req,
   Query,
@@ -33,5 +34,12 @@ export class OrganizationsController {
   ) {
     const userId = req.user?.id;
     return this.organizationsService.createOrganization(data.name, userId);
+  }
+
+  @Get(':id/subscription')
+  async getSubscription(@Param('id') organizationId: string) {
+    return this.organizationsService.getOrganizationSubscription(
+      organizationId,
+    );
   }
 }
