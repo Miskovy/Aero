@@ -5,10 +5,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Plan } from '../../generated/prisma/client';
+import {
+  QuotaItem,
+  OrganizationQuotaSummary,
+} from './interfaces/plan-quota.interface';
 
 @Injectable()
 export class PlanQuotaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Helper to retrieve the active plan for an organization via its subscription or fallback plan_rel.
@@ -330,5 +334,142 @@ export class PlanQuotaService {
         'Custom domains are not supported on your current plan. Upgrade to Pro or Max to attach custom domains.',
       );
     }
+  }
+
+  /**
+   * Get complete usage and quota status for all resources of an organization.
+   */
+  async getOrganizationQuotaSummary(
+    organizationId: string,
+  ): Promise<OrganizationQuotaSummary> {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      include: {
+        subscription: {
+          include: { plan: true },
+        },
+        plan_rel: true,
+      },
+    });
+
+    if (!org) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    const plan = org.subscription?.plan || org.plan_rel || (await this.getOrganizationPlan(organizationId));
+    const currentPeriodStart =
+      org.subscription?.current_period_start ||
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [
+      projectCount,
+      serviceCount,
+      nodeCount,
+      deploymentCount,
+      backupCount,
+      webhookCount,
+      apiKeyCount,
+      alertCount,
+      teamCount,
+      memberCount,
+    ] = await Promise.all([
+      this.prisma.project.count({ where: { organization_id: organizationId } }),
+      this.prisma.service.count({
+        where: { project: { organization_id: organizationId } },
+      }),
+      this.prisma.node.count({ where: { organization_id: organizationId } }),
+      this.prisma.deployment.count({
+        where: {
+          service: { project: { organization_id: organizationId } },
+          created_at: { gte: currentPeriodStart },
+        },
+      }),
+      this.prisma.backup.count({
+        where: { service: { project: { organization_id: organizationId } } },
+      }),
+      this.prisma.webhook.count({
+        where: { service: { project: { organization_id: organizationId } } },
+      }),
+      this.prisma.apiKey.count({ where: { organization_id: organizationId } }),
+      this.prisma.alertRule.count({ where: { organization_id: organizationId } }),
+      this.prisma.team.count({ where: { organization_id: organizationId } }),
+      this.prisma.organizationMember.count({
+        where: { organization_id: organizationId },
+      }),
+    ]);
+
+    const buildItem = (
+      resource: string,
+      used: number,
+      max: number | null,
+      isInfinite: boolean,
+    ): QuotaItem => {
+      const limitReached = isInfinite ? false : max !== null ? used >= max : false;
+      const percentage =
+        isInfinite || max === null || max === 0
+          ? null
+          : Math.min(Math.round((used / max) * 100), 100);
+      return {
+        resource,
+        used,
+        max: isInfinite ? null : max,
+        isInfinite,
+        percentage,
+        limitReached,
+      };
+    };
+
+    const quotas = {
+      projects: buildItem('projects', projectCount, plan.max_projects, plan.is_inf_proj),
+      services: buildItem('services', serviceCount, plan.max_services, plan.is_inf_services),
+      nodes: buildItem('nodes', nodeCount, plan.max_nodes, plan.is_inf_nodes),
+      deployments: buildItem(
+        'deployments',
+        deploymentCount,
+        plan.max_deployments,
+        plan.is_inf_deployments,
+      ),
+      backups: buildItem('backups', backupCount, plan.max_backups, plan.is_inf_backups),
+      webhooks: buildItem('webhooks', webhookCount, plan.max_webhooks, plan.is_inf_webhooks),
+      apiKeys: buildItem('apiKeys', apiKeyCount, plan.max_apikeys, plan.is_inf_apikeys),
+      alerts: buildItem('alerts', alertCount, plan.max_alerts, plan.is_inf_alerts),
+      teams: buildItem('teams', teamCount, plan.max_teams, plan.is_inf_teams),
+      members: buildItem('members', memberCount, plan.max_members, plan.is_inf_members),
+    };
+
+    const hasReachedAnyQuota = Object.values(quotas).some((q) => q.limitReached);
+
+    return {
+      organizationId,
+      plan: {
+        id: plan.id,
+        name: plan.name,
+        price: plan.price,
+        customDomains: plan.custom_domains,
+      },
+      subscription: org.subscription
+        ? {
+          id: org.subscription.id,
+          status: org.subscription.status,
+          billingCycle: org.subscription.billing_cycle,
+          currentPeriodStart: org.subscription.current_period_start,
+          currentPeriodEnd: org.subscription.current_period_end,
+          cancelAtPeriodEnd: org.subscription.cancel_at_period_end,
+        }
+        : null,
+      hasReachedAnyQuota,
+      quotas,
+      features: {
+        customDomains: plan.custom_domains,
+      },
+    };
+  }
+
+  /**
+   * Return only the quota items that have been reached or exceeded.
+   */
+  async getReachedQuotas(organizationId: string): Promise<QuotaItem[]> {
+    const summary = await this.getOrganizationQuotaSummary(organizationId);
+    return Object.values(summary.quotas).filter((item) => item.limitReached);
   }
 }
