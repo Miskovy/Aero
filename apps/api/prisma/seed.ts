@@ -4,8 +4,18 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 // Setup pg adapter for Prisma since the client requires it
-const connectionString = `${process.env.DATABASE_URL}`;
-const pool = new Pool({ connectionString });
+const rawConnectionString = `${process.env.DATABASE_URL || ''}`;
+const isCloudDb =
+  rawConnectionString.includes('aivencloud.com') ||
+  rawConnectionString.includes('neon.tech') ||
+  rawConnectionString.includes('sslmode=');
+
+const cleanConnectionString = rawConnectionString.split('?')[0];
+
+const pool = new Pool({
+  connectionString: cleanConnectionString,
+  ssl: isCloudDb ? { rejectUnauthorized: false } : undefined,
+});
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 

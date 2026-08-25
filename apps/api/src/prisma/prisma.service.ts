@@ -17,11 +17,38 @@ export class PrismaService
   private readonly pool: Pool;
 
   constructor() {
+    const rawDbUrl = process.env.DATABASE_URL || '';
+    const isCloudDb =
+      rawDbUrl.includes('aivencloud.com') ||
+      rawDbUrl.includes('neon.tech') ||
+      rawDbUrl.includes('sslmode=') ||
+      process.env.NODE_ENV === 'production';
+
+    // Strip sslmode query param so pg-pool does not override rejectUnauthorized: false
+    const cleanDbUrl = rawDbUrl.includes('?')
+      ? rawDbUrl.split('?')[0] +
+        '?' +
+        rawDbUrl
+          .split('?')[1]
+          .split('&')
+          .filter((p) => !p.startsWith('sslmode='))
+          .join('&')
+      : rawDbUrl;
+
+    const sanitizedUrl = cleanDbUrl.endsWith('?')
+      ? cleanDbUrl.slice(0, -1)
+      : cleanDbUrl;
+
     const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: sanitizedUrl,
+      ssl: rawDbUrl.includes('sslmode=disable')
+        ? false
+        : isCloudDb
+          ? { rejectUnauthorized: false }
+          : false,
       max: 20,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
+      connectionTimeoutMillis: 5000,
     });
 
     const adapter = new PrismaPg(pool);
