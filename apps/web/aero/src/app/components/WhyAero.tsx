@@ -44,13 +44,13 @@ export default function WhyAero() {
 
         <div className="why-grid reveal" ref={gridRef}>
           {COMPARISONS.map((c) => (
-            <div key={c.id} className="why-card">
+            <article key={c.id} className="why-card">
               <WhyIcon name={c.icon} />
-              <span className="why-versus">{c.versus}</span>
-              <span className="why-examples">{c.examples}</span>
+              <small className="why-versus">{c.versus}</small>
+              {c.examples && <small className="why-examples">{c.examples}</small>}
               <h3 className="why-headline">{c.headline}</h3>
               <p className="why-desc">{c.desc}</p>
-            </div>
+            </article>
           ))}
         </div>
     </section>

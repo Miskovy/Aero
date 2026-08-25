@@ -21,22 +21,10 @@ export default function CustomDomainShowcase() {
               and DNS verification.
             </p>
             <ul className="domain-features">
-              <li>
-                <span className="domain-check">✓</span>
-                Automatic Let&apos;s Encrypt SSL
-              </li>
-              <li>
-                <span className="domain-check">✓</span>
-                One-click DNS verification
-              </li>
-              <li>
-                <span className="domain-check">✓</span>
-                Wildcard certificates (Team+)
-              </li>
-              <li>
-                <span className="domain-check">✓</span>
-                Zero-downtime domain switching
-              </li>
+              <li>Automatic Let&apos;s Encrypt SSL</li>
+              <li>One-click DNS verification</li>
+              <li>Wildcard certificates (Team+)</li>
+              <li>Zero-downtime domain switching</li>
             </ul>
           </div>
 
@@ -45,36 +33,32 @@ export default function CustomDomainShowcase() {
             <div className="domain-card-stack">
               {/* Free tier */}
               <div className="domain-example domain-example-free">
-                <div className="domain-example-label">
-                  <span className="domain-tier-badge domain-tier-free">Free</span>
-                  <span className="domain-tier-text">Instant subdomain</span>
-                </div>
-                <div className="domain-url">
-                  <span className="domain-protocol">https://</span>
-                  <span className="domain-name-user">myproject</span>
-                  <span className="domain-name-base">.aerodeploy.app</span>
-                </div>
-                <div className="domain-status">
-                  <span className="domain-status-dot domain-status-active" />
-                  <span>SSL Active · Auto-configured</span>
-                </div>
+                <header className="domain-example-label">
+                  <h4 className="domain-tier-heading">Free Tier · Instant Subdomain</h4>
+                </header>
+                <code className="domain-url">
+                  <dfn className="domain-protocol">https://</dfn>
+                  <b className="domain-name-user">myproject</b>
+                  <em className="domain-name-base">.aerodeploy.app</em>
+                </code>
+                <footer className="domain-status">
+                  <small>SSL Active · Auto-configured</small>
+                </footer>
               </div>
 
               {/* Pro tier */}
               <div className="domain-example domain-example-pro">
-                <div className="domain-example-label">
-                  <span className="domain-tier-badge domain-tier-pro">Pro</span>
-                  <span className="domain-tier-text">Custom domain</span>
-                </div>
-                <div className="domain-url">
-                  <span className="domain-protocol">https://</span>
-                  <span className="domain-name-user">api</span>
-                  <span className="domain-name-base">.yourcompany.com</span>
-                </div>
-                <div className="domain-status">
-                  <span className="domain-status-dot domain-status-active" />
-                  <span>SSL Active · DNS Verified</span>
-                </div>
+                <header className="domain-example-label">
+                  <h4 className="domain-tier-heading">Pro Tier · Custom Domain</h4>
+                </header>
+                <code className="domain-url">
+                  <dfn className="domain-protocol">https://</dfn>
+                  <b className="domain-name-user">api</b>
+                  <em className="domain-name-base">.yourcompany.com</em>
+                </code>
+                <footer className="domain-status">
+                  <small>SSL Active · DNS Verified</small>
+                </footer>
               </div>
             </div>
           </div>

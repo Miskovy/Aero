@@ -1,17 +1,25 @@
 export default function BackgroundArt() {
   return (
     <>
-      {/* Base: Pure Black for ultimate contrast and boldness */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: -3, backgroundColor: '#000000', pointerEvents: 'none' }} />
-      
-      {/* Layer 1: Deep Aurora (Slow moving cyan/violet gradients) */}
-      <div className="bg-aurora" />
-      
-      {/* Layer 2: Fading Dot Matrix */}
-      <div className="bg-matrix" />
+      {/* Base: Van Gogh Midnight Obsidian */}
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: -10,
+          backgroundColor: '#080b12',
+          pointerEvents: 'none',
+        }}
+      />
 
-      {/* Layer 3: Cinematic Film Grain Overlay */}
-      <div className="bg-noise" />
+      {/* Layer 1: Ambient Van Gogh Celestial Indigo/Cyan Glow */}
+      <div className="vg-ambient-glow" />
+
+      {/* Layer 2: Subtle Classical Canvas Weave Dot Matrix */}
+      <div className="vg-weave" />
+
+      {/* Layer 3: Painterly Impasto Noise Texture Overlay */}
+      <div className="vg-grain" />
     </>
-  )
+  );
 }

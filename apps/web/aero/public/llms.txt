@@ -1,0 +1,43 @@
+# Aero — Self-Hosted PaaS
+
+> Aero transforms any physical PC, server, or cloud VM into a high-performance, private, self-hosted Platform-as-a-Service (PaaS) with zero vendor lock-in and zero recurring cloud bills.
+
+## Core Capabilities
+
+- **One-Click Deployments**: Deploy Git repositories, Docker images, and Docker Compose files directly to your machines.
+- **Docker-Native Mesh**: Built on Docker Engine with Traefik ingress proxy and Let's Encrypt automated SSL certificate provisioning.
+- **Real-Time Observability**: Live stdout/stderr log streaming over WebSockets, CPU/RAM/Disk metrics, and health check monitoring.
+- **Zero-Cloud-Bills**: Runs entirely on hardware you already own (bare metal, old PCs, homelab servers, or VPS nodes).
+- **Encrypted Secrets Vault**: AES-256-GCM runtime environment variable injection with zero data leakage.
+- **Public URL Tunnels**: Instant subdomains (`*.aerodeploy.app`) or custom domain mapping with automatic DNS verification.
+- **Desktop & CLI Interfaces**: Native cross-platform desktop shell (Windows, macOS, Linux via Tauri) and terminal CLI (`aero`).
+
+## Installation & Quickstart
+
+```bash
+# Install the Aero CLI globally
+npm install -g aerodeploy
+
+# Authenticate with your cluster
+aero login
+
+# Deploy any project or container
+aero deploy
+
+# Stream real-time logs
+aero logs --follow
+
+# Check node health & services
+aero status
+```
+
+## Key Documentation & Links
+
+- [Official Website](https://aerodeploy.app): Main landing page and platform overview.
+- [Web Dashboard](https://dashboard.aerodeploy.app): Control plane for multi-node clusters, services, and databases.
+- [Documentation](https://docs.aerodeploy.app): Complete guides for deployment, Traefik configuration, and multi-node mesh setup.
+- [Full LLM Context](https://aerodeploy.app/llms-full.txt): Comprehensive platform architecture, SRS requirements, and API references for AI assistants.
+- [Pricing Tiers](https://aerodeploy.app/pricing): Free forever tier ($0), Pro tier ($29/mo), and Enterprise Max tier ($99/mo).
+- [System Status](https://aerodeploy.app/status): Live uptime and component latency metrics.
+- [GitHub Repository](https://github.com/Miskovy): Source code, issues, and release roadmap.
+- [Discord Community](https://discord.gg/g89G9ENMrR): Community support, troubleshooting, and feature requests.

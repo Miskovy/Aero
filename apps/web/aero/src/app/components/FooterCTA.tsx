@@ -1,21 +1,35 @@
 import Link from 'next/link'
 import AeroLogo from './AeroLogo'
+import VanGoghCanvas from './VanGoghCanvas'
 
 export default function FooterCTA() {
   return (
     <footer>
-      {/* Footer Call-to-Action */}
+      {/* Footer Call-to-Action with Van Gogh Celestial Horizon */}
       <section className="footer-cta" id="footer-cta">
-        <h2 className="footer-cta-title">
-          Ready to own<br />
-          <em>your cloud?</em>
-        </h2>
-        <p className="footer-cta-sub">
-          Deploy on your hardware in minutes. No credit card required, no vendor lock-in, no cloud bills.
-        </p>
-        <a href="https://dashboard.aerodeploy.app" className="btn-primary" id="footer-get-started">
-          Get Started
-        </a>
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-40">
+          <VanGoghCanvas
+            showSwirls={true}
+            showConstellations={true}
+            showMountains={false}
+            showContours={true}
+            intensity={0.5}
+            starCount={24}
+          />
+        </div>
+
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <h2 className="footer-cta-title">
+            Ready to own<br />
+            <em>your cloud?</em>
+          </h2>
+          <p className="footer-cta-sub">
+            Deploy on your hardware in minutes. No credit card required, no vendor lock-in, zero cloud bills.
+          </p>
+          <a href="https://dashboard.aerodeploy.app" className="btn-primary" id="footer-get-started">
+            Get Started Free
+          </a>
+        </div>
       </section>
 
       {/* Premium Multi-Column Links Section */}
@@ -26,7 +40,7 @@ export default function FooterCTA() {
             <div className="footer-brand-col">
               <Link href="/" className="footer-logo">
                 <AeroLogo className="footer-logo-icon" size={20} monochrome />
-                <span>AERO</span>
+                <strong className="footer-logo-text">AERO</strong>
               </Link>
               <p className="footer-desc">
                 High-performance self-hosted PaaS. Turn any machine into your private, secure cloud.
@@ -76,7 +90,6 @@ export default function FooterCTA() {
                 <li><a href="https://docs.aerodeploy.app">Documentation</a></li>
                 <li><a href="https://discord.gg/g89G9ENMrR" target="_blank" rel="noopener noreferrer">Community</a></li>
                 <li><a href="https://github.com/Miskovy" target="_blank" rel="noopener noreferrer">GitHub Profile</a></li>
-                {/* <li><a href="/status">System Status</a></li> */}
               </ul>
             </div>
 
@@ -92,17 +105,12 @@ export default function FooterCTA() {
 
           {/* Footer Bottom Bar */}
           <div className="footer-bottom">
-            <span className="footer-copyright">
+            <small className="footer-copyright">
               &copy; {new Date().getFullYear()} Aero PaaS. All rights reserved. Proprietary Freemium License.
-            </span>
-            {/* <div className="footer-status-indicator">
-              <span className="status-dot green-glow"></span>
-              <a href="/status">All systems operational</a>
-            </div> */}
+            </small>
           </div>
         </div>
       </div>
     </footer>
   )
 }
-

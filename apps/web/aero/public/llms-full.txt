@@ -1,0 +1,78 @@
+# Aero — Full Technical Documentation & LLM Specification
+
+> Comprehensive system architecture, command references, and feature specifications for Aero Self-Hosted PaaS.
+
+---
+
+## 1. Product Overview & Architectural Philosophy
+
+Aero is a self-hosted Platform-as-a-Service (PaaS) that transforms local developer workstations, on-premise servers, homelab hardware, and cloud instances into private cloud infrastructure.
+
+### Architectural Stack
+- **Desktop Shell**: Tauri v2 with Rust backend and React frontend.
+- **Control Plane API**: NestJS, PostgreSQL, Prisma ORM, WebSockets for log streaming.
+- **Ingress & Reverse Proxy**: Traefik with automated ACME Let's Encrypt SSL.
+- **Container Runtime**: Docker Engine with Docker Compose v2.
+- **Network Ingress & Tunnels**: Cloudflare Tunnel integration for zero-port-forwarding public endpoints.
+
+---
+
+## 2. CLI Command Reference
+
+The Aero CLI (`aerodeploy` / `aero`) provides complete terminal control:
+
+| Command | Usage | Description |
+|:---|:---|:---|
+| `aero login` | `aero login [--token <jwt>]` | Authenticate CLI with control plane |
+| `aero deploy` | `aero deploy [path] [--image <tag>]` | Interactive or automated container deployment |
+| `aero services` | `aero services list` | List all running and stopped services |
+| `aero logs` | `aero logs <service-id> [-f]` | Stream live stdout/stderr logs via WebSocket |
+| `aero env` | `aero env set <KEY>=<VALUE>` | Inject encrypted runtime secrets |
+| `aero status` | `aero status` | Inspect cluster host metrics (CPU, RAM, Disk) |
+| `aero rollback` | `aero rollback <service-id>` | Revert to previous container deployment |
+
+---
+
+## 3. Feature Matrix
+
+### MVP (v1.0)
+- Git repository continuous deployment.
+- Docker Hub / GHCR image pulling.
+- Docker Compose stack uploading.
+- Real-time live log streaming.
+- Auto-provisioned SSL certificates via Traefik.
+- Encrypted secrets vault (AES-256-GCM).
+- One-click app marketplace (PostgreSQL, Redis, WordPress, MongoDB, Nginx).
+- Cross-platform desktop client (Windows, macOS, Linux).
+
+### Growth (v1.5)
+- Role-Based Access Control (RBAC) and team workspaces.
+- Automated webhooks for `git push` deployments.
+- Point-in-time database backups & restores.
+- Threshold-based metrics alerting (Slack, Discord, Email).
+- Horizontal container replica scaling.
+
+### Enterprise (v2.0)
+- Multi-node cluster orchestration & load balancing.
+- Single Sign-On (SSO) via SAML 2.0 / OIDC (Keycloak / Okta).
+- Immutable SOC2 audit logging.
+- HashiCorp Vault secrets integration.
+- Container vulnerability scanning (Trivy).
+
+---
+
+## 4. Pricing Structure
+
+- **Free Tier ($0/forever)**: 1 active project, 3 services, 1 node connection, 50 deployments/mo, 2 backups.
+- **Pro Tier ($29/mo)**: 10 active projects, 25 services, 5 node machines, 500 deployments/mo, custom domains with auto-SSL, 5 team workspaces.
+- **Max Tier ($99/mo)**: Unlimited projects, unlimited services, unlimited nodes, unlimited team members, priority SLA support.
+
+---
+
+## 5. Contact & Links
+
+- **Documentation**: https://docs.aerodeploy.app
+- **Web App**: https://dashboard.aerodeploy.app
+- **Status Page**: https://aerodeploy.app/status
+- **GitHub**: https://github.com/Miskovy
+- **Discord**: https://discord.gg/g89G9ENMrR

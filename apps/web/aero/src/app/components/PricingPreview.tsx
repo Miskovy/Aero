@@ -30,7 +30,6 @@ const TIERS = [
     period: '/month',
     desc: 'For enterprise clusters and unlimited workloads.',
     highlight: true,
-    badge: 'Unlimited',
   },
 ] as const
 
@@ -57,20 +56,17 @@ export default function PricingPreview() {
 
       <div className="pricing-grid reveal" ref={sectionRef} style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
         {TIERS.map((tier) => (
-          <div
+          <article
             key={tier.name}
             className={`pricing-card ${tier.highlight ? 'pricing-card-highlight' : ''}`}
           >
-            {tier.highlight && tier.badge && (
-              <span className="pricing-badge">{tier.badge}</span>
-            )}
             <h3 className="pricing-name">{tier.name}</h3>
             <div className="pricing-price">
-              <span className="pricing-amount">{tier.price}</span>
-              <span className="pricing-period">{tier.period}</span>
+              <strong className="pricing-amount">{tier.price}</strong>
+              <small className="pricing-period">{tier.period}</small>
             </div>
             <p className="pricing-desc" style={{ fontWeight: 150 }}>{tier.desc}</p>
-          </div>
+          </article>
         ))}
       </div>
     </section>
