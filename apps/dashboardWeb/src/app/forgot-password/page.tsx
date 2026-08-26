@@ -2,8 +2,10 @@
 
 import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import AeroLogo from '@/components/AeroLogo';
 import { authService } from '@/services/api/auth.service';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 
 const Hero3DBackground = dynamic(
   () => import('@/components/Hero3DBackground'),
@@ -89,6 +91,10 @@ export default function ForgotPasswordPage() {
       setError('Please fill in all fields.');
       return;
     }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
       return;
@@ -139,6 +145,7 @@ export default function ForgotPasswordPage() {
                 placeholder="developer@domain"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
+                autoComplete="email"
                 required
               />
             </div>
@@ -213,31 +220,23 @@ export default function ForgotPasswordPage() {
               Please configure your refreshed credentials.
             </p>
 
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block' }}>
-                New Password
-              </label>
-              <input
-                type="password"
-                placeholder="New Password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-              />
-            </div>
+            <PasswordInput
+              label="New Password"
+              placeholder="Min. 6 characters"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              autoComplete="new-password"
+              required
+            />
 
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block' }}>
-                Confirm New Password
-              </label>
-              <input
-                type="password"
-                placeholder="Confirm New Password"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                required
-              />
-            </div>
+            <PasswordInput
+              label="Confirm New Password"
+              placeholder="Confirm new password"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+              required
+            />
 
             <button
               type="submit"
@@ -278,20 +277,21 @@ export default function ForgotPasswordPage() {
           )}
 
           {step === 1 && (
-            <button
-              type="button"
-              onClick={() => window.location.href = '/login'}
+            <Link
+              href="/login"
               style={{
                 background: 'transparent',
                 border: 'none',
                 color: 'var(--text-dim)',
                 fontSize: '13px',
                 cursor: 'pointer',
-                textAlign: 'center'
+                textAlign: 'center',
+                textDecoration: 'none',
+                display: 'block'
               }}
             >
               ← Back to Sign In
-            </button>
+            </Link>
           )}
         </div>
       </div>
@@ -300,10 +300,10 @@ export default function ForgotPasswordPage() {
         <Hero3DBackground />
         <div style={{ textAlign: 'center', zIndex: 10, padding: '0 40px', width: '100%', maxWidth: '540px' }}>
           <h1 style={{ fontSize: '42px', fontWeight: 700, letterSpacing: '-0.025em', marginBottom: '14px', color: '#f3f0ea', fontFamily: 'var(--font-title)', lineHeight: '1.15' }}>
-            Forgot Your <em style={{ color: 'var(--accent-cyan)' }}>Password </em>?
+            Credential <em style={{ fontStyle: 'italic', color: '#38bdf8' }}>Recovery</em>
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '14.5px', lineHeight: '1.65', margin: '0 auto', maxWidth: '420px' }}>
-
+            Ephemeral zero-knowledge recovery handshakes to safeguard your node orchestration and mesh infrastructure.
           </p>
         </div>
       </div>

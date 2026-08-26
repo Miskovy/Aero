@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import GitHubIcon from '@/components/GitHubIcon';
 import AeroLogo from '@/components/AeroLogo';
 import { getApiUrl } from '@/lib/api-config';
+import { setSessionCookie } from '@/lib/auth';
 import { authService } from '@/services/api/auth.service';
+import { PasswordInput } from '@/components/ui/PasswordInput';
+
 const Hero3DBackground = dynamic(
   () => import('@/components/Hero3DBackground'),
   { ssr: false }
@@ -19,7 +21,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -33,17 +34,16 @@ export default function LoginPage() {
       }
 
       if (token) {
-        document.cookie = `aero_session=${token}; path=/; max-age=${86400}; SameSite=Lax`;
+        setSessionCookie(token);
         window.history.replaceState({}, document.title, window.location.pathname);
         router.push('/');
         return;
       }
 
       try {
-
         const response = await authService.refreshToken();
         if (response.access_token) {
-          document.cookie = `aero_session=${response.access_token}; path=/; max-age=${86400}; SameSite=Lax`;
+          setSessionCookie(response.access_token);
           router.push('/');
         }
       } catch {
@@ -61,7 +61,7 @@ export default function LoginPage() {
     try {
       const loginResponse = await authService.login(email, password);
       if (loginResponse.access_token) {
-        document.cookie = `aero_session=${loginResponse.access_token}; path=/; max-age=${86400}; SameSite=Lax`;
+        setSessionCookie(loginResponse.access_token);
       }
       router.push('/');
     } catch (err: unknown) {
@@ -100,61 +100,18 @@ export default function LoginPage() {
               placeholder="developer@domain"
               value={email}
               onChange={e => setEmail(e.target.value)}
+              autoComplete="email"
               required
             />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Password
-              </label>
-              <Link
-                href="/forgot-password"
-                style={{
-                  color: 'var(--accent-cyan)',
-                  fontSize: '12px',
-                  textDecoration: 'none',
-                  transition: 'color 0.2s',
-                  fontWeight: 500,
-                }}
-              >
-                Forgot?
-              </Link>
-            </div>
-            <div style={{ position: 'relative', width: '100%' }}>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••••••"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                style={{ paddingRight: '40px' }}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-dim)',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '12px',
-                  width: 'auto',
-                }}
-              >
-                {showPassword ? 'Hide' : 'Show'}
-              </button>
-            </div>
-          </div>
+          <PasswordInput
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            showForgotPassword={true}
+            autoComplete="current-password"
+            required
+          />
 
           <button type="submit" disabled={isLoading} style={{ marginTop: '4px' }}>
             {isLoading ? 'Connecting...' : 'Sign In'}

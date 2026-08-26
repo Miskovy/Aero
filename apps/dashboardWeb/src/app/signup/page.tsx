@@ -7,7 +7,9 @@ import { useRouter } from 'next/navigation';
 import GitHubIcon from '@/components/GitHubIcon';
 import AeroLogo from '@/components/AeroLogo';
 import { getApiUrl } from '@/lib/api-config';
+import { authService } from '@/services/api/auth.service';
 import { Checkbox } from '@/components/ui/Checkbox';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 
 const Hero3DBackground = dynamic(
   () => import('@/components/Hero3DBackground'),
@@ -19,48 +21,43 @@ export default function SignUpPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [agreedToLegal, setAgreedToLegal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const isFormValid = agreedToLegal;
-
   const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid) {
-      setError("You must accept the Terms of Service and Privacy Policy to continue.");
+    setError(null);
+
+    if (!agreedToLegal) {
+      setError('You must accept the Terms of Service and Privacy Policy to continue.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
       return;
     }
 
     setIsLoading(true);
-    setError(null);
-
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
-      setIsLoading(false);
-      return;
-    }
 
     try {
-      const response = await fetch(getApiUrl('/auth/register'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-          agreed_to_terms: agreedToLegal,
-          agreed_to_privacy: agreedToLegal,
-        })
+      await authService.register({
+        name,
+        email,
+        password,
+        auth_provider: 'web',
+        agreed_to_terms: agreedToLegal,
+        agreed_to_privacy: agreedToLegal,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) throw new Error(data.message || 'Registration failed');
-
-      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+      router.push(`/verify-email?email=${encodeURIComponent(email)}&pending=true`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
@@ -97,6 +94,7 @@ export default function SignUpPage() {
               placeholder="John Doe"
               value={name}
               onChange={e => setName(e.target.value)}
+              autoComplete="name"
               required
             />
           </div>
@@ -110,29 +108,47 @@ export default function SignUpPage() {
               placeholder="developer@domain"
               value={email}
               onChange={e => setEmail(e.target.value)}
+              autoComplete="email"
               required
             />
           </div>
 
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block' }}>
-              Password
-            </label>
-            <input
-              type="password"
-              placeholder="Min. 6 characters"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
-          </div>
+          <PasswordInput
+            label="Password"
+            placeholder="Min. 6 characters"
+            value={password}
+            onChange={e => {
+              setPassword(e.target.value);
+            }}
+            required
+          />
+
+          <PasswordInput
+            label="Confirm Password"
+            placeholder="Confirm your password"
+            value={confirmPassword}
+            onChange={e => {
+              setConfirmPassword(e.target.value);
+              if (password && e.target.value !== password) {
+                setError('Passwords do not match.');
+              } else if (error === 'Passwords do not match.') {
+                setError(null);
+              }
+            }}
+            required
+          />
 
           {/* Terms & Privacy Agreement Checkbox */}
           <div className="my-0.5 py-1">
             <Checkbox
               id="agree-legal"
               checked={agreedToLegal}
-              onChange={(e) => setAgreedToLegal(e.target.checked)}
+              onChange={(e) => {
+                setAgreedToLegal(e.target.checked);
+                if (e.target.checked && error?.includes('Terms of Service')) {
+                  setError(null);
+                }
+              }}
               label={
                 <span className="text-xs text-[#ccc8be]">
                   I agree to the{' '}
@@ -163,10 +179,10 @@ export default function SignUpPage() {
 
           <button
             type="submit"
-            disabled={isLoading || !isFormValid}
+            disabled={isLoading || !agreedToLegal}
             style={{
-              opacity: isLoading || !isFormValid ? 0.5 : 1,
-              cursor: isLoading || !isFormValid ? 'not-allowed' : 'pointer',
+              opacity: isLoading || !agreedToLegal ? 0.5 : 1,
+              cursor: isLoading || !agreedToLegal ? 'not-allowed' : 'pointer',
               marginTop: '4px',
             }}
           >
