@@ -16,7 +16,7 @@ import CustomSelect from '@/components/CustomSelect';
 function SubscriptionsContent() {
   const searchParams = useSearchParams();
   const [orgs, setOrgs] = useState<Organization[]>([]);
-  const [selectedOrgId, setSelectedOrgId] = useState<string>('');
+  const [selectedOrgId, setSelectedOrgId] = useState<string>(() => searchParams.get('orgId') || '');
   const [plans, setPlans] = useState<Plan[]>(DEFAULT_PLANS);
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
   const [, setConfig] = useState<PaymentConfig | null>(null);
@@ -24,33 +24,26 @@ function SubscriptionsContent() {
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [, setRefundLoading] = useState<string | null>(null);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
-
-  // Check URL parameters for payment return status or orgId preselection
-  useEffect(() => {
+  const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(() => {
     const status = searchParams.get('status');
     const sessionId = searchParams.get('session_id');
     const isMock = searchParams.get('mock');
-    const orgIdParam = searchParams.get('orgId');
-
-    if (orgIdParam) {
-      setSelectedOrgId(orgIdParam);
-    }
 
     if (status === 'success') {
-      setNotification({
+      return {
         type: 'success',
         message: isMock
           ? `[XPay Test Mode] Payment checkout complete! Session: ${sessionId}`
           : `Payment successful! Your organization plan has been updated. Session: ${sessionId}`,
-      });
+      };
     } else if (status === 'cancelled') {
-      setNotification({
+      return {
         type: 'info',
         message: 'Checkout session was cancelled.',
-      });
+      };
     }
-  }, [searchParams]);
+    return null;
+  });
 
   // Load organizations, payment config, and available plans from API
   const initBillingData = useCallback(async () => {
@@ -110,10 +103,22 @@ function SubscriptionsContent() {
   }, []);
 
   useEffect(() => {
+    let active = true;
     if (selectedOrgId) {
-      fetchTransactions(selectedOrgId);
+      paymentsService.getHistory(selectedOrgId).then((history) => {
+        if (active) {
+          setTransactions(history || []);
+        }
+      }).catch(() => {
+        if (active) {
+          setTransactions([]);
+        }
+      });
     }
-  }, [selectedOrgId, fetchTransactions]);
+    return () => {
+      active = false;
+    };
+  }, [selectedOrgId]);
 
   // Handle XPay Checkout session trigger for upgrades or changing plans
   const handleUpgrade = async (plan: Plan) => {
@@ -133,7 +138,7 @@ function SubscriptionsContent() {
       );
 
       if (res.checkoutUrl) {
-        window.location.href = res.checkoutUrl;
+        window.location.assign(res.checkoutUrl);
       } else {
         throw new Error('No checkout URL returned from XPay');
       }

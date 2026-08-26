@@ -4,7 +4,6 @@ import { PlanQuotaService } from './plan-quota.service';
 
 describe('PlanQuotaController', () => {
   let controller: PlanQuotaController;
-  let service: PlanQuotaService;
 
   const mockQuotaSummary = {
     organizationId: 'org-1',
@@ -104,9 +103,7 @@ describe('PlanQuotaController', () => {
   };
 
   const mockPlanQuotaService = {
-    getOrganizationQuotaSummary: jest
-      .fn()
-      .mockResolvedValue(mockQuotaSummary),
+    getOrganizationQuotaSummary: jest.fn().mockResolvedValue(mockQuotaSummary),
     getReachedQuotas: jest
       .fn()
       .mockResolvedValue([mockQuotaSummary.quotas.teams]),
@@ -121,7 +118,6 @@ describe('PlanQuotaController', () => {
     }).compile();
 
     controller = module.get<PlanQuotaController>(PlanQuotaController);
-    service = module.get<PlanQuotaService>(PlanQuotaService);
   });
 
   it('should be defined', () => {

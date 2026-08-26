@@ -24,7 +24,9 @@ import { User } from '../../generated/prisma/client';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ForgotPasswordDto } from './dto/forgotpass.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyResetPinDto } from './dto/verify-reset.dto';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { GithubOauthGuard } from './guards/github-oauth.guard';
 import { RefreshTokenRequest } from './interfaces/auth.interface';
@@ -113,21 +115,21 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('forgot-password')
   @ApiOperation({ summary: 'Request a password reset PIN' })
-  async forgotPassword(@Body('email') email: string) {
-    if (!email) {
-      throw new BadRequestException('Email is required');
-    }
-    return this.authService.forgotPassword(email);
+  @ApiResponse({
+    status: 200,
+    description: 'If this email is registered, a reset PIN code has been sent.',
+  })
+  @ApiResponse({ status: 400, description: 'Email is required.' })
+  @ApiResponse({ status: 422, description: 'Email is not valid.' })
+  async forgotPassword(@Body() body: ForgotPasswordDto) {
+    return this.authService.forgotPassword(body.email);
   }
 
   @HttpCode(HttpStatus.OK)
   @Post('verify-reset-pin')
   @ApiOperation({ summary: 'Verify forgot password PIN code' })
-  async verifyResetPin(@Body('email') email: string, @Body('pin') pin: string) {
-    if (!email || !pin) {
-      throw new BadRequestException('Email and PIN are required');
-    }
-    return this.authService.verifyResetPin(email, pin);
+  async verifyResetPin(@Body() body: VerifyResetPinDto) {
+    return this.authService.verifyResetPin(body.email, body.pin);
   }
 
   @HttpCode(HttpStatus.OK)

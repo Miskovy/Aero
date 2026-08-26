@@ -12,7 +12,7 @@ export interface PaymentTransaction {
   status: 'pending' | 'succeeded' | 'failed' | 'refunded' | string;
   payment_method?: string;
   checkout_url?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   plan?: {

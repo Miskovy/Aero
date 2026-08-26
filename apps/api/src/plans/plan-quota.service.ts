@@ -12,7 +12,7 @@ import {
 
 @Injectable()
 export class PlanQuotaService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Helper to retrieve the active plan for an organization via its subscription or fallback plan_rel.
@@ -327,7 +327,9 @@ export class PlanQuotaService {
       throw new NotFoundException('Service not found');
     }
 
-    const plan = await this.getOrganizationPlan(service.project.organization_id);
+    const plan = await this.getOrganizationPlan(
+      service.project.organization_id,
+    );
 
     if (!plan.custom_domains) {
       throw new ForbiddenException(
@@ -356,7 +358,10 @@ export class PlanQuotaService {
       throw new NotFoundException('Organization not found');
     }
 
-    const plan = org.subscription?.plan || org.plan_rel || (await this.getOrganizationPlan(organizationId));
+    const plan =
+      org.subscription?.plan ||
+      org.plan_rel ||
+      (await this.getOrganizationPlan(organizationId));
     const currentPeriodStart =
       org.subscription?.current_period_start ||
       new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -391,7 +396,9 @@ export class PlanQuotaService {
         where: { service: { project: { organization_id: organizationId } } },
       }),
       this.prisma.apiKey.count({ where: { organization_id: organizationId } }),
-      this.prisma.alertRule.count({ where: { organization_id: organizationId } }),
+      this.prisma.alertRule.count({
+        where: { organization_id: organizationId },
+      }),
       this.prisma.team.count({ where: { organization_id: organizationId } }),
       this.prisma.organizationMember.count({
         where: { organization_id: organizationId },
@@ -404,7 +411,11 @@ export class PlanQuotaService {
       max: number | null,
       isInfinite: boolean,
     ): QuotaItem => {
-      const limitReached = isInfinite ? false : max !== null ? used >= max : false;
+      const limitReached = isInfinite
+        ? false
+        : max !== null
+          ? used >= max
+          : false;
       const percentage =
         isInfinite || max === null || max === 0
           ? null
@@ -420,8 +431,18 @@ export class PlanQuotaService {
     };
 
     const quotas = {
-      projects: buildItem('projects', projectCount, plan.max_projects, plan.is_inf_proj),
-      services: buildItem('services', serviceCount, plan.max_services, plan.is_inf_services),
+      projects: buildItem(
+        'projects',
+        projectCount,
+        plan.max_projects,
+        plan.is_inf_proj,
+      ),
+      services: buildItem(
+        'services',
+        serviceCount,
+        plan.max_services,
+        plan.is_inf_services,
+      ),
       nodes: buildItem('nodes', nodeCount, plan.max_nodes, plan.is_inf_nodes),
       deployments: buildItem(
         'deployments',
@@ -429,15 +450,42 @@ export class PlanQuotaService {
         plan.max_deployments,
         plan.is_inf_deployments,
       ),
-      backups: buildItem('backups', backupCount, plan.max_backups, plan.is_inf_backups),
-      webhooks: buildItem('webhooks', webhookCount, plan.max_webhooks, plan.is_inf_webhooks),
-      apiKeys: buildItem('apiKeys', apiKeyCount, plan.max_apikeys, plan.is_inf_apikeys),
-      alerts: buildItem('alerts', alertCount, plan.max_alerts, plan.is_inf_alerts),
+      backups: buildItem(
+        'backups',
+        backupCount,
+        plan.max_backups,
+        plan.is_inf_backups,
+      ),
+      webhooks: buildItem(
+        'webhooks',
+        webhookCount,
+        plan.max_webhooks,
+        plan.is_inf_webhooks,
+      ),
+      apiKeys: buildItem(
+        'apiKeys',
+        apiKeyCount,
+        plan.max_apikeys,
+        plan.is_inf_apikeys,
+      ),
+      alerts: buildItem(
+        'alerts',
+        alertCount,
+        plan.max_alerts,
+        plan.is_inf_alerts,
+      ),
       teams: buildItem('teams', teamCount, plan.max_teams, plan.is_inf_teams),
-      members: buildItem('members', memberCount, plan.max_members, plan.is_inf_members),
+      members: buildItem(
+        'members',
+        memberCount,
+        plan.max_members,
+        plan.is_inf_members,
+      ),
     };
 
-    const hasReachedAnyQuota = Object.values(quotas).some((q) => q.limitReached);
+    const hasReachedAnyQuota = Object.values(quotas).some(
+      (q) => q.limitReached,
+    );
 
     return {
       organizationId,
@@ -449,13 +497,13 @@ export class PlanQuotaService {
       },
       subscription: org.subscription
         ? {
-          id: org.subscription.id,
-          status: org.subscription.status,
-          billingCycle: org.subscription.billing_cycle,
-          currentPeriodStart: org.subscription.current_period_start,
-          currentPeriodEnd: org.subscription.current_period_end,
-          cancelAtPeriodEnd: org.subscription.cancel_at_period_end,
-        }
+            id: org.subscription.id,
+            status: org.subscription.status,
+            billingCycle: org.subscription.billing_cycle,
+            currentPeriodStart: org.subscription.current_period_start,
+            currentPeriodEnd: org.subscription.current_period_end,
+            cancelAtPeriodEnd: org.subscription.cancel_at_period_end,
+          }
         : null,
       hasReachedAnyQuota,
       quotas,

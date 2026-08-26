@@ -53,8 +53,8 @@ export class TeamsService {
   ) {
     const orgId =
       'organization_id' in data
-        ? (data.organization_id as string)
-        : (data as any).organization?.connect?.id;
+        ? data.organization_id
+        : data.organization?.connect?.id;
     if (orgId && !tx) {
       await this.planQuotaService.validateTeamQuota(orgId);
     }

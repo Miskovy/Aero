@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 
 interface ApiKeyItem {

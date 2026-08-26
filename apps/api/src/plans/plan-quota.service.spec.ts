@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PlanQuotaService } from './plan-quota.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 
 describe('PlanQuotaService', () => {
   let service: PlanQuotaService;
@@ -74,7 +74,9 @@ describe('PlanQuotaService', () => {
       });
       mockPrismaService.project.count.mockResolvedValue(2);
 
-      await expect(service.validateProjectQuota('org-1')).resolves.toBeUndefined();
+      await expect(
+        service.validateProjectQuota('org-1'),
+      ).resolves.toBeUndefined();
     });
 
     it('should allow project creation when plan has is_inf_proj = true', async () => {
@@ -85,7 +87,9 @@ describe('PlanQuotaService', () => {
         },
       });
 
-      await expect(service.validateProjectQuota('org-1')).resolves.toBeUndefined();
+      await expect(
+        service.validateProjectQuota('org-1'),
+      ).resolves.toBeUndefined();
     });
 
     it('should throw ForbiddenException when project limit is reached', async () => {
@@ -116,7 +120,9 @@ describe('PlanQuotaService', () => {
         },
       });
 
-      await expect(service.validateCustomDomainAllowed('svc-1')).resolves.toBeUndefined();
+      await expect(
+        service.validateCustomDomainAllowed('svc-1'),
+      ).resolves.toBeUndefined();
     });
 
     it('should throw ForbiddenException if plan has custom_domains = false', async () => {
@@ -131,9 +137,9 @@ describe('PlanQuotaService', () => {
         },
       });
 
-      await expect(service.validateCustomDomainAllowed('svc-1')).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.validateCustomDomainAllowed('svc-1'),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 

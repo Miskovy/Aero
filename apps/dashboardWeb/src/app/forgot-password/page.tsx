@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
 import AeroLogo from '@/components/AeroLogo';
-import { getApiUrl } from '@/lib/api-config';
+import { authService } from '@/services/api/auth.service';
 
 const Hero3DBackground = dynamic(
   () => import('@/components/Hero3DBackground'),
@@ -16,7 +16,7 @@ export default function ForgotPasswordPage() {
   const [pin, setPin] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -44,27 +44,15 @@ export default function ForgotPasswordPage() {
     }
   }, []);
 
-  // STEP 1: Request PIN Code
   const handleRequestPin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
 
     setIsLoading(true);
+    setSuccessMessage(null);
     setError(null);
     try {
-      const response = await fetch(getApiUrl('/auth/forgot-password'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to send reset code.');
-      }
-
+      await authService.forgotPassword(email);
       setSuccessMessage('Security PIN sent! Please check your email inbox.');
       setStep(2);
     } catch (err) {
@@ -74,7 +62,6 @@ export default function ForgotPasswordPage() {
     }
   };
 
-  // STEP 2: Verify PIN Code
   const handleVerifyPin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pin || pin.length !== 6) {
@@ -83,21 +70,10 @@ export default function ForgotPasswordPage() {
     }
 
     setIsLoading(true);
+    setSuccessMessage(null);
     setError(null);
     try {
-      const response = await fetch(getApiUrl('/auth/verify-reset-pin'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, pin }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Invalid or expired security PIN.');
-      }
-
+      await authService.verifyPIN(email, pin);
       setSuccessMessage('PIN validated successfully. Please configure your new password.');
       setStep(3);
     } catch (err) {
@@ -107,7 +83,6 @@ export default function ForgotPasswordPage() {
     }
   };
 
-  // STEP 3: Complete Reset
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!password || !confirmPassword) {
@@ -120,21 +95,10 @@ export default function ForgotPasswordPage() {
     }
 
     setIsLoading(true);
+    setSuccessMessage(null);
     setError(null);
     try {
-      const response = await fetch(getApiUrl('/auth/reset-password'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, pin, password }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to reset password.');
-      }
-
+      await authService.resetPassword(email, pin, password);
       setSuccessMessage('Password reset successfully. Redirecting you to login...');
       setTimeout(() => {
         window.location.href = '/login';
@@ -172,7 +136,7 @@ export default function ForgotPasswordPage() {
               </label>
               <input
                 type="email"
-                placeholder="developer@node.domain"
+                placeholder="developer@domain"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
@@ -184,7 +148,7 @@ export default function ForgotPasswordPage() {
               disabled={isLoading}
               style={{ marginTop: '4px' }}
             >
-              {isLoading ? 'Transmitting PIN...' : 'Send Authentication PIN'}
+              {isLoading ? 'Transmitting PIN...' : 'Send PIN'}
             </button>
           </form>
         )}
@@ -335,14 +299,11 @@ export default function ForgotPasswordPage() {
       <div className="login-banner">
         <Hero3DBackground />
         <div style={{ textAlign: 'center', zIndex: 10, padding: '0 40px', width: '100%', maxWidth: '540px' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '4px 12px', borderRadius: '9999px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.25)', color: '#38bdf8', fontSize: '12px', marginBottom: '20px' }}>
-            <span>Cryptographic Gatekeeper</span>
-          </div>
           <h1 style={{ fontSize: '42px', fontWeight: 700, letterSpacing: '-0.025em', marginBottom: '14px', color: '#f3f0ea', fontFamily: 'var(--font-title)', lineHeight: '1.15' }}>
-            Aero <em style={{ fontStyle: 'italic', color: '#38bdf8' }}>Gatekeeper</em>
+            Forgot Your <em style={{ color: 'var(--accent-cyan)' }}>Password </em>?
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '14.5px', lineHeight: '1.65', margin: '0 auto', maxWidth: '420px' }}>
-            Secure cryptographically validated password recovery pathways utilizing volatile memory storage for zero persistent footprint.
+
           </p>
         </div>
       </div>

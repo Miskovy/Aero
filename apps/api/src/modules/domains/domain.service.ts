@@ -1,7 +1,6 @@
 import {
   Injectable,
   Logger,
-  ForbiddenException,
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
@@ -22,7 +21,7 @@ export class DomainsService {
     private readonly prisma: PrismaService,
     private readonly planQuotaService: PlanQuotaService,
     private readonly acmeCertificateService: AcmeCertificateService,
-  ) { }
+  ) {}
 
   async getPrimaryDomain(serviceId: string): Promise<string> {
     const service = await this.prisma.serviceDomain.findFirst({

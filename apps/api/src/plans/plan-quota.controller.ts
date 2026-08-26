@@ -7,14 +7,17 @@ import {
 } from '@nestjs/swagger';
 import { PlanQuotaService } from './plan-quota.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { OrganizationQuotaSummary, QuotaItem } from './interfaces/plan-quota.interface';
+import {
+  OrganizationQuotaSummary,
+  QuotaItem,
+} from './interfaces/plan-quota.interface';
 
 @ApiTags('plans')
 @Controller('plans/quota')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class PlanQuotaController {
-  constructor(private readonly planQuotaService: PlanQuotaService) { }
+  constructor(private readonly planQuotaService: PlanQuotaService) {}
 
   @Get(':organizationId')
   @ApiOperation({
@@ -32,7 +35,8 @@ export class PlanQuotaController {
 
   @Get(':organizationId/reached')
   @ApiOperation({
-    summary: 'Get all quotas that have been reached or exceeded for an organization',
+    summary:
+      'Get all quotas that have been reached or exceeded for an organization',
   })
   @ApiResponse({
     status: 200,

@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import GitHubIcon from '@/components/GitHubIcon';
 import AeroLogo from '@/components/AeroLogo';
 import { getApiUrl } from '@/lib/api-config';
-
+import { authService } from '@/services/api/auth.service';
 const Hero3DBackground = dynamic(
   () => import('@/components/Hero3DBackground'),
   { ssr: false }
@@ -40,17 +40,11 @@ export default function LoginPage() {
       }
 
       try {
-        const response = await fetch(getApiUrl('/auth/refresh'), {
-          method: 'POST',
-          credentials: 'include',
-        });
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.access_token) {
-            document.cookie = `aero_session=${data.access_token}; path=/; max-age=${86400}; SameSite=Lax`;
-            router.push('/');
-          }
+        const response = await authService.refreshToken();
+        if (response.access_token) {
+          document.cookie = `aero_session=${response.access_token}; path=/; max-age=${86400}; SameSite=Lax`;
+          router.push('/');
         }
       } catch {
         /* Session refresh failed - stay on login page */
@@ -65,25 +59,10 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(getApiUrl('/auth/login'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) throw new Error(data.message || 'Invalid credentials');
-
-      if (data.access_token) {
-        document.cookie = `aero_session=${data.access_token}; path=/; max-age=${86400}; SameSite=Lax`;
+      const loginResponse = await authService.login(email, password);
+      if (loginResponse.access_token) {
+        document.cookie = `aero_session=${loginResponse.access_token}; path=/; max-age=${86400}; SameSite=Lax`;
       }
-
       router.push('/');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed');
@@ -118,7 +97,7 @@ export default function LoginPage() {
             </label>
             <input
               type="email"
-              placeholder="developer@node.domain"
+              placeholder="developer@domain"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
@@ -233,9 +212,6 @@ export default function LoginPage() {
       <div className="login-banner">
         <Hero3DBackground />
         <div style={{ textAlign: 'center', zIndex: 10, padding: '0 40px', width: '100%', maxWidth: '540px' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '4px 12px', borderRadius: '9999px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.25)', color: '#38bdf8', fontSize: '12px', marginBottom: '20px' }}>
-            <span>Arcadian Cloud Architecture</span>
-          </div>
           <h1 style={{ fontSize: '42px', fontWeight: 700, letterSpacing: '-0.025em', marginBottom: '14px', color: '#f3f0ea', fontFamily: 'var(--font-title)', lineHeight: '1.15' }}>
             Self-Hosted <em style={{ fontStyle: 'italic', color: '#38bdf8' }}>Cloud</em>
           </h1>

@@ -80,7 +80,7 @@ export default function SignUpPage() {
 
         <div style={{ marginBottom: '24px' }}>
           <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px', fontFamily: 'var(--font-title)' }}>
-            Create Developer Account
+            Create Account
           </h2>
           <p style={{ fontSize: '13px', color: 'var(--text-dim)', lineHeight: '1.5' }}>
             Initialize your self-hosted cloud mesh and cluster nodes today.
@@ -94,7 +94,7 @@ export default function SignUpPage() {
             </label>
             <input
               type="text"
-              placeholder="Hypatia of Alexandria"
+              placeholder="John Doe"
               value={name}
               onChange={e => setName(e.target.value)}
               required
@@ -107,7 +107,7 @@ export default function SignUpPage() {
             </label>
             <input
               type="email"
-              placeholder="developer@node.domain"
+              placeholder="developer@domain"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
@@ -224,9 +224,6 @@ export default function SignUpPage() {
       <div className="login-banner">
         <Hero3DBackground />
         <div style={{ textAlign: 'center', zIndex: 10, padding: '0 40px', width: '100%', maxWidth: '540px' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '4px 12px', borderRadius: '9999px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.25)', color: '#38bdf8', fontSize: '12px', marginBottom: '20px' }}>
-            <span>Bare-Metal Container Orchestration</span>
-          </div>
           <h1 style={{ fontSize: '42px', fontWeight: 700, letterSpacing: '-0.025em', marginBottom: '14px', color: '#f3f0ea', fontFamily: 'var(--font-title)', lineHeight: '1.15' }}>
             Autonomous <em style={{ fontStyle: 'italic', color: '#38bdf8' }}>Compute</em>
           </h1>
