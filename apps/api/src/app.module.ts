@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -32,15 +32,22 @@ import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { BackupsModule } from './modules/backups/backups.module';
 import { VolumesModule } from './modules/volumes/volumes.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-
 import { RedisModule } from './redis/redis.module';
 import { MailModule } from './mail/mail.module';
 import { PlansModule } from './plans/plans.module';
 import { TeamsModule } from './teams/teams.module';
 import { PaymentsModule } from './payments/payments.module';
+import { LoggerModule } from 'nestjs-pino';
+import { getPinoLoggerConfig } from './common/logger/pino-logger.config';
 
 @Module({
   imports: [
+    LoggerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) =>
+        getPinoLoggerConfig(configService),
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
     }),

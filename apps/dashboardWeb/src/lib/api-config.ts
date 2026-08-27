@@ -7,6 +7,28 @@
  */
 
 export function getApiBaseUrl(): string {
+  // Server-side execution (SSR / Server Components in Node.js)
+  // Node.js fetch requires an absolute URL with scheme and host.
+  if (typeof window === 'undefined') {
+    const serverUrl =
+      process.env.AERO_API_URL ||
+      process.env.API_URL ||
+      (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL !== '/api'
+        ? process.env.NEXT_PUBLIC_API_URL
+        : undefined) ||
+      'http://localhost:3000';
+
+    const cleanUrl = serverUrl.replace(/\/+$/, '');
+    if (cleanUrl.endsWith('/api/v1')) {
+      return cleanUrl;
+    }
+    if (cleanUrl.endsWith('/api')) {
+      return `${cleanUrl}/v1`;
+    }
+    return `${cleanUrl}/api/v1`;
+  }
+
+  // Client-side execution (Browser environment)
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
 
   // Case 1: Relying on relative paths / Next.js proxy rewrites in browser

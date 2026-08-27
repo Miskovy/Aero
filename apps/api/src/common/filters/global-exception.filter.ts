@@ -54,11 +54,29 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       }
     } else if (exception instanceof Error) {
       this.logger.error(
-        `Unhandled Exception: ${exception.message}`,
+        `Unhandled Exception [${request.method} ${request.url}]: ${exception.message}`,
         exception.stack,
       );
       message = 'An unexpected error occurred on the server.';
+    } else {
+      this.logger.error(
+        `Unhandled Non-Error Exception [${request.method} ${request.url}]: ${String(exception)}`,
+      );
+      message = 'An unexpected error occurred on the server.';
     }
+
+    const messageStr =
+      typeof message === 'string'
+        ? message
+        : Array.isArray(message)
+          ? message.join(', ')
+          : typeof message === 'object' && message !== null && 'message' in message
+            ? Array.isArray((message as any).message)
+              ? (message as any).message.join(', ')
+              : String((message as any).message)
+            : JSON.stringify(message);
+
+    (response as any).responseMessage = messageStr;
 
     response.status(status).json({
       statusCode: status,

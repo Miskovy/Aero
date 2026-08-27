@@ -2,8 +2,7 @@ import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import DashboardLayoutWrapper from '@/components/DashboardLayoutWrapper';
-import { getApiUrl } from '@/lib/api-config';
-
+import { authService } from '@/services/api/auth.service';
 export const metadata: Metadata = {
   title: 'Aero Cloud Console',
   description: 'Self-hosted cloud management and deployment console.',
@@ -26,19 +25,17 @@ export default async function RootLayout({
     redirect('/login');
   }
 
+  let isValid = false;
   try {
-    const res = await fetch(getApiUrl('/projects'), {
-      headers: {
-        Authorization: `Bearer ${token}`
-      },
-      next: { revalidate: 0 }
-    });
-
-    if (res.status === 401) {
-      redirect('/login');
-    }
+    const res = await authService.validateToken(token);
+    isValid = Boolean(res?.is_valid);
   } catch (error) {
     console.error('Session verification network error:', error);
+    isValid = false;
+  }
+
+  if (!isValid) {
+    redirect('/login');
   }
 
   return (

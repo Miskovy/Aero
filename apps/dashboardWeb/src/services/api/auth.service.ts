@@ -56,6 +56,14 @@ export const authService = {
     });
   },
 
+  async validateToken(access_token: string){
+    return apiClient<{ is_valid: boolean }>('auth/validate', {
+      method: 'POST',
+      credentials: 'include',
+      body: { access_token }
+    });
+  },
+
   async logout() {
     return apiClient<{ message: string }>('auth/logout', {
       method: 'POST',

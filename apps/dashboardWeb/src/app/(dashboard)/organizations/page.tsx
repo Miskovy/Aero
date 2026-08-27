@@ -133,10 +133,6 @@ export default function OrganizationsPage() {
               Create your first organization to establish teams, provision hypervisor nodes, and deploy cloud services.
             </p>
           </div>
-
-          <Button onClick={openCreateModal} variant="primary" size="md">
-            + Create Organization
-          </Button>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -158,7 +154,7 @@ export default function OrganizationsPage() {
                 <div className="grid grid-cols-2 gap-3 p-3 bg-[#161a22] rounded-lg border border-white/[0.06] text-xs">
                   <div>
                     <span className="text-[#88909c] block">Members</span>
-                    <span className="text-[#f3f0ea] font-semibold">{org.membersCount || 1} Users</span>
+                    <span className="text-[#f3f0ea] font-semibold">{org.membersCount} Users</span>
                   </div>
                   <div>
                     <span className="text-[#88909c] block">Projects</span>

@@ -436,7 +436,7 @@ export default function DashboardHome() {
             <Card hoverable className="relative group">
               <CardBody className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold tracking-wider uppercase text-[#88909c] font-mono">Hypervisor Nodes</span>
+                  <span className="text-[11px] font-semibold tracking-wider uppercase text-[#88909c] font-mono">Nodes</span>
                   <Badge status="online" label={`${onlineNodesCount} Active`} showPulse />
                 </div>
 
@@ -580,7 +580,7 @@ export default function DashboardHome() {
                     <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
                     <line x1="12" y1="22.08" x2="12" y2="12"></line>
                   </svg>
-                  <CardTitle>Deployed Core Microservices</CardTitle>
+                  <CardTitle>Services</CardTitle>
                 </div>
                 <span className="text-xs text-[#88909c] font-mono">{services.length} registered</span>
               </CardHeader>
